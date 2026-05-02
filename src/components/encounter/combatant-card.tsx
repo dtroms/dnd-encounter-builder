@@ -53,7 +53,7 @@ export function CombatantCard({
   const legendaryActions = combatant.legendaryActions ?? [];
   return (
     <article
-      className={`relative overflow-visible rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
+      className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
         isBoss ? "border-amber-300/35" : groupRowStyle.border
       } ${
         active ? `ring-2 ${style.ring}` : ""
@@ -147,11 +147,13 @@ export function CombatantCard({
             onUpdateGroup={onUpdateGroup}
           />
         </div>
-        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
+        <div
+          className={`h-[calc(100%+0.75rem)] min-h-[calc(3.5rem+0.75rem)] w-full rounded-r-xl ${groupColorClass ?? style.dot}`}
+        />
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-2 mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
+        <section className="ml-[5rem] mr-[5.1rem] mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
           <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
             Legendary Actions
           </h4>
