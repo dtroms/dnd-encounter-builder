@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type {
+  CombatantCondition,
   CreatureTemplate,
   Encounter,
   EncounterCombatant,
@@ -137,6 +138,22 @@ export function EncounterApp() {
     updateCombatant(combatantId, (combatant) => ({ ...combatant, ...updates }));
   }
 
+  function toggleCondition(
+    combatantId: string,
+    condition: CombatantCondition,
+  ) {
+    updateCombatant(combatantId, (combatant) => {
+      const hasCondition = combatant.conditions.includes(condition);
+
+      return {
+        ...combatant,
+        conditions: hasCondition
+          ? combatant.conditions.filter((item) => item !== condition)
+          : [...combatant.conditions, condition],
+      };
+    });
+  }
+
   function launchRunner() {
     setEncounter((current) => ({
       ...current,
@@ -251,6 +268,7 @@ export function EncounterApp() {
               manualInitiative: true,
             }))
           }
+          onToggleCondition={toggleCondition}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}
           onRemove={removeCombatant}

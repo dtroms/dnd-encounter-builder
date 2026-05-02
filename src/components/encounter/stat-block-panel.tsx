@@ -1,5 +1,6 @@
 import type {
   AbilityScores,
+  CombatantCondition,
   EncounterCombatant,
   StatBlockAction,
   StatBlockTrait,
@@ -10,9 +11,32 @@ import { TypeBadge } from "./type-badge";
 
 type StatBlockPanelProps = {
   combatant: EncounterCombatant | null;
+  onToggleCondition: (condition: CombatantCondition) => void;
 };
 
-export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
+const conditionOptions: CombatantCondition[] = [
+  "blinded",
+  "charmed",
+  "deafened",
+  "frightened",
+  "grappled",
+  "incapacitated",
+  "invisible",
+  "paralyzed",
+  "petrified",
+  "poisoned",
+  "prone",
+  "restrained",
+  "stunned",
+  "unconscious",
+  "concentrating",
+  "hidden",
+];
+
+export function StatBlockPanel({
+  combatant,
+  onToggleCondition,
+}: StatBlockPanelProps) {
   if (!combatant) {
     return (
       <EmptyState
@@ -60,10 +84,40 @@ export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
         </p>
       </div>
 
-      <section className="mt-3">
-        <h3 className="panel-heading">Conditions</h3>
-        <div className="mt-1.5">
-          <ConditionBadges conditions={combatant.conditions} />
+      <section className="mt-3 rounded-lg border border-slate-800 bg-slate-900/60 p-2">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="panel-heading">Condition Tracker</h3>
+          <span className="text-[11px] font-bold text-slate-500">
+            {combatant.conditions.length} active
+          </span>
+        </div>
+
+        <div className="mt-2 rounded-md bg-slate-950/80 p-2">
+          <ConditionBadges
+            conditions={combatant.conditions}
+            emptyLabel="No active conditions"
+          />
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-3">
+          {conditionOptions.map((condition) => {
+            const active = combatant.conditions.includes(condition);
+
+            return (
+              <button
+                className={`h-7 rounded-md border px-1.5 text-[11px] font-bold capitalize transition ${
+                  active
+                    ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                    : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-500 hover:text-white"
+                }`}
+                key={condition}
+                type="button"
+                onClick={() => onToggleCondition(condition)}
+              >
+                {condition}
+              </button>
+            );
+          })}
         </div>
       </section>
 

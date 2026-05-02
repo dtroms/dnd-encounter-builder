@@ -2,11 +2,15 @@ import type { CombatantCondition } from "@/lib/encounter/types";
 
 export function ConditionBadges({
   conditions,
+  emptyLabel,
 }: {
   conditions: CombatantCondition[];
+  emptyLabel?: string;
 }) {
   if (conditions.length === 0) {
-    return <span className="text-xs font-medium text-slate-500">Clear</span>;
+    return emptyLabel ? (
+      <span className="text-xs font-medium text-slate-500">{emptyLabel}</span>
+    ) : null;
   }
 
   return (

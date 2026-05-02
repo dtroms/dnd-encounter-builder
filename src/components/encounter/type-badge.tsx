@@ -6,9 +6,9 @@ export function TypeBadge({ type }: { type: CombatantType }) {
 
   return (
     <span
-      className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2 text-[11px] font-bold uppercase tracking-wide ${style.border} ${style.bg} ${style.text}`}
+      className={`inline-flex h-5 items-center gap-1 rounded-full border px-1.5 text-[10px] font-bold uppercase tracking-wide ${style.border} ${style.bg} ${style.text}`}
     >
-      <span className={`h-2 w-2 rounded-full ${style.dot}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
       {style.label}
     </span>
   );

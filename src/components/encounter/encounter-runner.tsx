@@ -1,6 +1,10 @@
 "use client";
 
-import type { CreatureTemplate, EncounterCombatant } from "@/lib/encounter/types";
+import type {
+  CombatantCondition,
+  CreatureTemplate,
+  EncounterCombatant,
+} from "@/lib/encounter/types";
 import { AddCombatantPanel } from "./add-combatant-panel";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
 import { RunnerToolbar } from "./runner-toolbar";
@@ -23,6 +27,10 @@ type EncounterRunnerProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
+  onToggleCondition: (
+    combatantId: string,
+    condition: CombatantCondition,
+  ) => void;
   onRollEligible: () => void;
   onSort: () => void;
   onNextTurn: () => void;
@@ -47,6 +55,7 @@ export function EncounterRunner({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onToggleCondition,
   onRollEligible,
   onSort,
   onNextTurn,
@@ -80,7 +89,7 @@ export function EncounterRunner({
         <AddCombatantPanel compact templates={templates} onAdd={onAdd} />
       ) : null}
 
-      <div className="grid gap-2.5 xl:grid-cols-[10rem_minmax(0,1fr)_21rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[10rem_minmax(0,1fr)_24rem]">
         <UtilityRail
           addPanelOpen={addPanelOpen}
           filter={runnerFilter}
@@ -101,7 +110,14 @@ export function EncounterRunner({
             onSelect={onSelect}
           />
         </main>
-        <StatBlockPanel combatant={selectedCombatant} />
+        <StatBlockPanel
+          combatant={selectedCombatant}
+          onToggleCondition={(condition) => {
+            if (selectedCombatant) {
+              onToggleCondition(selectedCombatant.combatantId, condition);
+            }
+          }}
+        />
       </div>
     </div>
   );

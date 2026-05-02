@@ -20,7 +20,7 @@ export function HpControls({
   const hpPercent = getHpPercent(currentHp, maxHp);
 
   return (
-    <div className="grid min-w-48 gap-1.5">
+    <div className="grid min-w-40 gap-1">
       <div className="flex items-center gap-1.5">
         <input
           aria-label="HP amount"
