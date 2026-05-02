@@ -268,7 +268,7 @@ function SyntheticInitiativeBox({
       </span>
       <input
         aria-label="Lair action initiative"
-        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-2xl font-black leading-none tabular-nums text-white outline-none focus:text-amber-100"
+        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-3xl font-[1000] leading-none tabular-nums text-white outline-none focus:text-amber-100"
         inputMode="numeric"
         type="text"
         value={draft}
@@ -314,7 +314,7 @@ function EditableSyntheticName({
       <input
         aria-label="Edit lair action row name"
         autoFocus
-        className="h-7 w-full rounded-md border border-amber-300/50 bg-slate-950/85 px-1.5 text-base font-black text-amber-100 outline-none focus:border-amber-300"
+        className="h-8 w-full rounded-md border border-amber-300/50 bg-slate-950/85 px-1.5 text-xl font-[1000] leading-6 text-amber-100 outline-none focus:border-amber-300"
         value={draft}
         onBlur={saveName}
         onChange={(event) => setDraft(event.target.value)}
@@ -337,7 +337,7 @@ function EditableSyntheticName({
 
   return (
     <button
-      className="block max-w-full rounded-md text-left text-lg font-black leading-6 text-amber-100 outline-none transition hover:text-amber-50 focus-visible:ring-2 focus-visible:ring-amber-300/50"
+      className="block max-w-full rounded-md text-left text-xl font-[1000] leading-6 text-amber-100 outline-none transition hover:text-amber-50 focus-visible:ring-2 focus-visible:ring-amber-300/50"
       title="Click to rename"
       type="button"
       onClick={(event) => {
