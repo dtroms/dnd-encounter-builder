@@ -87,36 +87,32 @@ export function CombatantCard({
             />
           </div>
 
-          <div className="mt-1 grid grid-cols-[auto_auto_minmax(14rem,auto)_minmax(1rem,1fr)_7rem] items-center gap-2">
+          <div className="mt-1 grid grid-cols-[auto_auto_minmax(15rem,auto)_minmax(1rem,1fr)_7rem] items-center gap-2">
             <div className="flex items-center">
               <TypeBadge type={combatant.type} />
             </div>
 
-            <div className="cursor-pointer text-left">
-              <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+            <div className="inline-flex cursor-pointer items-baseline gap-1.5 text-left">
+              <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
                 AC
               </span>
-              <strong className="text-2xl font-black text-white">
+              <strong className="text-xl font-black leading-none text-white">
                 {combatant.armorClass}
               </strong>
             </div>
 
-            <div className="grid grid-cols-[8.25rem_1fr] items-center gap-1">
-              <div className="cursor-pointer text-left">
-                <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+            <div className="grid grid-cols-[minmax(8.75rem,auto)_1fr] items-center gap-1.5">
+              <div className="flex min-w-0 cursor-pointer flex-wrap items-center gap-1.5 text-left">
+                <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
                   HP
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <strong className="text-lg font-black text-white">
+                <strong className="text-lg font-black leading-none text-white">
                     {combatant.currentHp}/{combatant.maxHp}
-                  </strong>
-                  <span className="text-xs font-bold text-slate-500">
-                    {hpPercent}%
-                  </span>
-                </div>
-                <div className="mt-0.5">
-                  <StatusBadge status={status} />
-                </div>
+                </strong>
+                <span className="text-xs font-bold text-slate-500">
+                  {hpPercent}%
+                </span>
+                <StatusBadge status={status} />
               </div>
               <div onClick={(event) => event.stopPropagation()}>
                 <HpControls
