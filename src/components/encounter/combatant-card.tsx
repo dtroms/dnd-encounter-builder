@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { EncounterCombatant } from "@/lib/encounter/types";
 import {
   getCombatGroupColorClass,
@@ -50,7 +51,6 @@ export function CombatantCard({
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
-
   return (
     <article
       className={`relative overflow-visible rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
@@ -65,24 +65,13 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_0.6rem_4.25rem]">
-        <div
-          className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <input
-            aria-label={`${combatant.displayName} initiative`}
-            className="h-12 w-full rounded-md border border-slate-700 bg-slate-950 px-1 text-center text-3xl font-black leading-none tabular-nums text-white outline-none focus:border-cyan-300"
-            type="number"
-            value={combatant.initiative ?? ""}
-            onChange={(event) =>
-              onInitiativeChange(
-                event.target.value === "" ? null : Number(event.target.value),
-              )
-            }
-            onClick={(event) => event.stopPropagation()}
-          />
-        </div>
+      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_4.25rem_0.6rem]">
+        <InitiativeBox
+          key={`${combatant.combatantId}-${combatant.initiative ?? "unset"}`}
+          combatantName={combatant.displayName}
+          initiative={combatant.initiative}
+          onInitiativeChange={onInitiativeChange}
+        />
 
         <div className="min-w-0 cursor-pointer text-left">
           <h3 className="truncate text-base font-black text-white">
@@ -137,7 +126,6 @@ export function CombatantCard({
           </div>
         </div>
 
-        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
         <div
           className="grid grid-cols-[2rem_2rem] items-center justify-end"
           onClick={(event) => event.stopPropagation()}
@@ -159,10 +147,11 @@ export function CombatantCard({
             onUpdateGroup={onUpdateGroup}
           />
         </div>
+        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-10 mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
+        <section className="ml-[5rem] mr-2 mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
           <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
             Legendary Actions
           </h4>
@@ -184,5 +173,47 @@ export function CombatantCard({
         </section>
       ) : null}
     </article>
+  );
+}
+
+function InitiativeBox({
+  combatantName,
+  initiative,
+  onInitiativeChange,
+}: {
+  combatantName: string;
+  initiative: number | null;
+  onInitiativeChange: (initiative: number | null) => void;
+}) {
+  const [draft, setDraft] = useState(initiative === null ? "" : String(initiative));
+
+  function commitInitiative() {
+    const trimmed = draft.trim();
+    onInitiativeChange(trimmed === "" ? null : Number(trimmed));
+  }
+
+  return (
+    <div
+      className="rounded-lg border border-slate-700 bg-slate-950/80 px-1 py-1.5 text-center"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+        Init
+      </span>
+      <input
+        aria-label={`${combatantName} initiative`}
+        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-3xl font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
+        type="number"
+        value={draft}
+        onBlur={commitInitiative}
+        onChange={(event) => setDraft(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </div>
   );
 }

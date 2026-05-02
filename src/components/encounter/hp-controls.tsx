@@ -32,7 +32,7 @@ export function HpControls({
         </button>
         <input
           aria-label="HP change amount"
-          className="h-8 w-full bg-slate-950 px-1 text-center text-sm font-black text-white outline-none focus:bg-slate-900"
+          className="no-spinner h-8 w-full bg-slate-950 px-1 text-center text-sm font-black text-white outline-none focus:bg-slate-900"
           min={0}
           type="number"
           value={amount}
