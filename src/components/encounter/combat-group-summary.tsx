@@ -18,6 +18,10 @@ type CombatGroupSummaryProps = {
   }) => void;
   onClearGroup: (group: { label: string; color?: string }) => void;
   onRollGroupInitiative: (group: { label: string; color?: string }) => void;
+  onRollSharedGroupInitiative: (group: {
+    label: string;
+    color?: string;
+  }) => void;
 };
 
 export function CombatGroupSummary({
@@ -27,6 +31,7 @@ export function CombatGroupSummary({
   onRenameGroup,
   onClearGroup,
   onRollGroupInitiative,
+  onRollSharedGroupInitiative,
 }: CombatGroupSummaryProps) {
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("Red");
@@ -59,7 +64,7 @@ export function CombatGroupSummary({
 
           return (
             <div
-              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
+              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
               key={group.id}
             >
               <label className="flex min-w-0 items-center gap-1.5">
@@ -110,6 +115,19 @@ export function CombatGroupSummary({
                 }
               >
                 Roll Init
+              </button>
+              <button
+                className="h-7 rounded-md border border-amber-600/70 px-1.5 text-[10px] font-black text-amber-200 transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-white"
+                type="button"
+                title={`Roll eligible members of ${group.name}, average the results, and apply one shared initiative`}
+                onClick={() =>
+                  onRollSharedGroupInitiative({
+                    label: group.name,
+                    color: group.color,
+                  })
+                }
+              >
+                Shared Init
               </button>
               <button
                 className="h-7 rounded-md border border-slate-700 px-1.5 text-[10px] font-black text-slate-400 hover:border-rose-400 hover:text-rose-200"

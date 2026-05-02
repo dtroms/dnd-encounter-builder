@@ -75,6 +75,62 @@ export function rollEligibleInitiativesForGroup(
   });
 }
 
+function combatantMatchesGroup(
+  combatant: EncounterCombatant,
+  group: { label: string; color?: string },
+): boolean {
+  const combatantLabel =
+    combatant.combatGroupLabel ||
+    combatant.combatGroupColor ||
+    "Ungrouped";
+
+  return (
+    combatantLabel === group.label &&
+    (combatant.combatGroupColor || "None") === (group.color || "None")
+  );
+}
+
+function canAutoRollInitiative(combatant: EncounterCombatant): boolean {
+  return combatant.autoRollEligible && combatant.type !== "pc";
+}
+
+export function rollSharedInitiativeForGroup(
+  combatants: EncounterCombatant[],
+  group: { label: string; color?: string },
+): EncounterCombatant[] {
+  const rolledValues = combatants
+    .filter(
+      (combatant) =>
+        combatantMatchesGroup(combatant, group) &&
+        canAutoRollInitiative(combatant),
+    )
+    .map((combatant) => rollInitiative(combatant.initiativeBonus));
+
+  if (rolledValues.length === 0) {
+    return combatants;
+  }
+
+  const sharedInitiative = Math.round(
+    rolledValues.reduce((total, value) => total + value, 0) /
+      rolledValues.length,
+  );
+
+  return combatants.map((combatant) => {
+    if (
+      !combatantMatchesGroup(combatant, group) ||
+      !canAutoRollInitiative(combatant)
+    ) {
+      return combatant;
+    }
+
+    return {
+      ...combatant,
+      initiative: sharedInitiative,
+      manualInitiative: false,
+    };
+  });
+}
+
 export function sortCombatantsByInitiative(
   combatants: EncounterCombatant[],
 ): EncounterCombatant[] {
