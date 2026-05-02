@@ -6,11 +6,15 @@ This repository is for a D&D Encounter Builder and Initiative Tracker web app.
 
 Do not reference, modify, import from, or copy assumptions from ShowOps, Kordant, Clean Signal, or any unrelated dashboard app.
 
+## User Context
+
+The project owner is not a coder. They are a gamer with a product idea. Handle setup, implementation, validation, and local preview steps clearly.
+
 ## Product Goal
 
 Build a clean, table-friendly web app that helps a Dungeon Master:
 - build an encounter
-- add monsters, NPCs, player characters, summons, and bosses
+- add monsters, NPCs, player characters, summons, neutral creatures, and bosses
 - run initiative
 - track AC and HP
 - apply damage and healing quickly
@@ -52,3 +56,4 @@ After making code changes:
 - Run npm run build
 - Fix all TypeScript, lint, and build errors
 - Summarize changed files
+- Start or explain how to start the local preview
