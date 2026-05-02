@@ -149,9 +149,11 @@ function LairActionRow({
 
   return (
     <button
-      className={`relative rounded-xl border border-amber-400/30 bg-amber-400/10 py-1.5 pl-2 pr-4 text-left shadow-sm transition ${
-        active ? "ring-2 ring-amber-300/50" : ""
-      } ${selected ? "outline outline-2 outline-cyan-300/70" : ""}`}
+      className={`relative rounded-xl border border-amber-400/30 bg-amber-400/10 py-1.5 pl-2 pr-4 text-left shadow-sm transition-all duration-200 ease-out ${
+        active
+          ? "z-20 -my-1.5 scale-[1.02] border-amber-200/75 shadow-[0_18px_36px_rgba(69,26,3,0.58)] ring-2 ring-amber-300/55"
+          : "z-0"
+      } ${selected ? "outline outline-1 outline-cyan-300/55" : ""}`}
       type="button"
       onClick={onSelect}
     >

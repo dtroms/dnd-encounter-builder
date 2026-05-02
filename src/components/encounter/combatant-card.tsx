@@ -54,17 +54,19 @@ export function CombatantCard({
   const legendaryActions = combatant.legendaryActions ?? [];
   return (
     <article
-      className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
+      className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition-all duration-200 ease-out ${groupRowStyle.rowTint} ${
         isBoss ? `${groupRowStyle.border} shadow-amber-950/10` : groupRowStyle.border
       } ${
-        active ? `ring-2 ${style.ring}` : ""
-      } ${selected ? "outline outline-2 outline-cyan-300/70" : ""} ${
+        active
+          ? `z-20 -my-1.5 scale-[1.02] border-cyan-200/75 shadow-[0_18px_36px_rgba(8,47,73,0.62)] ring-2 ${style.ring}`
+          : "z-0"
+      } ${selected ? "outline outline-1 outline-cyan-300/55" : ""} ${
         down ? "opacity-60 grayscale" : ""
       }`}
       onClick={onSelect}
     >
       {active ? (
-        <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
+        <div className="absolute inset-y-0 left-0 w-2 rounded-l-xl bg-cyan-300" />
       ) : null}
       <div
         className={`absolute inset-y-0 right-0 w-2.5 rounded-r-xl ${groupColorClass ?? style.dot}`}
