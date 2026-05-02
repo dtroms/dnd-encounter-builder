@@ -104,7 +104,7 @@ function LairActionRow({
 }) {
   return (
     <button
-      className={`relative grid items-center gap-1 rounded-xl border border-amber-400/30 bg-amber-400/10 py-1.5 pl-2 pr-0 text-left shadow-sm transition xl:grid-cols-[4.5rem_minmax(10rem,1fr)_auto_0.6rem] ${
+      className={`relative grid grid-cols-[4.5rem_minmax(10rem,1fr)_auto] items-center gap-1 rounded-xl border border-amber-400/30 bg-amber-400/10 py-1.5 pl-2 pr-4 text-left shadow-sm transition ${
         active ? "ring-2 ring-amber-300/50" : ""
       } ${selected ? "outline outline-2 outline-cyan-300/70" : ""}`}
       type="button"
@@ -133,7 +133,7 @@ function LairActionRow({
       <span className="pr-2 text-xs font-bold text-slate-400">
         Select owner
       </span>
-      <div className="h-[calc(100%+0.75rem)] min-h-[calc(3.5rem+0.75rem)] w-full rounded-r-xl bg-amber-300" />
+      <div className="absolute inset-y-0 right-0 w-2.5 rounded-r-xl bg-amber-300" />
     </button>
   );
 }

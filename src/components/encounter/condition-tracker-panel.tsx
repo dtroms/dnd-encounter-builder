@@ -3,7 +3,6 @@ import type {
   EncounterCombatant,
 } from "@/lib/encounter/types";
 import { getHpStatus } from "@/lib/encounter/hp";
-import { CombatGroupPicker } from "./combat-group-picker";
 import { EmptyState } from "./empty-state";
 import { StatusBadge } from "./status-badge";
 import { TypeBadge } from "./type-badge";
@@ -30,16 +29,11 @@ const conditionOptions: CombatantCondition[] = [
 type ConditionTrackerPanelProps = {
   combatant: EncounterCombatant | null;
   onToggleCondition: (condition: CombatantCondition) => void;
-  onUpdateGroup: (updates: {
-    combatGroupLabel?: string;
-    combatGroupColor?: string;
-  }) => void;
 };
 
 export function ConditionTrackerPanel({
   combatant,
   onToggleCondition,
-  onUpdateGroup,
 }: ConditionTrackerPanelProps) {
   if (!combatant) {
     return (
@@ -73,35 +67,6 @@ export function ConditionTrackerPanel({
           />
         </div>
       </div>
-
-      <section className="mt-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="panel-heading">Combat Group</h3>
-          <span className="text-[11px] font-bold text-slate-500">
-            live marker
-          </span>
-        </div>
-        <div className="mt-1.5 rounded-lg border border-slate-800 bg-slate-900/70 p-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-white">
-                {combatant.combatGroupLabel || "No Group"}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                {combatant.combatGroupColor &&
-                combatant.combatGroupColor !== "None"
-                  ? `${combatant.combatGroupColor} accent`
-                  : "Using type color fallback"}
-              </p>
-            </div>
-            <CombatGroupPicker
-              combatant={combatant}
-              compact
-              onUpdateGroup={onUpdateGroup}
-            />
-          </div>
-        </div>
-      </section>
 
       <section className="mt-2.5">
         <div className="flex items-center justify-between gap-2">

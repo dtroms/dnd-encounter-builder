@@ -113,11 +113,6 @@ export function EncounterRunner({
                 onToggleCondition(selectedCombatant.combatantId, condition);
               }
             }}
-            onUpdateGroup={(updates) => {
-              if (selectedCombatant) {
-                onUpdateGroup(selectedCombatant.combatantId, updates);
-              }
-            }}
           />
           <CombatGroupSummary
             combatants={combatants}

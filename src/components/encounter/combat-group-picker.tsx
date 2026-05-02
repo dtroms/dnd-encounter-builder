@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EncounterCombatant } from "@/lib/encounter/types";
 import {
   combatGroupOptions,
@@ -24,6 +24,7 @@ export function CombatGroupPicker({
   onUpdateGroup,
 }: CombatGroupPickerProps) {
   const [open, setOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [customLabel, setCustomLabel] = useState(
     combatant.combatGroupLabel ?? "",
   );
@@ -34,8 +35,37 @@ export function CombatGroupPicker({
       ? combatant.combatGroupLabel || combatant.combatGroupColor
       : "No Group";
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={pickerRef}>
       <button
         aria-label={`Change combat group for ${combatant.displayName}`}
         title="Change combat group"

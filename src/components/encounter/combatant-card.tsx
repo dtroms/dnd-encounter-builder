@@ -65,7 +65,10 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_4.25rem_0.6rem]">
+      <div
+        className={`absolute inset-y-0 right-0 w-2.5 rounded-r-xl ${groupColorClass ?? style.dot}`}
+      />
+      <div className="grid grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_4.25rem] items-center gap-1 pr-3">
         <InitiativeBox
           key={`${combatant.combatantId}-${combatant.initiative ?? "unset"}`}
           combatantName={combatant.displayName}
@@ -147,13 +150,10 @@ export function CombatantCard({
             onUpdateGroup={onUpdateGroup}
           />
         </div>
-        <div
-          className={`h-[calc(100%+0.75rem)] min-h-[calc(3.5rem+0.75rem)] w-full rounded-r-xl ${groupColorClass ?? style.dot}`}
-        />
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-[5.1rem] mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
+        <section className="ml-[5rem] mr-[5.85rem] mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
           <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
             Legendary Actions
           </h4>
