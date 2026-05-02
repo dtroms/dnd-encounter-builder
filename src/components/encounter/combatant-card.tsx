@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { EncounterCombatant } from "@/lib/encounter/types";
+import type { CombatGroup, EncounterCombatant } from "@/lib/encounter/types";
 import type { StatBlockAction } from "@/lib/encounter/types";
 import {
   getCombatGroupColorClass,
@@ -16,6 +16,7 @@ import { TypeBadge } from "./type-badge";
 
 type CombatantCardProps = {
   combatant: EncounterCombatant;
+  combatGroups: CombatGroup[];
   active: boolean;
   selected: boolean;
   onSelect: () => void;
@@ -32,6 +33,7 @@ type CombatantCardProps = {
 
 export function CombatantCard({
   combatant,
+  combatGroups,
   active,
   selected,
   onSelect,
@@ -67,7 +69,7 @@ export function CombatantCard({
       <div
         className={`absolute inset-y-0 right-0 w-2.5 rounded-r-xl ${groupColorClass ?? style.dot}`}
       />
-      <div className="grid grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_4.25rem] items-center gap-1 pr-3">
+      <div className="grid grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_15.25rem_minmax(1rem,1fr)_7rem] items-center gap-2 pr-4">
         <InitiativeBox
           key={`${combatant.combatantId}-${combatant.initiative ?? "unset"}`}
           combatantName={combatant.displayName}
@@ -121,26 +123,29 @@ export function CombatantCard({
           </div>
         </div>
 
+        <div aria-hidden="true" className="min-w-0" />
+
         <div
-          className="grid grid-cols-[2rem_2rem] items-center justify-end"
+          className="grid grid-cols-[2rem_4.5rem] items-center justify-end gap-1"
           onClick={(event) => event.stopPropagation()}
         >
+          <CombatGroupPicker
+            combatant={combatant}
+            groups={combatGroups}
+            variant="menu"
+            onUpdateGroup={onUpdateGroup}
+          />
           <button
             aria-label={`Remove ${combatant.displayName}`}
-            className="h-9 w-8 rounded-l-lg border border-slate-700 bg-slate-950/75 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+            className="h-9 rounded-lg border border-slate-700 bg-slate-950/75 px-2 text-[11px] font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onRemove();
             }}
           >
-            X
+            Remove
           </button>
-          <CombatGroupPicker
-            combatant={combatant}
-            variant="menu"
-            onUpdateGroup={onUpdateGroup}
-          />
         </div>
       </div>
 

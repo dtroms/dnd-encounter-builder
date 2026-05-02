@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { EncounterCombatant } from "@/lib/encounter/types";
-import {
-  combatGroupOptions,
-  getCombatGroupColorClass,
-} from "@/lib/encounter/colors";
+import type { CombatGroup, EncounterCombatant } from "@/lib/encounter/types";
+import { getCombatGroupColorClass } from "@/lib/encounter/colors";
 
 type CombatGroupPickerProps = {
   combatant: EncounterCombatant;
   compact?: boolean;
+  groups: CombatGroup[];
   variant?: "chip" | "menu";
   onUpdateGroup: (updates: {
     combatGroupLabel?: string;
@@ -20,14 +18,12 @@ type CombatGroupPickerProps = {
 export function CombatGroupPicker({
   combatant,
   compact = false,
+  groups,
   variant = "chip",
   onUpdateGroup,
 }: CombatGroupPickerProps) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
-  const [customLabel, setCustomLabel] = useState(
-    combatant.combatGroupLabel ?? "",
-  );
   const colorClass =
     getCombatGroupColorClass(combatant.combatGroupColor) ?? "bg-slate-600";
   const label =
@@ -108,59 +104,47 @@ export function CombatGroupPicker({
             Combat Group
           </p>
           <div className="mt-1 grid gap-1">
-            {combatGroupOptions.map((option) => (
+            <button
+              className="flex h-8 items-center gap-2 rounded-lg px-2 text-left text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white"
+              type="button"
+              onClick={() => {
+                onUpdateGroup({
+                  combatGroupLabel: "",
+                  combatGroupColor: "None",
+                });
+                setOpen(false);
+              }}
+            >
+              <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+              Ungrouped / No Group
+            </button>
+            {groups.map((group) => (
               <button
                 className="flex h-8 items-center gap-2 rounded-lg px-2 text-left text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white"
-                key={`${option.label}-${option.color}`}
+                key={group.id}
                 type="button"
                 onClick={() => {
-                  if (option.color === "None") {
-                    onUpdateGroup({
-                      combatGroupLabel: "",
-                      combatGroupColor: "None",
-                    });
-                    setCustomLabel("");
-                  } else {
-                    onUpdateGroup({
-                      combatGroupLabel: option.label,
-                      combatGroupColor: option.color,
-                    });
-                    setCustomLabel(option.label);
-                  }
+                  onUpdateGroup({
+                    combatGroupLabel: group.name,
+                    combatGroupColor: group.color,
+                  });
                   setOpen(false);
                 }}
               >
-                <span className={`h-2.5 w-2.5 rounded-full ${option.className}`} />
-                {option.label}
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    getCombatGroupColorClass(group.color) ?? "bg-slate-500"
+                  }`}
+                />
+                <span className="truncate">{group.name}</span>
               </button>
             ))}
           </div>
-          <label className="mt-2 grid gap-1 px-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-            Custom Label
-            <input
-              className="h-8 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
-              placeholder="e.g. Balcony Squad"
-              value={customLabel}
-              onChange={(event) => setCustomLabel(event.target.value)}
-            />
-          </label>
-          <button
-            className="mt-2 h-8 w-full rounded-lg bg-cyan-300 px-2 text-xs font-black text-slate-950"
-            type="button"
-            onClick={() => {
-              onUpdateGroup({
-                combatGroupLabel: customLabel,
-                combatGroupColor:
-                  combatant.combatGroupColor &&
-                  combatant.combatGroupColor !== "None"
-                    ? combatant.combatGroupColor
-                    : "Gray",
-              });
-              setOpen(false);
-            }}
-          >
-            Apply Label
-          </button>
+          {groups.length === 0 ? (
+            <p className="mt-2 rounded-lg border border-dashed border-slate-700 px-2 py-2 text-xs leading-5 text-slate-500">
+              Create groups in the Combat Groups card.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

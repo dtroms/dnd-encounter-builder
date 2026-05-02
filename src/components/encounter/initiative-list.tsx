@@ -1,11 +1,13 @@
 "use client";
 
-import type { EncounterCombatant } from "@/lib/encounter/types";
+import { useState } from "react";
+import type { CombatGroup, EncounterCombatant } from "@/lib/encounter/types";
 import type { StatBlockAction } from "@/lib/encounter/types";
 import { getHpStatus } from "@/lib/encounter/hp";
 import {
   getInitiativeEntries,
   sortInitiativeEntries,
+  type SyntheticInitiativeOverrides,
 } from "@/lib/encounter/initiative";
 import { CombatantCard } from "./combatant-card";
 import { EmptyState } from "./empty-state";
@@ -15,15 +17,22 @@ export type RunnerFilter = "all" | "alive" | "enemies" | "pcs";
 
 type InitiativeListProps = {
   combatants: EncounterCombatant[];
+  combatGroups: CombatGroup[];
   filter: RunnerFilter;
   activeCombatantId: string | null;
-  selectedCombatantId: string | null;
-  onSelect: (combatantId: string) => void;
+  selectedEntryId: string | null;
+  syntheticEntryOverrides: SyntheticInitiativeOverrides;
+  onSelectEntry: (entryId: string, sourceCombatantId: string | null) => void;
   onRemove: (combatantId: string) => void;
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
   onNameChange: (combatantId: string, name: string) => void;
+  onSyntheticEntryNameChange: (entryId: string, name: string) => void;
+  onSyntheticEntryInitiativeChange: (
+    entryId: string,
+    initiative: number | null,
+  ) => void;
   onUpdateGroup: (
     combatantId: string,
     updates: { combatGroupLabel?: string; combatGroupColor?: string },
@@ -32,15 +41,19 @@ type InitiativeListProps = {
 
 export function InitiativeList({
   combatants,
+  combatGroups,
   filter,
   activeCombatantId,
-  selectedCombatantId,
-  onSelect,
+  selectedEntryId,
+  syntheticEntryOverrides,
+  onSelectEntry,
   onRemove,
   onDamage,
   onHealing,
   onInitiativeChange,
   onNameChange,
+  onSyntheticEntryNameChange,
+  onSyntheticEntryInitiativeChange,
   onUpdateGroup,
 }: InitiativeListProps) {
   const filteredCombatants = combatants.filter((combatant) => {
@@ -49,7 +62,9 @@ export function InitiativeList({
     if (filter === "pcs") return combatant.type === "pc";
     return true;
   });
-  const ordered = sortInitiativeEntries(getInitiativeEntries(filteredCombatants));
+  const ordered = sortInitiativeEntries(
+    getInitiativeEntries(filteredCombatants, syntheticEntryOverrides),
+  );
 
   if (ordered.length === 0) {
     return (
@@ -66,19 +81,26 @@ export function InitiativeList({
         entry.kind === "lair" ? (
           <LairActionRow
             active={entry.id === activeCombatantId}
+            initiative={entry.initiative}
             key={entry.id}
+            name={entry.displayName}
             owners={entry.combatants}
-            selected={entry.combatants.some(
-              (combatant) => combatant.combatantId === selectedCombatantId,
-            )}
-            onSelect={() => onSelect(entry.combatants[0]?.combatantId ?? "")}
+            selected={entry.id === selectedEntryId}
+            onInitiativeChange={(initiative) =>
+              onSyntheticEntryInitiativeChange(entry.id, initiative)
+            }
+            onNameChange={(name) => onSyntheticEntryNameChange(entry.id, name)}
+            onSelect={() =>
+              onSelectEntry(entry.id, entry.combatants[0]?.combatantId ?? null)
+            }
           />
         ) : (
           <CombatantCard
             active={entry.id === activeCombatantId}
             combatant={entry.combatant}
+            combatGroups={combatGroups}
             key={entry.id}
-            selected={entry.combatant.combatantId === selectedCombatantId}
+            selected={entry.id === selectedEntryId}
             onDamage={(amount) => onDamage(entry.combatant.combatantId, amount)}
             onHealing={(amount) => onHealing(entry.combatant.combatantId, amount)}
             onInitiativeChange={(initiative) =>
@@ -88,7 +110,9 @@ export function InitiativeList({
               onNameChange(entry.combatant.combatantId, name)
             }
             onRemove={() => onRemove(entry.combatant.combatantId)}
-            onSelect={() => onSelect(entry.combatant.combatantId)}
+            onSelect={() =>
+              onSelectEntry(entry.id, entry.combatant.combatantId)
+            }
             onUpdateGroup={(updates) =>
               onUpdateGroup(entry.combatant.combatantId, updates)
             }
@@ -100,24 +124,28 @@ export function InitiativeList({
 }
 
 function LairActionRow({
+  initiative,
+  name,
   owners,
   active,
   selected,
+  onInitiativeChange,
+  onNameChange,
   onSelect,
 }: {
+  initiative: number;
+  name: string;
   owners: EncounterCombatant[];
   active: boolean;
   selected: boolean;
+  onInitiativeChange: (initiative: number | null) => void;
+  onNameChange: (name: string) => void;
   onSelect: () => void;
 }) {
   const actionCount = owners.reduce(
     (count, owner) => count + (owner.lairActions?.length ?? 0),
     0,
   );
-  const title =
-    owners.length === 1
-      ? `${owners[0].displayName} - Lair Actions`
-      : "Lair Actions";
 
   return (
     <button
@@ -128,16 +156,18 @@ function LairActionRow({
       onClick={onSelect}
     >
       <div className="grid grid-cols-[4.5rem_minmax(10rem,1fr)_auto] items-center gap-1">
-        <div className="rounded-lg border border-amber-300/40 bg-slate-950/80 px-1 py-2 text-center">
-          <span className="block text-[10px] font-black uppercase tracking-wide text-amber-200">
-            Init
-          </span>
-          <strong className="text-2xl font-black text-white">20</strong>
-        </div>
+        <SyntheticInitiativeBox
+          initiative={initiative}
+          onInitiativeChange={onInitiativeChange}
+        />
         <div className="min-w-0">
-          <p className="truncate text-base font-black text-amber-100">
-            {title}
-          </p>
+          <EditableSyntheticName
+            defaultName={owners.length === 1
+              ? `${owners[0].displayName} - Lair Actions`
+              : "Lair Actions"}
+            name={name}
+            onNameChange={onNameChange}
+          />
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {owners.length === 1 ? <TypeBadge type={owners[0].type} /> : null}
             <span className="rounded-full border border-amber-300/30 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-amber-100">
@@ -200,5 +230,112 @@ function ActionCardGrid({ actions }: { actions: StatBlockAction[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function SyntheticInitiativeBox({
+  initiative,
+  onInitiativeChange,
+}: {
+  initiative: number;
+  onInitiativeChange: (initiative: number | null) => void;
+}) {
+  const [draft, setDraft] = useState(String(initiative));
+
+  function commitInitiative() {
+    const trimmed = draft.trim();
+    onInitiativeChange(trimmed === "" ? null : Number(trimmed));
+  }
+
+  return (
+    <div
+      className="rounded-lg border border-amber-300/40 bg-slate-950/80 px-1 py-2 text-center"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <span className="block text-[10px] font-black uppercase tracking-wide text-amber-200">
+        Init
+      </span>
+      <input
+        aria-label="Lair action initiative"
+        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-2xl font-black leading-none tabular-nums text-white outline-none focus:text-amber-100"
+        inputMode="numeric"
+        type="text"
+        value={draft}
+        onBlur={commitInitiative}
+        onChange={(event) =>
+          setDraft(event.target.value.replace(/[^\d-]/g, ""))
+        }
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function EditableSyntheticName({
+  name,
+  defaultName,
+  onNameChange,
+}: {
+  name: string;
+  defaultName: string;
+  onNameChange: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name || defaultName);
+
+  function saveName() {
+    const trimmed = draft.trim();
+    if (trimmed) {
+      onNameChange(trimmed);
+    } else {
+      setDraft(name || defaultName);
+    }
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        aria-label="Edit lair action row name"
+        autoFocus
+        className="h-7 w-full rounded-md border border-amber-300/50 bg-slate-950/85 px-1.5 text-base font-black text-amber-100 outline-none focus:border-amber-300"
+        value={draft}
+        onBlur={saveName}
+        onChange={(event) => setDraft(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+        onFocus={(event) => event.currentTarget.select()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setDraft(name || defaultName);
+            setEditing(false);
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      className="block max-w-full truncate rounded-md text-left text-base font-black text-amber-100 outline-none transition hover:text-amber-50 focus-visible:ring-2 focus-visible:ring-amber-300/50"
+      title="Click to rename"
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        setDraft(name || defaultName);
+        setEditing(true);
+      }}
+    >
+      {name || defaultName}
+    </button>
   );
 }

@@ -24,6 +24,12 @@ export type CombatantCondition =
   | "concentrating"
   | "hidden";
 
+export type CombatGroup = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 export type AbilityScores = {
   str: number;
   dex: number;

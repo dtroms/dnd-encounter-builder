@@ -1,5 +1,13 @@
 import type { EncounterCombatant } from "./types";
 
+export type SyntheticInitiativeOverrides = Record<
+  string,
+  {
+    displayName?: string;
+    initiative?: number | null;
+  }
+>;
+
 export type InitiativeEntry =
   | {
       id: string;
@@ -12,7 +20,7 @@ export type InitiativeEntry =
   | {
       id: "lair-actions";
       kind: "lair";
-      initiative: 20;
+      initiative: number;
       initiativeBonus: 0;
       displayName: string;
       combatants: EncounterCombatant[];
@@ -59,14 +67,15 @@ export function sortCombatantsByInitiative(
 
 export function getInitiativeEntries(
   combatants: EncounterCombatant[],
+  syntheticOverrides: SyntheticInitiativeOverrides = {},
 ): InitiativeEntry[] {
   const combatantEntries: InitiativeEntry[] = combatants.map((combatant) => ({
-      id: combatant.combatantId,
-      kind: "combatant",
-      initiative: combatant.initiative,
-      initiativeBonus: combatant.initiativeBonus,
-      displayName: combatant.displayName,
-      combatant,
+    id: combatant.combatantId,
+    kind: "combatant",
+    initiative: combatant.initiative,
+    initiativeBonus: combatant.initiativeBonus,
+    displayName: combatant.displayName,
+    combatant,
   }));
 
   const lairCombatants = combatants.filter(
@@ -82,9 +91,10 @@ export function getInitiativeEntries(
     {
       id: "lair-actions",
       kind: "lair",
-      initiative: 20,
+      initiative: syntheticOverrides["lair-actions"]?.initiative ?? 20,
       initiativeBonus: 0,
-      displayName: "Lair Actions",
+      displayName:
+        syntheticOverrides["lair-actions"]?.displayName ?? "Lair Actions",
       combatants: lairCombatants,
     },
   ];
@@ -118,12 +128,15 @@ export function advanceTurn(
   activeCombatantId: string | null,
   round: number,
   turnNumber = 0,
+  syntheticOverrides: SyntheticInitiativeOverrides = {},
 ): { activeCombatantId: string | null; round: number; turnNumber: number } {
   if (combatants.length === 0) {
     return { activeCombatantId: null, round, turnNumber: 0 };
   }
 
-  const ordered = sortInitiativeEntries(getInitiativeEntries(combatants));
+  const ordered = sortInitiativeEntries(
+    getInitiativeEntries(combatants, syntheticOverrides),
+  );
   const currentIndex = ordered.findIndex((entry) => entry.id === activeCombatantId);
   const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % ordered.length;
   const nextRound =
@@ -141,12 +154,15 @@ export function previousTurn(
   activeCombatantId: string | null,
   round: number,
   turnNumber = 0,
+  syntheticOverrides: SyntheticInitiativeOverrides = {},
 ): { activeCombatantId: string | null; round: number; turnNumber: number } {
   if (combatants.length === 0) {
     return { activeCombatantId: null, round, turnNumber: 0 };
   }
 
-  const ordered = sortInitiativeEntries(getInitiativeEntries(combatants));
+  const ordered = sortInitiativeEntries(
+    getInitiativeEntries(combatants, syntheticOverrides),
+  );
   const currentIndex = ordered.findIndex((entry) => entry.id === activeCombatantId);
   const previousIndex =
     currentIndex < 0

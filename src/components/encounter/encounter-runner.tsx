@@ -1,10 +1,12 @@
 "use client";
 
 import type {
+  CombatGroup,
   CombatantCondition,
   CreatureTemplate,
   EncounterCombatant,
 } from "@/lib/encounter/types";
+import type { SyntheticInitiativeOverrides } from "@/lib/encounter/initiative";
 import { AddCombatantPanel } from "./add-combatant-panel";
 import { CombatGroupSummary } from "./combat-group-summary";
 import { ConditionTrackerPanel } from "./condition-tracker-panel";
@@ -15,20 +17,28 @@ import { StatBlockPanel } from "./stat-block-panel";
 type EncounterRunnerProps = {
   encounterName: string;
   combatants: EncounterCombatant[];
+  combatGroups: CombatGroup[];
   templates: CreatureTemplate[];
   activeCombatantId: string | null;
   selectedCombatantId: string | null;
+  selectedEntryId: string | null;
+  syntheticEntryOverrides: SyntheticInitiativeOverrides;
   round: number;
   turnNumber: number;
   runnerFilter: RunnerFilter;
   addPanelOpen: boolean;
   onAdd: (template: CreatureTemplate, count: number) => void;
   onRemove: (combatantId: string) => void;
-  onSelect: (combatantId: string) => void;
+  onSelectEntry: (entryId: string, sourceCombatantId: string | null) => void;
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
   onNameChange: (combatantId: string, name: string) => void;
+  onSyntheticEntryNameChange: (entryId: string, name: string) => void;
+  onSyntheticEntryInitiativeChange: (
+    entryId: string,
+    initiative: number | null,
+  ) => void;
   onUpdateGroup: (
     combatantId: string,
     updates: { combatGroupLabel?: string; combatGroupColor?: string },
@@ -39,6 +49,7 @@ type EncounterRunnerProps = {
     newLabel: string;
   }) => void;
   onClearGroup: (group: { label: string; color?: string }) => void;
+  onCreateGroup: (group: { name: string; color: string }) => void;
   onToggleCondition: (
     combatantId: string,
     condition: CombatantCondition,
@@ -54,23 +65,29 @@ type EncounterRunnerProps = {
 export function EncounterRunner({
   encounterName,
   combatants,
+  combatGroups,
   templates,
   activeCombatantId,
   selectedCombatantId,
+  selectedEntryId,
+  syntheticEntryOverrides,
   round,
   turnNumber,
   runnerFilter,
   addPanelOpen,
   onAdd,
   onRemove,
-  onSelect,
+  onSelectEntry,
   onDamage,
   onHealing,
   onInitiativeChange,
   onNameChange,
+  onSyntheticEntryNameChange,
+  onSyntheticEntryInitiativeChange,
   onUpdateGroup,
   onRenameGroup,
   onClearGroup,
+  onCreateGroup,
   onToggleCondition,
   onRollEligible,
   onSort,
@@ -116,8 +133,10 @@ export function EncounterRunner({
             }}
           />
           <CombatGroupSummary
+            combatGroups={combatGroups}
             combatants={combatants}
             onClearGroup={onClearGroup}
+            onCreateGroup={onCreateGroup}
             onRenameGroup={onRenameGroup}
           />
         </aside>
@@ -128,16 +147,20 @@ export function EncounterRunner({
           />
           <InitiativeList
             activeCombatantId={activeCombatantId}
+            combatGroups={combatGroups}
             combatants={combatants}
             filter={runnerFilter}
-            selectedCombatantId={selectedCombatantId}
+            selectedEntryId={selectedEntryId}
+            syntheticEntryOverrides={syntheticEntryOverrides}
             onDamage={onDamage}
             onHealing={onHealing}
             onInitiativeChange={onInitiativeChange}
             onNameChange={onNameChange}
+            onSelectEntry={onSelectEntry}
+            onSyntheticEntryInitiativeChange={onSyntheticEntryInitiativeChange}
+            onSyntheticEntryNameChange={onSyntheticEntryNameChange}
             onUpdateGroup={onUpdateGroup}
             onRemove={onRemove}
-            onSelect={onSelect}
           />
         </main>
         <StatBlockPanel combatant={selectedCombatant} />

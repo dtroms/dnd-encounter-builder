@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import type { EncounterCombatant } from "@/lib/encounter/types";
+import type { CombatGroup, EncounterCombatant } from "@/lib/encounter/types";
 import {
   combatGroupOptions,
   getCombatGroupColorClass,
 } from "@/lib/encounter/colors";
 
 type CombatGroupSummaryProps = {
+  combatGroups: CombatGroup[];
   combatants: EncounterCombatant[];
+  onCreateGroup: (group: { name: string; color: string }) => void;
   onRenameGroup: (group: {
     label: string;
     color?: string;
@@ -18,58 +20,70 @@ type CombatGroupSummaryProps = {
 };
 
 export function CombatGroupSummary({
+  combatGroups,
   combatants,
+  onCreateGroup,
   onRenameGroup,
   onClearGroup,
 }: CombatGroupSummaryProps) {
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("Red");
-  const groups = combatants.reduce<Record<string, { color?: string; count: number }>>(
-    (acc, combatant) => {
-      const hasGroup =
-        combatant.combatGroupColor && combatant.combatGroupColor !== "None";
-      const label = hasGroup
-        ? combatant.combatGroupLabel || combatant.combatGroupColor || "Grouped"
-        : "Ungrouped";
+  const groupCounts = combatGroups.reduce<Record<string, number>>((acc, group) => {
+    acc[group.id] = combatants.filter(
+      (combatant) =>
+        combatant.combatGroupLabel === group.name &&
+        combatant.combatGroupColor === group.color,
+    ).length;
 
-      acc[label] = {
-        color: hasGroup ? combatant.combatGroupColor : "None",
-        count: (acc[label]?.count ?? 0) + 1,
-      };
-
-      return acc;
-    },
-    {},
-  );
+    return acc;
+  }, {});
+  const ungroupedCount = combatants.filter(
+    (combatant) =>
+      !combatant.combatGroupColor || combatant.combatGroupColor === "None",
+  ).length;
 
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950/75 p-2.5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="panel-heading">Combat Groups</h3>
         <span className="text-[11px] font-bold text-slate-500">
-          {Object.keys(groups).length}
+          {combatGroups.length}
         </span>
       </div>
       <div className="mt-2 grid gap-1.5">
-        {Object.entries(groups).map(([label, group]) => {
+        {combatGroups.map((group) => {
           const colorClass =
             getCombatGroupColorClass(group.color) ?? "bg-slate-600";
 
           return (
             <div
               className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
-              key={label}
+              key={group.id}
             >
               <label className="flex min-w-0 items-center gap-1.5">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${colorClass}`} />
                 <input
-                  aria-label={`Rename ${label}`}
+                  aria-label={`Rename ${group.name}`}
                   className="h-7 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-black text-white outline-none focus:border-cyan-300"
-                  defaultValue={label}
+                  value={group.name}
+                  onChange={(event) => {
+                    const newLabel = event.target.value.trim();
+                    if (newLabel) {
+                      onRenameGroup({
+                        label: group.name,
+                        color: group.color,
+                        newLabel,
+                      });
+                    }
+                  }}
                   onBlur={(event) => {
                     const newLabel = event.target.value.trim();
-                    if (newLabel && newLabel !== label) {
-                      onRenameGroup({ label, color: group.color, newLabel });
+                    if (!newLabel) {
+                      onRenameGroup({
+                        label: group.name,
+                        color: group.color,
+                        newLabel: "Unnamed Group",
+                      });
                     }
                   }}
                   onKeyDown={(event) => {
@@ -80,18 +94,24 @@ export function CombatGroupSummary({
                 />
               </label>
               <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
-                {group.count}
+                {groupCounts[group.id] ?? 0}
               </span>
               <button
                 className="h-7 rounded-md border border-slate-700 px-1.5 text-[10px] font-black text-slate-400 hover:border-rose-400 hover:text-rose-200"
                 type="button"
-                onClick={() => onClearGroup({ label, color: group.color })}
+                onClick={() => onClearGroup({ label: group.name, color: group.color })}
               >
                 Clear
               </button>
             </div>
           );
         })}
+        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/35 p-1.5 text-xs font-bold text-slate-400">
+          <span>Ungrouped / No Group</span>
+          <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black">
+            {ungroupedCount}
+          </span>
+        </div>
       </div>
 
       <div className="mt-2 border-t border-slate-800 pt-2">
@@ -124,10 +144,9 @@ export function CombatGroupSummary({
               type="button"
               disabled={!newGroupLabel.trim()}
               onClick={() => {
-                onRenameGroup({
-                  label: newGroupColor,
+                onCreateGroup({
+                  name: newGroupLabel.trim(),
                   color: newGroupColor,
-                  newLabel: newGroupLabel.trim(),
                 });
                 setNewGroupLabel("");
               }}
@@ -136,8 +155,7 @@ export function CombatGroupSummary({
             </button>
           </div>
           <p className="text-[10px] leading-4 text-slate-500">
-            Creates the name when combatants already use that color. Assign
-            colors from the selected combatant card above.
+            New groups become available in each row&apos;s group menu.
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type {
+  CombatGroup,
   CombatantCondition,
   CreatureTemplate,
   Encounter,
@@ -16,6 +17,7 @@ import {
   previousTurn,
   rollEligibleInitiatives,
   sortCombatantsByInitiative,
+  type SyntheticInitiativeOverrides,
 } from "@/lib/encounter/initiative";
 import { applyDamage, applyHealing } from "@/lib/encounter/hp";
 import { AppShell, type EncounterView } from "./app-shell";
@@ -35,12 +37,45 @@ const starterCombatants = [
   createCombatant(sampleCreatureTemplates[9], 1),
 ];
 
+function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup[] {
+  const groups = new Map<string, CombatGroup>();
+
+  combatants.forEach((combatant) => {
+    if (!combatant.combatGroupColor || combatant.combatGroupColor === "None") {
+      return;
+    }
+
+    const name =
+      combatant.combatGroupLabel || combatant.combatGroupColor || "Group";
+    const id = `${combatant.combatGroupColor}-${name}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    groups.set(id, {
+      id,
+      name,
+      color: combatant.combatGroupColor,
+    });
+  });
+
+  return [...groups.values()];
+}
+
 export function EncounterApp() {
   const [activeView, setActiveView] = useState<EncounterView>("builder");
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
     starterCombatants[0]?.combatantId ?? null,
+  );
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
+    starterCombatants[0]?.combatantId ?? null,
+  );
+  const [syntheticEntryOverrides, setSyntheticEntryOverrides] =
+    useState<SyntheticInitiativeOverrides>({});
+  const [combatGroups, setCombatGroups] = useState<CombatGroup[]>(
+    buildInitialCombatGroups(starterCombatants),
   );
   const [encounter, setEncounter] = useState<Encounter>({
     id: "local-encounter",
@@ -54,7 +89,7 @@ export function EncounterApp() {
 
   const activeName = useMemo(() => {
     if (encounter.activeCombatantId === "lair-actions") {
-      return "Lair Actions";
+      return syntheticEntryOverrides["lair-actions"]?.displayName ?? "Lair Actions";
     }
 
     if (encounter.activeCombatantId?.startsWith("lair-")) {
@@ -71,7 +106,7 @@ export function EncounterApp() {
         (combatant) => combatant.combatantId === encounter.activeCombatantId,
       )?.displayName ?? "No active turn"
     );
-  }, [encounter.activeCombatantId, encounter.combatants]);
+  }, [encounter.activeCombatantId, encounter.combatants, syntheticEntryOverrides]);
 
   function updateCombatant(
     combatantId: string,
@@ -150,6 +185,10 @@ export function EncounterApp() {
     if (selectedCombatantId === combatantId) {
       setSelectedCombatantId(null);
     }
+
+    if (selectedEntryId === combatantId) {
+      setSelectedEntryId(null);
+    }
   }
 
   function patchCombatant(
@@ -168,6 +207,13 @@ export function EncounterApp() {
     color?: string;
     newLabel: string;
   }) {
+    setCombatGroups((current) =>
+      current.map((group) =>
+        group.name === label && group.color === color
+          ? { ...group, name: newLabel }
+          : group,
+      ),
+    );
     setEncounter((current) => ({
       ...current,
       combatants: current.combatants.map((combatant) => {
@@ -192,6 +238,9 @@ export function EncounterApp() {
     label: string;
     color?: string;
   }) {
+    setCombatGroups((current) =>
+      current.filter((group) => !(group.name === label && group.color === color)),
+    );
     setEncounter((current) => ({
       ...current,
       combatants: current.combatants.map((combatant) => {
@@ -211,6 +260,29 @@ export function EncounterApp() {
           : combatant;
       }),
     }));
+  }
+
+  function createCombatGroup({
+    name,
+    color,
+  }: {
+    name: string;
+    color: string;
+  }) {
+    const id = `${color}-${name}-${Date.now()}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    setCombatGroups((current) => {
+      const duplicate = current.some(
+        (group) =>
+          group.name.toLowerCase() === name.toLowerCase() &&
+          group.color === color,
+      );
+
+      return duplicate ? current : [...current, { id, name, color }];
+    });
   }
 
   function toggleCondition(
@@ -238,6 +310,24 @@ export function EncounterApp() {
         null,
     }));
     setActiveView("runner");
+  }
+
+  function selectInitiativeEntry(entryId: string, sourceCombatantId: string | null) {
+    setSelectedEntryId(entryId);
+    setSelectedCombatantId(sourceCombatantId);
+  }
+
+  function updateSyntheticEntry(
+    entryId: string,
+    updates: { displayName?: string; initiative?: number | null },
+  ) {
+    setSyntheticEntryOverrides((current) => ({
+      ...current,
+      [entryId]: {
+        ...current[entryId],
+        ...updates,
+      },
+    }));
   }
 
   function rollMonstersAndNpcs() {
@@ -274,12 +364,14 @@ export function EncounterApp() {
               current.activeCombatantId,
               current.round,
               current.turnNumber,
+              syntheticEntryOverrides,
             )
           : previousTurn(
               current.combatants,
               current.activeCombatantId,
               current.round,
               current.turnNumber,
+              syntheticEntryOverrides,
             );
 
       return { ...current, ...turn };
@@ -311,11 +403,14 @@ export function EncounterApp() {
         <EncounterRunner
           activeCombatantId={encounter.activeCombatantId}
           addPanelOpen={addPanelOpen}
+          combatGroups={combatGroups}
           combatants={encounter.combatants}
           encounterName={encounter.name}
           round={encounter.round}
           runnerFilter={runnerFilter}
           selectedCombatantId={selectedCombatantId}
+          selectedEntryId={selectedEntryId}
+          syntheticEntryOverrides={syntheticEntryOverrides}
           templates={sampleCreatureTemplates}
           turnNumber={encounter.turnNumber}
           onAdd={addCombatants}
@@ -346,17 +441,24 @@ export function EncounterApp() {
           onNameChange={(combatantId, name) =>
             patchCombatant(combatantId, { displayName: name })
           }
+          onSelectEntry={selectInitiativeEntry}
+          onSyntheticEntryInitiativeChange={(entryId, initiative) =>
+            updateSyntheticEntry(entryId, { initiative })
+          }
+          onSyntheticEntryNameChange={(entryId, displayName) =>
+            updateSyntheticEntry(entryId, { displayName })
+          }
           onUpdateGroup={(combatantId, updates) =>
             patchCombatant(combatantId, updates)
           }
           onClearGroup={clearCombatGroup}
+          onCreateGroup={createCombatGroup}
           onRenameGroup={renameCombatGroup}
           onToggleCondition={toggleCondition}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}
           onRemove={removeCombatant}
           onRollEligible={rollMonstersAndNpcs}
-          onSelect={setSelectedCombatantId}
           onSort={sortInitiative}
           onToggleAddPanel={() => setAddPanelOpen((open) => !open)}
         />
