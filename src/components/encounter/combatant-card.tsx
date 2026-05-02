@@ -144,7 +144,7 @@ export function CombatantCard({
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-4 mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2.5">
+        <section className="ml-0 mr-4 mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2.5">
           <h4 className="text-xs font-black uppercase tracking-[0.16em] text-amber-200/85">
             Legendary Actions
           </h4>
@@ -187,19 +187,22 @@ function InitiativeBox({
 
   return (
     <div
-      className="rounded-lg border border-slate-700 bg-slate-950/80 px-1 py-1.5 text-center"
+      className="rounded-lg border border-slate-700 bg-slate-950/80 px-1 py-2 text-center"
       onClick={(event) => event.stopPropagation()}
     >
-      <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+      <span className="block text-[10px] font-black uppercase tracking-wide text-slate-400">
         Init
       </span>
       <input
         aria-label={`${combatantName} initiative`}
-        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-3xl font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
-        type="number"
+        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-2xl font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
+        inputMode="numeric"
+        type="text"
         value={draft}
         onBlur={commitInitiative}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) =>
+          setDraft(event.target.value.replace(/[^\d-]/g, ""))
+        }
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
