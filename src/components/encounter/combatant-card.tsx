@@ -87,12 +87,12 @@ export function CombatantCard({
             />
           </div>
 
-          <div className="mt-1 grid grid-cols-[auto_auto_minmax(15rem,auto)_minmax(1rem,1fr)_7rem] items-center gap-2">
-            <div className="flex items-center">
+          <div className="mt-1 grid grid-cols-[4.75rem_3.75rem_7.75rem_5.25rem_8.5rem_minmax(1rem,1fr)_7rem] items-center gap-2">
+            <div className="flex min-w-0 items-center">
               <TypeBadge type={combatant.type} />
             </div>
 
-            <div className="inline-flex cursor-pointer items-baseline gap-1.5 text-left">
+            <div className="inline-flex cursor-pointer items-baseline gap-1.5 text-left tabular-nums">
               <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
                 AC
               </span>
@@ -101,27 +101,29 @@ export function CombatantCard({
               </strong>
             </div>
 
-            <div className="grid grid-cols-[minmax(8.75rem,auto)_1fr] items-center gap-1.5">
-              <div className="flex min-w-0 cursor-pointer flex-wrap items-center gap-1.5 text-left">
-                <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  HP
-                </span>
-                <strong className="text-lg font-black leading-none text-white">
-                    {combatant.currentHp}/{combatant.maxHp}
-                </strong>
-                <span className="text-xs font-bold text-slate-500">
-                  {hpPercent}%
-                </span>
-                <StatusBadge status={status} />
-              </div>
-              <div onClick={(event) => event.stopPropagation()}>
-                <HpControls
-                  currentHp={combatant.currentHp}
-                  maxHp={combatant.maxHp}
-                  onDamage={onDamage}
-                  onHealing={onHealing}
-                />
-              </div>
+            <div className="inline-flex min-w-0 cursor-pointer items-baseline gap-1.5 text-left tabular-nums">
+              <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+                HP
+              </span>
+              <strong className="text-lg font-black leading-none text-white">
+                {combatant.currentHp}/{combatant.maxHp}
+              </strong>
+              <span className="text-xs font-bold text-slate-500">
+                {hpPercent}%
+              </span>
+            </div>
+
+            <div className="flex min-w-0 items-center">
+              <StatusBadge status={status} />
+            </div>
+
+            <div onClick={(event) => event.stopPropagation()}>
+              <HpControls
+                currentHp={combatant.currentHp}
+                maxHp={combatant.maxHp}
+                onDamage={onDamage}
+                onHealing={onHealing}
+              />
             </div>
 
             <div aria-hidden="true" className="min-w-0" />
@@ -231,7 +233,7 @@ function InitiativeBox({
       </span>
       <input
         aria-label={`${combatantName} initiative`}
-        className="no-spinner h-9 w-full bg-transparent px-1 text-center text-[2.15rem] font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
+        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-xl font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
         inputMode="numeric"
         type="text"
         value={draft}
@@ -280,7 +282,7 @@ function EditableCombatantName({
       <input
         aria-label="Edit combatant name"
         autoFocus
-        className="min-h-9 w-full rounded-md border border-cyan-300/60 bg-slate-950/90 px-1.5 py-1 text-2xl font-black leading-7 text-white outline-none focus:border-cyan-300"
+        className="min-h-8 w-full rounded-md border border-cyan-300/60 bg-slate-950/90 px-1.5 py-1 text-xl font-black leading-none text-white outline-none focus:border-cyan-300"
         value={draft}
         onBlur={saveName}
         onChange={(event) => setDraft(event.target.value)}
@@ -302,7 +304,7 @@ function EditableCombatantName({
 
   return (
     <button
-      className="block max-w-full rounded-md text-left text-2xl font-black leading-7 text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+      className="block max-w-full rounded-md text-left text-xl font-black leading-none text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
       title="Click to rename"
       type="button"
       onClick={(event) => {
