@@ -3,7 +3,6 @@ import type {
   EncounterCombatant,
 } from "@/lib/encounter/types";
 import { getHpStatus } from "@/lib/encounter/hp";
-import { ConditionBadges } from "./condition-badges";
 import { CombatGroupPicker } from "./combat-group-picker";
 import { EmptyState } from "./empty-state";
 import { StatusBadge } from "./status-badge";
@@ -106,21 +105,11 @@ export function ConditionTrackerPanel({
 
       <section className="mt-2.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="panel-heading">Active Conditions</h3>
+          <h3 className="panel-heading">Conditions</h3>
           <span className="text-[11px] font-bold text-slate-500">
             {combatant.conditions.length} active
           </span>
         </div>
-        <div className="mt-1.5 rounded-lg border border-slate-800 bg-slate-900/70 p-2">
-          <ConditionBadges
-            conditions={combatant.conditions}
-            emptyLabel="No active conditions"
-          />
-        </div>
-      </section>
-
-      <section className="mt-2.5">
-        <h3 className="panel-heading">Toggle Status</h3>
         <div className="mt-1.5 grid grid-cols-2 gap-1">
           {conditionOptions.map((condition) => {
             const active = combatant.conditions.includes(condition);

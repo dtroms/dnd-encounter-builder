@@ -121,12 +121,6 @@ export function EncounterRunner({
           />
           <CombatGroupSummary
             combatants={combatants}
-            selectedCombatant={selectedCombatant}
-            onAssignSelected={(updates) => {
-              if (selectedCombatant) {
-                onUpdateGroup(selectedCombatant.combatantId, updates);
-              }
-            }}
             onClearGroup={onClearGroup}
             onRenameGroup={onRenameGroup}
           />

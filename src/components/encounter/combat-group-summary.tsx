@@ -9,11 +9,6 @@ import {
 
 type CombatGroupSummaryProps = {
   combatants: EncounterCombatant[];
-  selectedCombatant: EncounterCombatant | null;
-  onAssignSelected: (updates: {
-    combatGroupLabel?: string;
-    combatGroupColor?: string;
-  }) => void;
   onRenameGroup: (group: {
     label: string;
     color?: string;
@@ -24,8 +19,6 @@ type CombatGroupSummaryProps = {
 
 export function CombatGroupSummary({
   combatants,
-  selectedCombatant,
-  onAssignSelected,
   onRenameGroup,
   onClearGroup,
 }: CombatGroupSummaryProps) {
@@ -101,83 +94,53 @@ export function CombatGroupSummary({
         })}
       </div>
 
-      {selectedCombatant ? (
-        <div className="mt-2 border-t border-slate-800 pt-2">
+      <div className="mt-2 border-t border-slate-800 pt-2">
+        <div className="grid gap-1 rounded-lg border border-dashed border-slate-700 p-1.5">
           <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-            Assign Selected
+            Create Named Group
           </p>
-          <div className="mt-1.5 grid grid-cols-2 gap-1">
-            {combatGroupOptions.slice(1).map((option) => (
-              <button
-                className="flex h-7 items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900 px-1.5 text-left text-[10px] font-black text-slate-300 hover:border-cyan-300 hover:text-white"
-                key={`${option.label}-${option.color}`}
-                type="button"
-                onClick={() =>
-                  onAssignSelected({
-                    combatGroupLabel: option.label,
-                    combatGroupColor: option.color,
-                  })
-                }
-              >
-                <span className={`h-2 w-2 rounded-full ${option.className}`} />
-                <span className="truncate">{option.label}</span>
-              </button>
-            ))}
-            <button
-              className="col-span-2 h-7 rounded-md border border-slate-800 bg-slate-950 text-[10px] font-black text-slate-400 hover:border-slate-500 hover:text-white"
-              type="button"
-              onClick={() =>
-                onAssignSelected({
-                  combatGroupLabel: "",
-                  combatGroupColor: "None",
-                })
-              }
+          <input
+            className="h-7 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
+            placeholder="e.g. Skullfang Warband"
+            value={newGroupLabel}
+            onChange={(event) => setNewGroupLabel(event.target.value)}
+          />
+          <div className="grid grid-cols-[1fr_auto] gap-1">
+            <select
+              className="h-7 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
+              value={newGroupColor}
+              onChange={(event) => setNewGroupColor(event.target.value)}
             >
-              No Group / Ungrouped
+              {combatGroupOptions
+                .filter((option) => option.color !== "None")
+                .map((option) => (
+                  <option key={option.color} value={option.color}>
+                    {option.color}
+                  </option>
+                ))}
+            </select>
+            <button
+              className="h-7 rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              disabled={!newGroupLabel.trim()}
+              onClick={() => {
+                onRenameGroup({
+                  label: newGroupColor,
+                  color: newGroupColor,
+                  newLabel: newGroupLabel.trim(),
+                });
+                setNewGroupLabel("");
+              }}
+            >
+              Create
             </button>
           </div>
-          <div className="mt-2 grid gap-1 rounded-lg border border-dashed border-slate-700 p-1.5">
-            <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-              New Group For Selected
-            </p>
-            <input
-              className="h-7 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
-              placeholder="e.g. Skullfang Warband"
-              value={newGroupLabel}
-              onChange={(event) => setNewGroupLabel(event.target.value)}
-            />
-            <div className="grid grid-cols-[1fr_auto] gap-1">
-              <select
-                className="h-7 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
-                value={newGroupColor}
-                onChange={(event) => setNewGroupColor(event.target.value)}
-              >
-                {combatGroupOptions
-                  .filter((option) => option.color !== "None")
-                  .map((option) => (
-                    <option key={option.color} value={option.color}>
-                      {option.color}
-                    </option>
-                  ))}
-              </select>
-              <button
-                className="h-7 rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
-                type="button"
-                disabled={!newGroupLabel.trim()}
-                onClick={() => {
-                  onAssignSelected({
-                    combatGroupLabel: newGroupLabel.trim(),
-                    combatGroupColor: newGroupColor,
-                  });
-                  setNewGroupLabel("");
-                }}
-              >
-                Create
-              </button>
-            </div>
-          </div>
+          <p className="text-[10px] leading-4 text-slate-500">
+            Creates the name when combatants already use that color. Assign
+            colors from the selected combatant card above.
+          </p>
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

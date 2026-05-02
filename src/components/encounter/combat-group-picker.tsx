@@ -10,6 +10,7 @@ import {
 type CombatGroupPickerProps = {
   combatant: EncounterCombatant;
   compact?: boolean;
+  variant?: "chip" | "menu";
   onUpdateGroup: (updates: {
     combatGroupLabel?: string;
     combatGroupColor?: string;
@@ -19,6 +20,7 @@ type CombatGroupPickerProps = {
 export function CombatGroupPicker({
   combatant,
   compact = false,
+  variant = "chip",
   onUpdateGroup,
 }: CombatGroupPickerProps) {
   const [open, setOpen] = useState(false);
@@ -37,25 +39,39 @@ export function CombatGroupPicker({
       <button
         aria-label={`Change combat group for ${combatant.displayName}`}
         title="Change combat group"
-        className={`inline-flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 font-black text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/15 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30 ${
-          compact
-            ? "h-7 max-w-36 px-2 text-[10px]"
-            : "h-6 max-w-32 px-1.5 text-[10px]"
-        }`}
+        className={
+          variant === "menu"
+            ? "flex h-14 w-8 items-center justify-center rounded-r-xl border-l border-slate-800 bg-slate-950/70 text-lg font-black leading-none text-slate-300 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+            : `inline-flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 font-black text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/15 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30 ${
+                compact
+                  ? "h-7 max-w-36 px-2 text-[10px]"
+                  : "h-6 max-w-32 px-1.5 text-[10px]"
+              }`
+        }
         type="button"
         onClick={(event) => {
           event.stopPropagation();
           setOpen((value) => !value);
         }}
       >
-        <span className={`h-1.5 w-1.5 rounded-full ${colorClass}`} />
-        <span className="truncate">{label}</span>
-        <span className="text-[9px] text-cyan-200/80">v</span>
+        {variant === "menu" ? (
+          <span aria-hidden="true" className="-mt-1 tracking-[-0.18em]">
+            ...
+          </span>
+        ) : (
+          <>
+            <span className={`h-1.5 w-1.5 rounded-full ${colorClass}`} />
+            <span className="truncate">{label}</span>
+            <span className="text-[9px] text-cyan-200/80">v</span>
+          </>
+        )}
       </button>
 
       {open ? (
         <div
-          className="absolute left-0 top-7 z-30 w-52 rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl"
+          className={`absolute top-7 z-30 w-52 rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl ${
+            variant === "menu" ? "right-0" : "left-0"
+          }`}
           onClick={(event) => event.stopPropagation()}
         >
           <p className="px-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
