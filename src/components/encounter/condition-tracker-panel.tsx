@@ -50,7 +50,7 @@ export function ConditionTrackerPanel({
   const hpStatus = getHpStatus(combatant.currentHp, combatant.maxHp);
 
   return (
-    <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-auto">
+    <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-2.5 xl:sticky xl:top-3 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-auto">
       <div className="border-b border-slate-800 pb-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <TypeBadge type={combatant.type} />
@@ -69,7 +69,7 @@ export function ConditionTrackerPanel({
         </div>
       </div>
 
-      <section className="mt-3">
+      <section className="mt-2.5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="panel-heading">Active Conditions</h3>
           <span className="text-[11px] font-bold text-slate-500">
@@ -84,7 +84,7 @@ export function ConditionTrackerPanel({
         </div>
       </section>
 
-      <section className="mt-3">
+      <section className="mt-2.5">
         <h3 className="panel-heading">Toggle Status</h3>
         <div className="mt-1.5 grid grid-cols-2 gap-1">
           {conditionOptions.map((condition) => {
@@ -107,6 +107,34 @@ export function ConditionTrackerPanel({
           })}
         </div>
       </section>
+
+      {combatant.lairActions && combatant.lairActions.length > 0 ? (
+        <section className="mt-2.5 rounded-lg border border-amber-300/25 bg-amber-300/10 p-2">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.18em] text-amber-200">
+              Lair Actions
+            </h3>
+            <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[11px] font-black text-amber-100">
+              Initiative 20
+            </span>
+          </div>
+          <div className="mt-2 grid gap-1.5">
+            {combatant.lairActions.map((action) => (
+              <div
+                className="rounded-md border border-amber-300/15 bg-slate-950/70 p-2"
+                key={action.name}
+              >
+                <p className="text-xs font-black text-amber-100">
+                  {action.name}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-slate-300">
+                  {action.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </aside>
   );
 }

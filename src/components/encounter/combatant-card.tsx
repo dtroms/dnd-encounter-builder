@@ -45,7 +45,7 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(10rem,0.9fr)_3.25rem_18.5rem_4rem_0.6rem]">
+      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(10rem,0.9fr)_3.25rem_18.5rem_2.1rem_0.6rem]">
         <button
           className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
           type="button"
@@ -117,17 +117,10 @@ export function CombatantCard({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-1">
-          <button
-            className="h-8 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2 text-xs font-bold text-cyan-100 transition hover:border-cyan-300"
-            type="button"
-            onClick={onSelect}
-          >
-            View
-          </button>
+        <div>
           <button
             aria-label={`Remove ${combatant.displayName}`}
-            className="h-8 rounded-lg border border-slate-700 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+            className="h-8 w-8 rounded-lg border border-slate-700 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
             type="button"
             onClick={onRemove}
           >

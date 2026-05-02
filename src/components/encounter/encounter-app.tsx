@@ -53,6 +53,15 @@ export function EncounterApp() {
   });
 
   const activeName = useMemo(() => {
+    if (encounter.activeCombatantId?.startsWith("lair-")) {
+      const ownerId = encounter.activeCombatantId.replace("lair-", "");
+      const owner = encounter.combatants.find(
+        (combatant) => combatant.combatantId === ownerId,
+      );
+
+      return owner ? `${owner.displayName} - Lair Action` : "Lair Action";
+    }
+
     return (
       encounter.combatants.find(
         (combatant) => combatant.combatantId === encounter.activeCombatantId,
@@ -114,12 +123,15 @@ export function EncounterApp() {
       const remaining = current.combatants.filter(
         (combatant) => combatant.combatantId !== combatantId,
       );
+      const activeOwnerId = current.activeCombatantId?.startsWith("lair-")
+        ? current.activeCombatantId.replace("lair-", "")
+        : current.activeCombatantId;
 
       return {
         ...current,
         combatants: remaining,
         activeCombatantId: remaining.some(
-          (combatant) => combatant.combatantId === current.activeCombatantId,
+          (combatant) => combatant.combatantId === activeOwnerId,
         )
           ? current.activeCombatantId
           : sortCombatantsByInitiative(remaining)[0]?.combatantId ?? null,

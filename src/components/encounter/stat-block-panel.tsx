@@ -64,6 +64,7 @@ export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
         <DetailList items={combatant.bonusActions} title="Bonus Actions" />
         <DetailList items={combatant.reactions} title="Reactions" />
         <DetailList items={combatant.legendaryActions} title="Legendary Actions" />
+        <DetailList items={combatant.lairActions} title="Lair Actions" />
         <DetailList items={combatant.traits} title="Traits" />
       </div>
 

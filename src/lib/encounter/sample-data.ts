@@ -360,6 +360,16 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
         description: "One visible creature has disadvantage on its next save.",
       },
     ],
+    lairActions: [
+      {
+        name: "Lanterns Flare",
+        description: "On initiative 20, two lantern marks ignite. Creatures within 5 ft. take 1d6 fire damage.",
+      },
+      {
+        name: "Alleys Shift",
+        description: "On initiative 20, choose a 15 ft. lane. It becomes difficult terrain until the next round.",
+      },
+    ],
     notes: "Boss pressure piece. Bring reinforcements when she drops below half HP.",
     tags: ["boss", "commander", "fire"],
     accentColor: "Gold",

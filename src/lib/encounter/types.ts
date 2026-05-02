@@ -63,6 +63,7 @@ export type CreatureTemplate = {
   bonusActions?: StatBlockAction[];
   reactions?: StatBlockAction[];
   legendaryActions?: StatBlockAction[];
+  lairActions?: StatBlockAction[];
   notes?: string;
   tags: string[];
   accentColor: string;
