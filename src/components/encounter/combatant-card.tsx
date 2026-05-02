@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { EncounterCombatant } from "@/lib/encounter/types";
+import type { StatBlockAction } from "@/lib/encounter/types";
 import {
   getCombatGroupColorClass,
   getCombatGroupRowStyle,
@@ -49,6 +50,7 @@ export function CombatantCard({
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
+  const lairActions = combatant.lairActions ?? [];
   return (
     <article
       className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
@@ -144,28 +146,73 @@ export function CombatantCard({
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-0 mr-4 mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2.5">
-          <h4 className="text-xs font-black uppercase tracking-[0.16em] text-amber-200/85">
-            Legendary Actions
-          </h4>
-          <div className="mt-2 grid gap-2 md:grid-cols-2">
-            {legendaryActions.map((action) => (
-              <div
-                className="rounded-lg border border-slate-800 bg-slate-900/90 p-2.5"
-                key={action.name}
-              >
-                <p className="text-sm font-black text-amber-100">
-                  {action.name}
-                </p>
-                <p className="mt-1 text-sm leading-5 text-slate-300">
-                  {action.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <BossActionSection
+          accent="legendary"
+          actions={legendaryActions}
+          title="Legendary Actions"
+        />
+      ) : null}
+
+      {lairActions.length > 0 ? (
+        <BossActionSection
+          accent="lair"
+          actions={lairActions}
+          title="Lair Actions"
+        />
       ) : null}
     </article>
+  );
+}
+
+function BossActionSection({
+  title,
+  actions,
+  accent,
+}: {
+  title: string;
+  actions: StatBlockAction[];
+  accent: "legendary" | "lair";
+}) {
+  const accentClasses =
+    accent === "lair"
+      ? {
+          section: "border-amber-300/25 bg-amber-300/10",
+          title: "text-amber-100",
+          card: "border-amber-300/15 bg-slate-950/80",
+          action: "text-amber-100",
+        }
+      : {
+          section: "border-slate-700/80 bg-slate-950/70",
+          title: "text-amber-200/85",
+          card: "border-slate-800 bg-slate-900/90",
+          action: "text-amber-100",
+        };
+
+  return (
+    <section
+      className={`ml-0 mr-4 mt-1.5 rounded-lg border p-2.5 ${accentClasses.section}`}
+    >
+      <h4
+        className={`text-xs font-black uppercase tracking-[0.16em] ${accentClasses.title}`}
+      >
+        {title}
+      </h4>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {actions.map((action) => (
+          <div
+            className={`rounded-lg border p-2.5 ${accentClasses.card}`}
+            key={action.name}
+          >
+            <p className={`text-sm font-black ${accentClasses.action}`}>
+              {action.name}
+            </p>
+            <p className="mt-1 text-sm leading-5 text-slate-300">
+              {action.description}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

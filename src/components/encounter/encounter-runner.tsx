@@ -9,7 +9,6 @@ import { AddCombatantPanel } from "./add-combatant-panel";
 import { CombatGroupSummary } from "./combat-group-summary";
 import { ConditionTrackerPanel } from "./condition-tracker-panel";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
-import { LairActionsPanel } from "./lair-actions-panel";
 import { RunnerToolbar } from "./runner-toolbar";
 import { StatBlockPanel } from "./stat-block-panel";
 
@@ -121,7 +120,6 @@ export function EncounterRunner({
             onClearGroup={onClearGroup}
             onRenameGroup={onRenameGroup}
           />
-          <LairActionsPanel combatants={combatants} />
         </aside>
         <main className="min-w-0">
           <RunnerControlStrip
