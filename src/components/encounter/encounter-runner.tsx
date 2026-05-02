@@ -6,10 +6,10 @@ import type {
   EncounterCombatant,
 } from "@/lib/encounter/types";
 import { AddCombatantPanel } from "./add-combatant-panel";
+import { ConditionTrackerPanel } from "./condition-tracker-panel";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
 import { RunnerToolbar } from "./runner-toolbar";
 import { StatBlockPanel } from "./stat-block-panel";
-import { UtilityRail } from "./utility-rail";
 
 type EncounterRunnerProps = {
   encounterName: string;
@@ -89,15 +89,20 @@ export function EncounterRunner({
         <AddCombatantPanel compact templates={templates} onAdd={onAdd} />
       ) : null}
 
-      <div className="grid gap-2.5 xl:grid-cols-[10rem_minmax(0,1fr)_24rem]">
-        <UtilityRail
-          addPanelOpen={addPanelOpen}
-          filter={runnerFilter}
-          onFilterChange={onFilterChange}
-          onRoll={onRollEligible}
-          onToggleAddPanel={onToggleAddPanel}
+      <div className="grid gap-2.5 xl:grid-cols-[20rem_minmax(0,0.95fr)_34rem]">
+        <ConditionTrackerPanel
+          combatant={selectedCombatant}
+          onToggleCondition={(condition) => {
+            if (selectedCombatant) {
+              onToggleCondition(selectedCombatant.combatantId, condition);
+            }
+          }}
         />
         <main className="min-w-0">
+          <RunnerControlStrip
+            filter={runnerFilter}
+            onFilterChange={onFilterChange}
+          />
           <InitiativeList
             activeCombatantId={activeCombatantId}
             combatants={combatants}
@@ -110,15 +115,53 @@ export function EncounterRunner({
             onSelect={onSelect}
           />
         </main>
-        <StatBlockPanel
-          combatant={selectedCombatant}
-          onToggleCondition={(condition) => {
-            if (selectedCombatant) {
-              onToggleCondition(selectedCombatant.combatantId, condition);
-            }
-          }}
-        />
+        <StatBlockPanel combatant={selectedCombatant} />
       </div>
     </div>
+  );
+}
+
+const filterOptions: Array<{ key: RunnerFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "alive", label: "Alive" },
+  { key: "enemies", label: "Enemies" },
+  { key: "pcs", label: "PCs" },
+];
+
+function RunnerControlStrip({
+  filter,
+  onFilterChange,
+}: {
+  filter: RunnerFilter;
+  onFilterChange: (filter: RunnerFilter) => void;
+}) {
+  return (
+    <section className="mb-1.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/70 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="mr-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Show
+        </span>
+        {filterOptions.map((item) => (
+          <button
+            className={`h-7 rounded-md px-2 text-xs font-black transition ${
+              filter === item.key
+                ? "bg-cyan-300 text-slate-950"
+                : "bg-slate-900 text-slate-400 hover:text-white"
+            }`}
+            key={item.key}
+            type="button"
+            onClick={() => onFilterChange(item.key)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <button
+        className="h-7 rounded-md border border-dashed border-slate-700 px-2 text-xs font-bold text-slate-500"
+        type="button"
+      >
+        Add Wave later
+      </button>
+    </section>
   );
 }

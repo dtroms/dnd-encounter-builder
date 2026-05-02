@@ -45,7 +45,7 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1.5 xl:grid-cols-[4.75rem_minmax(13rem,1fr)_3.5rem_21rem_4.25rem_0.65rem]">
+      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(10rem,0.9fr)_3.25rem_18.5rem_4rem_0.6rem]">
         <button
           className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
           type="button"
@@ -92,7 +92,7 @@ export function CombatantCard({
           </strong>
         </button>
 
-        <div className="grid grid-cols-[9.5rem_1fr] items-center gap-1.5">
+        <div className="grid grid-cols-[8.25rem_1fr] items-center gap-1">
           <button className="text-left" type="button" onClick={onSelect}>
             <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
               HP
