@@ -206,6 +206,7 @@ export function initiativeEntryRecordToTrackerEntry(record: InitiativeEntryRecor
     kind: record.entry_type,
     displayName: record.display_name,
     initiative: record.initiative_value,
+    manualInitiative: record.initiative_manually_set,
     sourceCombatantId: record.source_combatant_id,
     isSynthetic: record.is_synthetic,
   };

@@ -67,6 +67,7 @@ The saved encounter seed can demonstrate:
 
 - current round
 - current turn index
+- active entry id
 - selected entry id
 - initiative values
 - one manually entered PC initiative
@@ -76,6 +77,7 @@ The saved encounter seed can demonstrate:
 - one or two active conditions
 - active combatant state
 - combat group assignments
+- dashboard snapshots such as combatant count, boss count, and whether lair actions are present
 
 ## Combat Group Seed
 

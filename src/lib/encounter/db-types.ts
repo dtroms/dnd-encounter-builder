@@ -18,6 +18,8 @@ export type ImportStatus = "draft" | "parsed" | "reviewed" | "saved" | "failed";
 
 export type EncounterStatus = "draft" | "running" | "completed" | "archived";
 
+export type LastOpenedMode = "builder" | "runner";
+
 export type InitiativeEntryType = "combatant" | "lair_action" | "custom";
 
 export type StatBlockActionRecord = {
@@ -108,12 +110,18 @@ export type EncounterRecord = {
   status: EncounterStatus;
   current_round: number;
   current_turn_index: number;
+  active_entry_id: string | null;
   selected_entry_id: string | null;
   last_played_at: string | null;
+  last_opened_mode: LastOpenedMode | null;
+  accent_color: string | null;
   difficulty_label: string | null;
   party_level: number | null;
   party_size: number | null;
   estimated_difficulty: string | null;
+  combatant_count_snapshot: number | null;
+  boss_count_snapshot: number | null;
+  has_lair_actions_snapshot: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -198,6 +206,7 @@ export type InitiativeEntryRecord = {
   combatant_id: string | null;
   display_name: string;
   initiative_value: number | null;
+  initiative_manually_set: boolean;
   source_combatant_id: string | null;
   sort_order: number | null;
   is_synthetic: boolean;

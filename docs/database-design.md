@@ -61,15 +61,22 @@ Dashboard-friendly fields include:
 - `location`
 - `status`
 - `last_played_at`
+- `last_opened_mode`
+- `accent_color`
 - `difficulty_label`
 - `party_level`
 - `party_size`
 - `estimated_difficulty`
+- `combatant_count_snapshot`
+- `boss_count_snapshot`
+- `has_lair_actions_snapshot`
 - `notes`
 - `created_at`
 - `updated_at`
 
 The dashboard can search by name/location/notes later, filter by `status`, and open an encounter in either Builder or Runner. Future duplicate/archive/delete behavior can operate on `encounters` plus its child rows.
+
+Stored dashboard summary fields should be treated as convenience snapshots, not the source of truth. Counts and flags can be recomputed from `encounter_combatants` and `initiative_entries` whenever an encounter is saved, duplicated, or opened.
 
 Statuses should include:
 
@@ -180,6 +187,10 @@ The current Runner workflow maps cleanly to this:
 - row tint and end-cap use the group's `color_key`
 - group Roll Init and Shared Init operate on assigned eligible combatants
 
+Ungrouped combatants do not need a database row. A null `combat_group_id` is enough to represent Ungrouped / No Group. Counts should be derived from `encounter_combatants`, not stored on `combat_groups`.
+
+This review did not add `is_default`, `is_party_group`, or `created_from_template`. Those can be added later if the Builder needs starter templates or campaign-level party defaults, but they are not required for the current Runner workflow.
+
 ## How Waves/Reinforcements Work
 
 `encounter_waves` stores planned reinforcement groups for an encounter.
@@ -188,15 +199,20 @@ The current Runner workflow maps cleanly to this:
 
 When a wave is deployed later, the app can create `encounter_combatants` snapshots from the wave members. `deployed` and `deployed_at` record whether the wave has entered play.
 
+Deployment should also create or refresh normal `initiative_entries` for the new combatants. If a deployed creature has lair actions, the Runner can create or reveal the relevant synthetic Lair Action row.
+
 ## How Initiative State Works
 
 High-level state lives on `encounters`:
 
 - `current_round`
 - `current_turn_index`
+- `active_entry_id`
 - `selected_entry_id`
 
 Tracker rows live in `initiative_entries`. This is useful because not every row is a real creature. Lair Actions are already synthetic rows in the current Runner.
+
+`active_entry_id` is the currently acting row. `selected_entry_id` is the row the user clicked for inspection. These are intentionally separate because the Runner allows the selected row and active turn row to be different.
 
 ## Initiative Logic
 
@@ -239,10 +255,19 @@ Synthetic entries are initiative tracker rows that are not normal combatants.
 - `is_synthetic`
 - `display_name`
 - `initiative_value`
+- `initiative_manually_set`
+- `combatant_id`
 - `source_combatant_id`
+- `sort_order`
 - `metadata`
 
 This allows cosmetic overrides without losing the link to the real source combatant.
+
+Normal combatant rows generally use `entry_type = 'combatant'` and point to `encounter_combatants.id` through `combatant_id`.
+
+Synthetic Lair Action rows use `entry_type = 'lair_action'`, `is_synthetic = true`, and point to the owning monster through `source_combatant_id`. Their `display_name` and `initiative_value` are row-level cosmetic/current state, so renaming the row or changing INIT 20 to another number does not alter the owner monster.
+
+Future custom rows, such as hazards or reminders, can use `entry_type = 'custom'` with `metadata` for extra details.
 
 ## How Synthetic Lair Action Rows Work
 
@@ -276,6 +301,8 @@ Important runtime fields:
 - `combat_group_id`
 
 This lets the Runner save and resume combat.
+
+`initiative_entries` may also store row-level initiative state. For normal combatants, the app can mirror or derive the tracker row from `encounter_combatants`. For synthetic/custom rows, `initiative_entries` is the source of the row display name and initiative.
 
 ## How Conditions Work
 
@@ -424,3 +451,30 @@ This pass does not:
 - scrape D&D Beyond or any website
 - bundle official copyrighted D&D monster data
 - add payment, team, organization, or cloud sync features
+
+## Schema Review Notes
+
+This review tightened the schema around the current Runner behavior and the planned Dashboard/Builder/Importer flow.
+
+Decisions made:
+
+- Added `active_entry_id` to `encounters` so the active turn row can be tracked separately from the selected inspection row.
+- Kept `selected_entry_id` on `encounters` for the clicked/inspected row.
+- Added row-level `initiative_manually_set` to `initiative_entries` so synthetic and future custom rows can record typed initiative overrides.
+- Kept synthetic Lair Action rows in `initiative_entries`, linked to owners through `source_combatant_id`.
+- Added modest dashboard summary fields to `encounters`: `last_opened_mode`, `accent_color`, `combatant_count_snapshot`, `boss_count_snapshot`, and `has_lair_actions_snapshot`.
+- Kept combat group counts computed from `encounter_combatants` rather than stored on `combat_groups`.
+- Kept Ungrouped / No Group as `combat_group_id = null` rather than forcing a database row.
+- Kept conditions as JSONB on `encounter_combatants` for MVP flexibility.
+
+Intentionally deferred:
+
+- No normalized action tables yet; stat block sections remain JSONB.
+- No normalized condition duration/source table yet.
+- No group template/default party model yet.
+- No RLS/auth policies yet.
+- No Supabase client setup.
+- No seed inserts or executable seed scripts yet.
+- No UI database wiring yet.
+
+Before connecting Supabase, the next pass should apply this migration to a local development database, generate or verify database types against the actual schema, and decide the first read/write boundary, likely Creature Library or Saved Encounters Dashboard before the live Runner.

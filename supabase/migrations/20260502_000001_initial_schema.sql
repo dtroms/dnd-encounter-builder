@@ -83,12 +83,18 @@ create table if not exists public.encounters (
   status text not null default 'draft',
   current_round integer not null default 1,
   current_turn_index integer not null default 0,
+  active_entry_id uuid null,
   selected_entry_id uuid null,
   last_played_at timestamptz null,
+  last_opened_mode text null,
+  accent_color text null,
   difficulty_label text null,
   party_level integer null,
   party_size integer null,
   estimated_difficulty text null,
+  combatant_count_snapshot integer null,
+  boss_count_snapshot integer null,
+  has_lair_actions_snapshot boolean not null default false,
   notes text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -185,6 +191,7 @@ create table if not exists public.initiative_entries (
   combatant_id uuid null references public.encounter_combatants(id) on delete cascade,
   display_name text not null,
   initiative_value integer null,
+  initiative_manually_set boolean not null default false,
   source_combatant_id uuid null references public.encounter_combatants(id) on delete cascade,
   sort_order integer null,
   is_synthetic boolean not null default false,
@@ -192,6 +199,12 @@ create table if not exists public.initiative_entries (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.encounters
+  add constraint encounters_active_entry_id_fkey
+  foreign key (active_entry_id)
+  references public.initiative_entries(id)
+  on delete set null;
 
 alter table public.encounters
   add constraint encounters_selected_entry_id_fkey
@@ -223,6 +236,9 @@ create index if not exists stat_block_imports_status_idx on public.stat_block_im
 
 create index if not exists encounters_owner_user_id_idx on public.encounters(owner_user_id);
 create index if not exists encounters_status_idx on public.encounters(status);
+create index if not exists encounters_last_played_at_idx on public.encounters(last_played_at);
+create index if not exists encounters_active_entry_id_idx on public.encounters(active_entry_id);
+create index if not exists encounters_selected_entry_id_idx on public.encounters(selected_entry_id);
 
 create index if not exists combat_groups_encounter_id_idx on public.combat_groups(encounter_id);
 
