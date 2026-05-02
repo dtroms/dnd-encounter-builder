@@ -64,78 +64,88 @@ export function CombatGroupSummary({
 
           return (
             <div
-              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
+              className="rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
               key={group.id}
             >
-              <label className="flex min-w-0 items-center gap-1.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${colorClass}`} />
-                <input
-                  aria-label={`Rename ${group.name}`}
-                  className="h-7 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-black text-white outline-none focus:border-cyan-300"
-                  value={group.name}
-                  onChange={(event) => {
-                    const newLabel = event.target.value.trim();
-                    if (newLabel) {
-                      onRenameGroup({
-                        label: group.name,
-                        color: group.color,
-                        newLabel,
-                      });
-                    }
-                  }}
-                  onBlur={(event) => {
-                    const newLabel = event.target.value.trim();
-                    if (!newLabel) {
+              <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                <label className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${colorClass}`}
+                  />
+                  <input
+                    aria-label={`Rename ${group.name}`}
+                    className="h-7 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-black text-white outline-none focus:border-cyan-300"
+                    value={group.name}
+                    onChange={(event) => {
+                      const newLabel = event.target.value.trim();
+                      if (newLabel) {
+                        onRenameGroup({
+                          label: group.name,
+                          color: group.color,
+                          newLabel,
+                        });
+                      }
+                    }}
+                    onBlur={(event) => {
+                      const newLabel = event.target.value.trim();
+                      if (!newLabel) {
                       onRenameGroup({
                         label: group.name,
                         color: group.color,
                         newLabel: "Unnamed Group",
                       });
                     }
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.currentTarget.blur();
-                    }
-                  }}
-                />
-              </label>
-              <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
-                {groupCounts[group.id] ?? 0}
-              </span>
-              <button
-                className="h-7 rounded-md border border-cyan-700/70 px-1.5 text-[10px] font-black text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-300/10 hover:text-white"
-                type="button"
-                title={`Roll initiative for eligible members of ${group.name}`}
-                onClick={() =>
-                  onRollGroupInitiative({
-                    label: group.name,
-                    color: group.color,
-                  })
-                }
-              >
-                Roll Init
-              </button>
-              <button
-                className="h-7 rounded-md border border-amber-600/70 px-1.5 text-[10px] font-black text-amber-200 transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-white"
-                type="button"
-                title={`Roll eligible members of ${group.name}, average the results, and apply one shared initiative`}
-                onClick={() =>
-                  onRollSharedGroupInitiative({
-                    label: group.name,
-                    color: group.color,
-                  })
-                }
-              >
-                Shared Init
-              </button>
-              <button
-                className="h-7 rounded-md border border-slate-700 px-1.5 text-[10px] font-black text-slate-400 hover:border-rose-400 hover:text-rose-200"
-                type="button"
-                onClick={() => onClearGroup({ label: group.name, color: group.color })}
-              >
-                Clear
-              </button>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                  />
+                </label>
+                <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
+                  {groupCounts[group.id] ?? 0}
+                </span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 border-t border-slate-800/80 pt-1.5">
+                <button
+                  className="h-7 rounded-md border border-cyan-700/70 px-2 text-[10px] font-black text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-300/10 hover:text-white"
+                  type="button"
+                  title={`Roll initiative separately for eligible members of ${group.name}`}
+                  aria-label={`Roll initiative separately for eligible members of ${group.name}`}
+                  onClick={() =>
+                    onRollGroupInitiative({
+                      label: group.name,
+                      color: group.color,
+                    })
+                  }
+                >
+                  Roll Init
+                </button>
+                <button
+                  className="h-7 rounded-md border border-amber-600/70 px-2 text-[10px] font-black text-amber-200 transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-white"
+                  type="button"
+                  title={`Roll eligible members of ${group.name}, average the results, and apply one shared initiative`}
+                  aria-label={`Roll shared initiative for eligible members of ${group.name}`}
+                  onClick={() =>
+                    onRollSharedGroupInitiative({
+                      label: group.name,
+                      color: group.color,
+                    })
+                  }
+                >
+                  Shared Init
+                </button>
+                <button
+                  className="ml-auto h-7 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-500 transition hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-200"
+                  type="button"
+                  onClick={() =>
+                    onClearGroup({ label: group.name, color: group.color })
+                  }
+                >
+                  Clear
+                </button>
+              </div>
             </div>
           );
         })}
