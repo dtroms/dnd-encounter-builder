@@ -3,6 +3,7 @@
 import type { EncounterCombatant } from "@/lib/encounter/types";
 import {
   getCombatGroupColorClass,
+  getCombatGroupRowStyle,
   typeStyles,
 } from "@/lib/encounter/colors";
 import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
@@ -41,6 +42,7 @@ export function CombatantCard({
   const hpPercent = getHpPercent(combatant.currentHp, combatant.maxHp);
   const style = typeStyles[combatant.type];
   const groupColorClass = getCombatGroupColorClass(combatant.combatGroupColor);
+  const groupRowStyle = getCombatGroupRowStyle(combatant.combatGroupColor);
   const groupLabel =
     combatant.combatGroupColor && combatant.combatGroupColor !== "None"
       ? combatant.combatGroupLabel || combatant.combatGroupColor
@@ -51,8 +53,8 @@ export function CombatantCard({
 
   return (
     <article
-      className={`relative overflow-hidden rounded-xl border bg-slate-900/88 py-1.5 pl-2 pr-0 shadow-sm transition ${
-        isBoss ? "border-amber-300/35 bg-amber-300/5" : "border-slate-800"
+      className={`relative overflow-visible rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
+        isBoss ? "border-amber-300/35" : groupRowStyle.border
       } ${
         active ? `ring-2 ${style.ring}` : ""
       } ${selected ? "outline outline-2 outline-cyan-300/70" : ""} ${
@@ -63,7 +65,7 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_17.25rem_2.1rem_0.6rem_2rem]">
+      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_16.25rem_0.6rem_4.25rem]">
         <div
           className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
           onClick={(event) => event.stopPropagation()}
@@ -135,10 +137,14 @@ export function CombatantCard({
           </div>
         </div>
 
-        <div>
+        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
+        <div
+          className="grid grid-cols-[2rem_2rem] items-center justify-end"
+          onClick={(event) => event.stopPropagation()}
+        >
           <button
             aria-label={`Remove ${combatant.displayName}`}
-            className="h-8 w-8 rounded-lg border border-slate-700 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+            className="h-9 w-8 rounded-l-lg border border-slate-700 bg-slate-950/75 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
             type="button"
             onClick={(event) => {
               event.stopPropagation();
@@ -147,10 +153,6 @@ export function CombatantCard({
           >
             X
           </button>
-        </div>
-
-        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
-        <div onClick={(event) => event.stopPropagation()}>
           <CombatGroupPicker
             combatant={combatant}
             variant="menu"

@@ -69,8 +69,8 @@ export function CombatGroupPicker({
 
       {open ? (
         <div
-          className={`absolute top-7 z-30 w-52 rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl ${
-            variant === "menu" ? "right-0" : "left-0"
+          className={`absolute z-[100] w-56 rounded-xl border border-slate-600 bg-slate-950 p-2 shadow-2xl shadow-black/60 ring-1 ring-cyan-300/10 ${
+            variant === "menu" ? "right-0 top-0" : "left-0 top-7"
           }`}
           onClick={(event) => event.stopPropagation()}
         >

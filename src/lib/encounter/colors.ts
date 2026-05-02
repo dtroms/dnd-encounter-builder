@@ -89,14 +89,62 @@ export const accentColorOptions = [
 ];
 
 export const combatGroupOptions = [
-  { label: "No Group", color: "None", className: "bg-slate-500" },
-  { label: "Red Warband", color: "Red", className: "bg-red-500" },
-  { label: "Blue Warband", color: "Blue", className: "bg-blue-500" },
-  { label: "Green Warband", color: "Green", className: "bg-green-500" },
-  { label: "Gold Warband", color: "Gold", className: "bg-amber-300" },
-  { label: "Purple Warband", color: "Purple", className: "bg-purple-500" },
-  { label: "Cyan Warband", color: "Cyan", className: "bg-cyan-300" },
-  { label: "Gray Warband", color: "Gray", className: "bg-zinc-400" },
+  {
+    label: "No Group",
+    color: "None",
+    className: "bg-slate-500",
+    rowTint: "bg-slate-900/88",
+    border: "border-slate-800",
+  },
+  {
+    label: "Red Warband",
+    color: "Red",
+    className: "bg-red-500",
+    rowTint: "bg-red-500/8",
+    border: "border-red-400/20",
+  },
+  {
+    label: "Blue Warband",
+    color: "Blue",
+    className: "bg-blue-500",
+    rowTint: "bg-blue-500/8",
+    border: "border-blue-400/20",
+  },
+  {
+    label: "Green Warband",
+    color: "Green",
+    className: "bg-green-500",
+    rowTint: "bg-green-500/8",
+    border: "border-green-400/20",
+  },
+  {
+    label: "Gold Warband",
+    color: "Gold",
+    className: "bg-amber-300",
+    rowTint: "bg-amber-300/10",
+    border: "border-amber-300/25",
+  },
+  {
+    label: "Purple Warband",
+    color: "Purple",
+    className: "bg-purple-500",
+    rowTint: "bg-purple-500/8",
+    border: "border-purple-400/20",
+  },
+  {
+    label: "Cyan Warband",
+    color: "Cyan",
+    className: "bg-cyan-300",
+    rowTint: "bg-cyan-300/8",
+    border: "border-cyan-300/25",
+  },
+  {
+    label: "Gray Warband",
+    color: "Gray",
+    className: "bg-zinc-400",
+    rowTint: "bg-zinc-500/10",
+    border: "border-zinc-500/25",
+  },
 ];
 
 export function getCombatGroupColorClass(groupColor?: string): string | null {
@@ -108,4 +156,18 @@ export function getCombatGroupColorClass(groupColor?: string): string | null {
     combatGroupOptions.find((option) => option.color === groupColor)?.className ??
     null
   );
+}
+
+export function getCombatGroupRowStyle(groupColor?: string): {
+  rowTint: string;
+  border: string;
+} {
+  const option = combatGroupOptions.find(
+    (item) => item.color === (groupColor || "None"),
+  );
+
+  return {
+    rowTint: option?.rowTint ?? "bg-slate-900/88",
+    border: option?.border ?? "border-slate-800",
+  };
 }
