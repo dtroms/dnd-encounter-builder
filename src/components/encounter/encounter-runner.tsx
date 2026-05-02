@@ -113,41 +113,45 @@ export function EncounterRunner({
 
   return (
     <div className="grid gap-2.5">
-      <RunnerToolbar
-        currentName={activeName}
-        encounterName={encounterName}
-        round={round}
-        turnNumber={turnNumber}
-        onAdd={onToggleAddPanel}
-        onNext={onNextTurn}
-        onPrevious={onPreviousTurn}
-        onRoll={onRollEligible}
-        onSort={onSort}
-      />
+      <div className="sticky top-2 z-40 rounded-xl bg-slate-950/95 shadow-lg shadow-slate-950/50 backdrop-blur">
+        <RunnerToolbar
+          currentName={activeName}
+          encounterName={encounterName}
+          round={round}
+          turnNumber={turnNumber}
+          onAdd={onToggleAddPanel}
+          onNext={onNextTurn}
+          onPrevious={onPreviousTurn}
+          onRoll={onRollEligible}
+          onSort={onSort}
+        />
+      </div>
 
       {addPanelOpen ? (
         <AddCombatantPanel compact templates={templates} onAdd={onAdd} />
       ) : null}
 
       <div className="grid gap-2.5 xl:grid-cols-[20rem_minmax(0,0.95fr)_34rem]">
-        <aside className="grid content-start gap-2.5">
-          <ConditionTrackerPanel
-            combatant={selectedCombatant}
-            onToggleCondition={(condition) => {
-              if (selectedCombatant) {
-                onToggleCondition(selectedCombatant.combatantId, condition);
-              }
-            }}
-          />
-          <CombatGroupSummary
-            combatGroups={combatGroups}
-            combatants={combatants}
-            onClearGroup={onClearGroup}
-            onCreateGroup={onCreateGroup}
-            onRenameGroup={onRenameGroup}
-            onRollGroupInitiative={onRollGroupInitiative}
-            onRollSharedGroupInitiative={onRollSharedGroupInitiative}
-          />
+        <aside className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto">
+          <div className="grid content-start gap-2.5">
+            <ConditionTrackerPanel
+              combatant={selectedCombatant}
+              onToggleCondition={(condition) => {
+                if (selectedCombatant) {
+                  onToggleCondition(selectedCombatant.combatantId, condition);
+                }
+              }}
+            />
+            <CombatGroupSummary
+              combatGroups={combatGroups}
+              combatants={combatants}
+              onClearGroup={onClearGroup}
+              onCreateGroup={onCreateGroup}
+              onRenameGroup={onRenameGroup}
+              onRollGroupInitiative={onRollGroupInitiative}
+              onRollSharedGroupInitiative={onRollSharedGroupInitiative}
+            />
+          </div>
         </aside>
         <main className="min-w-0">
           <RunnerControlStrip

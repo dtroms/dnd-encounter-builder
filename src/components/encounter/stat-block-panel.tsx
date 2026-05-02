@@ -22,7 +22,7 @@ export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
   }
 
   return (
-    <aside className="max-h-none rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-3 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-auto">
+    <aside className="max-h-none rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto">
       <div className="sticky -top-3 z-10 border-b border-slate-800 bg-slate-950/95 pb-2 pt-1 backdrop-blur">
         <div>
           <TypeBadge type={combatant.type} />
