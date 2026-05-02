@@ -51,15 +51,15 @@ export function CombatantCard({
       } ${selected ? "outline outline-2 outline-cyan-300/70" : ""} ${
         down ? "opacity-60 grayscale" : ""
       }`}
+      onClick={onSelect}
     >
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
       <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(10rem,0.9fr)_3.25rem_18.5rem_2.1rem_0.6rem]">
-        <button
+        <div
           className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
-          type="button"
-          onClick={onSelect}
+          onClick={(event) => event.stopPropagation()}
         >
           <input
             aria-label={`${combatant.displayName} initiative`}
@@ -73,9 +73,9 @@ export function CombatantCard({
             }
             onClick={(event) => event.stopPropagation()}
           />
-        </button>
+        </div>
 
-        <button className="min-w-0 text-left" type="button" onClick={onSelect}>
+        <div className="min-w-0 cursor-pointer text-left">
           <h3 className="truncate text-base font-black text-white">
             {combatant.displayName}
           </h3>
@@ -95,19 +95,19 @@ export function CombatantCard({
             </span>
             <ConditionBadges conditions={combatant.conditions} />
           </div>
-        </button>
+        </div>
 
-        <button className="text-left" type="button" onClick={onSelect}>
+        <div className="cursor-pointer text-left">
           <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
             AC
           </span>
           <strong className="text-2xl font-black text-white">
             {combatant.armorClass}
           </strong>
-        </button>
+        </div>
 
         <div className="grid grid-cols-[8.25rem_1fr] items-center gap-1">
-          <button className="text-left" type="button" onClick={onSelect}>
+          <div className="cursor-pointer text-left">
             <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
               HP
             </span>
@@ -122,13 +122,15 @@ export function CombatantCard({
             <div className="mt-0.5">
               <StatusBadge status={status} />
             </div>
-          </button>
-          <HpControls
-            currentHp={combatant.currentHp}
-            maxHp={combatant.maxHp}
-            onDamage={onDamage}
-            onHealing={onHealing}
-          />
+          </div>
+          <div onClick={(event) => event.stopPropagation()}>
+            <HpControls
+              currentHp={combatant.currentHp}
+              maxHp={combatant.maxHp}
+              onDamage={onDamage}
+              onHealing={onHealing}
+            />
+          </div>
         </div>
 
         <div>
@@ -136,7 +138,10 @@ export function CombatantCard({
             aria-label={`Remove ${combatant.displayName}`}
             className="h-8 w-8 rounded-lg border border-slate-700 px-2 text-sm font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
             type="button"
-            onClick={onRemove}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
           >
             X
           </button>
