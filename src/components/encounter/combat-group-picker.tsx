@@ -33,7 +33,9 @@ export function CombatGroupPicker({
   return (
     <div className="relative">
       <button
-        className="inline-flex h-5 max-w-32 items-center gap-1 rounded-full border border-slate-700 bg-slate-950 px-1.5 text-[10px] font-bold text-slate-300"
+        aria-label={`Change combat group for ${combatant.displayName}`}
+        title="Change combat group"
+        className="inline-flex h-6 max-w-40 items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 text-[10px] font-black text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-300/15 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -42,6 +44,7 @@ export function CombatGroupPicker({
       >
         <span className={`h-1.5 w-1.5 rounded-full ${colorClass}`} />
         <span className="truncate">{label}</span>
+        <span className="text-[9px] text-cyan-200/80">v</span>
       </button>
 
       {open ? (

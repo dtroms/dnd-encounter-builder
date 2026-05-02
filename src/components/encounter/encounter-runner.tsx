@@ -8,6 +8,7 @@ import type {
 import { AddCombatantPanel } from "./add-combatant-panel";
 import { ConditionTrackerPanel } from "./condition-tracker-panel";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
+import { LairActionsPanel } from "./lair-actions-panel";
 import { RunnerToolbar } from "./runner-toolbar";
 import { StatBlockPanel } from "./stat-block-panel";
 
@@ -95,15 +96,18 @@ export function EncounterRunner({
       ) : null}
 
       <div className="grid gap-2.5 xl:grid-cols-[20rem_minmax(0,0.95fr)_34rem]">
-        <ConditionTrackerPanel
-          combatant={selectedCombatant}
-          combatants={combatants}
-          onToggleCondition={(condition) => {
-            if (selectedCombatant) {
-              onToggleCondition(selectedCombatant.combatantId, condition);
-            }
-          }}
-        />
+        <aside className="grid content-start gap-2.5">
+          <ConditionTrackerPanel
+            combatant={selectedCombatant}
+            combatants={combatants}
+            onToggleCondition={(condition) => {
+              if (selectedCombatant) {
+                onToggleCondition(selectedCombatant.combatantId, condition);
+              }
+            }}
+          />
+          <LairActionsPanel combatants={combatants} />
+        </aside>
         <main className="min-w-0">
           <RunnerControlStrip
             filter={runnerFilter}
