@@ -148,16 +148,23 @@ function LairActionRow({
   );
 
   return (
-    <button
+    <article
       className={`relative rounded-xl border border-amber-400/30 bg-amber-400/10 py-1.5 pl-2 pr-4 text-left shadow-sm transition-all duration-200 ease-out ${
         active
           ? "z-20 -my-1.5 scale-[1.02] border-amber-200/75 shadow-[0_18px_36px_rgba(69,26,3,0.58)] ring-2 ring-amber-300/55"
           : "z-0"
       } ${selected ? "outline outline-1 outline-cyan-300/55" : ""}`}
-      type="button"
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
     >
-      <div className="grid grid-cols-[4.5rem_minmax(10rem,1fr)_auto] items-center gap-1">
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2">
         <SyntheticInitiativeBox
           initiative={initiative}
           onInitiativeChange={onInitiativeChange}
@@ -170,19 +177,21 @@ function LairActionRow({
             name={name}
             onNameChange={onNameChange}
           />
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {owners.length === 1 ? <TypeBadge type={owners[0].type} /> : null}
-            <span className="rounded-full border border-amber-300/30 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-amber-100">
-              Initiative 20
-            </span>
-            <span className="text-[11px] font-semibold text-slate-300">
-              {actionCount} options
+          <div className="mt-1 grid grid-cols-[1fr_auto] items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {owners.length === 1 ? <TypeBadge type={owners[0].type} /> : null}
+              <span className="rounded-full border border-amber-300/30 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-amber-100">
+                Initiative 20
+              </span>
+              <span className="text-[11px] font-semibold text-slate-300">
+                {actionCount} options
+              </span>
+            </div>
+            <span className="pr-2 text-xs font-bold text-slate-400">
+              Select owner
             </span>
           </div>
         </div>
-        <span className="pr-2 text-xs font-bold text-slate-400">
-          Select owner
-        </span>
       </div>
 
       {owners.length > 0 ? (
@@ -213,7 +222,7 @@ function LairActionRow({
       ) : null}
 
       <div className="absolute inset-y-0 right-0 w-2.5 rounded-r-xl bg-amber-300" />
-    </button>
+    </article>
   );
 }
 
@@ -328,7 +337,7 @@ function EditableSyntheticName({
 
   return (
     <button
-      className="block max-w-full truncate rounded-md text-left text-base font-black text-amber-100 outline-none transition hover:text-amber-50 focus-visible:ring-2 focus-visible:ring-amber-300/50"
+      className="block max-w-full rounded-md text-left text-lg font-black leading-6 text-amber-100 outline-none transition hover:text-amber-50 focus-visible:ring-2 focus-visible:ring-amber-300/50"
       title="Click to rename"
       type="button"
       onClick={(event) => {

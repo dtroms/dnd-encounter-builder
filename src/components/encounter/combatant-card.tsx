@@ -71,7 +71,7 @@ export function CombatantCard({
       <div
         className={`absolute inset-y-0 right-0 w-2.5 rounded-r-xl ${groupColorClass ?? style.dot}`}
       />
-      <div className="grid grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_15.25rem_minmax(1rem,1fr)_7rem] items-center gap-2 pr-4">
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 pr-4">
         <InitiativeBox
           key={`${combatant.combatantId}-${combatant.initiative ?? "unset"}`}
           combatantName={combatant.displayName}
@@ -79,75 +79,80 @@ export function CombatantCard({
           onInitiativeChange={onInitiativeChange}
         />
 
-        <div className="min-w-0 cursor-pointer text-left">
-          <EditableCombatantName
-            name={combatant.displayName}
-            onNameChange={onNameChange}
-          />
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <TypeBadge type={combatant.type} />
-          </div>
-        </div>
-
-        <div className="cursor-pointer text-left">
-          <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
-            AC
-          </span>
-          <strong className="text-2xl font-black text-white">
-            {combatant.armorClass}
-          </strong>
-        </div>
-
-        <div className="grid grid-cols-[8.25rem_1fr] items-center gap-1">
-          <div className="cursor-pointer text-left">
-            <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
-              HP
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <strong className="text-lg font-black text-white">
-                {combatant.currentHp}/{combatant.maxHp}
-              </strong>
-              <span className="text-xs font-bold text-slate-500">
-                {hpPercent}%
-              </span>
-            </div>
-            <div className="mt-0.5">
-              <StatusBadge status={status} />
-            </div>
-          </div>
-          <div onClick={(event) => event.stopPropagation()}>
-            <HpControls
-              currentHp={combatant.currentHp}
-              maxHp={combatant.maxHp}
-              onDamage={onDamage}
-              onHealing={onHealing}
+        <div className="min-w-0">
+          <div className="min-w-0 cursor-pointer text-left">
+            <EditableCombatantName
+              name={combatant.displayName}
+              onNameChange={onNameChange}
             />
           </div>
-        </div>
 
-        <div aria-hidden="true" className="min-w-0" />
+          <div className="mt-1 grid grid-cols-[auto_auto_minmax(14rem,auto)_minmax(1rem,1fr)_7rem] items-center gap-2">
+            <div className="flex items-center">
+              <TypeBadge type={combatant.type} />
+            </div>
 
-        <div
-          className="grid grid-cols-[2rem_4.5rem] items-center justify-end gap-1"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <CombatGroupPicker
-            combatant={combatant}
-            groups={combatGroups}
-            variant="menu"
-            onUpdateGroup={onUpdateGroup}
-          />
-          <button
-            aria-label={`Remove ${combatant.displayName}`}
-            className="h-9 rounded-lg border border-slate-700 bg-slate-950/75 px-2 text-[11px] font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove();
-            }}
-          >
-            Remove
-          </button>
+            <div className="cursor-pointer text-left">
+              <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+                AC
+              </span>
+              <strong className="text-2xl font-black text-white">
+                {combatant.armorClass}
+              </strong>
+            </div>
+
+            <div className="grid grid-cols-[8.25rem_1fr] items-center gap-1">
+              <div className="cursor-pointer text-left">
+                <span className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+                  HP
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <strong className="text-lg font-black text-white">
+                    {combatant.currentHp}/{combatant.maxHp}
+                  </strong>
+                  <span className="text-xs font-bold text-slate-500">
+                    {hpPercent}%
+                  </span>
+                </div>
+                <div className="mt-0.5">
+                  <StatusBadge status={status} />
+                </div>
+              </div>
+              <div onClick={(event) => event.stopPropagation()}>
+                <HpControls
+                  currentHp={combatant.currentHp}
+                  maxHp={combatant.maxHp}
+                  onDamage={onDamage}
+                  onHealing={onHealing}
+                />
+              </div>
+            </div>
+
+            <div aria-hidden="true" className="min-w-0" />
+
+            <div
+              className="grid grid-cols-[2rem_4.5rem] items-center justify-end gap-1"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <CombatGroupPicker
+                combatant={combatant}
+                groups={combatGroups}
+                variant="menu"
+                onUpdateGroup={onUpdateGroup}
+              />
+              <button
+                aria-label={`Remove ${combatant.displayName}`}
+                className="h-9 rounded-lg border border-slate-700 bg-slate-950/75 px-2 text-[11px] font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove();
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -279,7 +284,7 @@ function EditableCombatantName({
       <input
         aria-label="Edit combatant name"
         autoFocus
-        className="h-7 w-full rounded-md border border-cyan-300/50 bg-slate-950/85 px-1.5 text-base font-black text-white outline-none focus:border-cyan-300"
+        className="min-h-8 w-full rounded-md border border-cyan-300/50 bg-slate-950/85 px-1.5 py-1 text-lg font-black leading-6 text-white outline-none focus:border-cyan-300"
         value={draft}
         onBlur={saveName}
         onChange={(event) => setDraft(event.target.value)}
@@ -301,7 +306,7 @@ function EditableCombatantName({
 
   return (
     <button
-      className="block max-w-full truncate rounded-md text-left text-base font-black text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+      className="block max-w-full rounded-md text-left text-lg font-black leading-6 text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
       title="Click to rename"
       type="button"
       onClick={(event) => {
