@@ -35,6 +35,9 @@ export function CombatGroupSummary({
 }: CombatGroupSummaryProps) {
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("Red");
+  const colorPickerOptions = combatGroupOptions.filter(
+    (option) => option.color !== "None",
+  );
   const groupCounts = combatGroups.reduce<Record<string, number>>((acc, group) => {
     acc[group.id] = combatants.filter(
       (combatant) =>
@@ -168,20 +171,39 @@ export function CombatGroupSummary({
             value={newGroupLabel}
             onChange={(event) => setNewGroupLabel(event.target.value)}
           />
-          <div className="grid grid-cols-[1fr_auto] gap-1">
-            <select
-              className="h-7 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
-              value={newGroupColor}
-              onChange={(event) => setNewGroupColor(event.target.value)}
+          <div className="grid gap-1">
+            <div
+              aria-label="Choose combat group color"
+              className="grid grid-cols-4 gap-1"
+              role="radiogroup"
             >
-              {combatGroupOptions
-                .filter((option) => option.color !== "None")
-                .map((option) => (
-                  <option key={option.color} value={option.color}>
-                    {option.color}
-                  </option>
-                ))}
-            </select>
+              {colorPickerOptions.map((option) => {
+                const selected = newGroupColor === option.color;
+
+                return (
+                  <button
+                    aria-checked={selected}
+                    aria-label={`Use ${option.color} for new combat group`}
+                    className={`flex h-8 items-center justify-center rounded-lg border bg-slate-950 transition ${
+                      selected
+                        ? "scale-[1.03] border-white shadow-[0_0_14px_rgba(255,255,255,0.22)]"
+                        : "border-slate-800 hover:border-slate-500"
+                    }`}
+                    key={option.color}
+                    role="radio"
+                    title={option.color}
+                    type="button"
+                    onClick={() => setNewGroupColor(option.color)}
+                  >
+                    <span
+                      className={`h-4 w-4 rounded-md ${option.className} ${
+                        selected ? "ring-2 ring-white/80 ring-offset-2 ring-offset-slate-950" : ""
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
             <button
               className="h-7 rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
               type="button"
