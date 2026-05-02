@@ -17,6 +17,7 @@ type CombatGroupSummaryProps = {
     newLabel: string;
   }) => void;
   onClearGroup: (group: { label: string; color?: string }) => void;
+  onRollGroupInitiative: (group: { label: string; color?: string }) => void;
 };
 
 export function CombatGroupSummary({
@@ -25,6 +26,7 @@ export function CombatGroupSummary({
   onCreateGroup,
   onRenameGroup,
   onClearGroup,
+  onRollGroupInitiative,
 }: CombatGroupSummaryProps) {
   const [newGroupLabel, setNewGroupLabel] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("Red");
@@ -57,7 +59,7 @@ export function CombatGroupSummary({
 
           return (
             <div
-              className="grid grid-cols-[1fr_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
+              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/65 p-1.5"
               key={group.id}
             >
               <label className="flex min-w-0 items-center gap-1.5">
@@ -96,6 +98,19 @@ export function CombatGroupSummary({
               <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
                 {groupCounts[group.id] ?? 0}
               </span>
+              <button
+                className="h-7 rounded-md border border-cyan-700/70 px-1.5 text-[10px] font-black text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-300/10 hover:text-white"
+                type="button"
+                title={`Roll initiative for eligible members of ${group.name}`}
+                onClick={() =>
+                  onRollGroupInitiative({
+                    label: group.name,
+                    color: group.color,
+                  })
+                }
+              >
+                Roll Init
+              </button>
               <button
                 className="h-7 rounded-md border border-slate-700 px-1.5 text-[10px] font-black text-slate-400 hover:border-rose-400 hover:text-rose-200"
                 type="button"

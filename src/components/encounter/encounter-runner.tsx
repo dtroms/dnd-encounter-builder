@@ -50,6 +50,7 @@ type EncounterRunnerProps = {
   }) => void;
   onClearGroup: (group: { label: string; color?: string }) => void;
   onCreateGroup: (group: { name: string; color: string }) => void;
+  onRollGroupInitiative: (group: { label: string; color?: string }) => void;
   onToggleCondition: (
     combatantId: string,
     condition: CombatantCondition,
@@ -89,6 +90,7 @@ export function EncounterRunner({
   onClearGroup,
   onCreateGroup,
   onToggleCondition,
+  onRollGroupInitiative,
   onRollEligible,
   onSort,
   onNextTurn,
@@ -138,6 +140,7 @@ export function EncounterRunner({
             onClearGroup={onClearGroup}
             onCreateGroup={onCreateGroup}
             onRenameGroup={onRenameGroup}
+            onRollGroupInitiative={onRollGroupInitiative}
           />
         </aside>
         <main className="min-w-0">

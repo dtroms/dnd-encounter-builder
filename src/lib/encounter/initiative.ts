@@ -46,6 +46,35 @@ export function rollEligibleInitiatives(
   });
 }
 
+export function rollEligibleInitiativesForGroup(
+  combatants: EncounterCombatant[],
+  group: { label: string; color?: string },
+): EncounterCombatant[] {
+  return combatants.map((combatant) => {
+    const combatantLabel =
+      combatant.combatGroupLabel ||
+      combatant.combatGroupColor ||
+      "Ungrouped";
+    const matchesGroup =
+      combatantLabel === group.label &&
+      (combatant.combatGroupColor || "None") === (group.color || "None");
+
+    if (
+      !matchesGroup ||
+      !combatant.autoRollEligible ||
+      combatant.type === "pc"
+    ) {
+      return combatant;
+    }
+
+    return {
+      ...combatant,
+      initiative: rollInitiative(combatant.initiativeBonus),
+      manualInitiative: false,
+    };
+  });
+}
+
 export function sortCombatantsByInitiative(
   combatants: EncounterCombatant[],
 ): EncounterCombatant[] {

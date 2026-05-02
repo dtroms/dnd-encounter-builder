@@ -16,6 +16,7 @@ import {
   advanceTurn,
   previousTurn,
   rollEligibleInitiatives,
+  rollEligibleInitiativesForGroup,
   sortCombatantsByInitiative,
   type SyntheticInitiativeOverrides,
 } from "@/lib/encounter/initiative";
@@ -344,6 +345,24 @@ export function EncounterApp() {
     });
   }
 
+  function rollCombatGroupInitiative(group: { label: string; color?: string }) {
+    setEncounter((current) => {
+      const rolled = rollEligibleInitiativesForGroup(
+        current.combatants,
+        group,
+      );
+
+      return {
+        ...current,
+        combatants: rolled,
+        activeCombatantId:
+          current.activeCombatantId ??
+          sortCombatantsByInitiative(rolled)[0]?.combatantId ??
+          null,
+      };
+    });
+  }
+
   function sortInitiative() {
     setEncounter((current) => ({
       ...current,
@@ -454,6 +473,7 @@ export function EncounterApp() {
           onClearGroup={clearCombatGroup}
           onCreateGroup={createCombatGroup}
           onRenameGroup={renameCombatGroup}
+          onRollGroupInitiative={rollCombatGroupInitiative}
           onToggleCondition={toggleCondition}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}
