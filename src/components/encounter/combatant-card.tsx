@@ -46,10 +46,6 @@ export function CombatantCard({
   const style = typeStyles[combatant.type];
   const groupColorClass = getCombatGroupColorClass(combatant.combatGroupColor);
   const groupRowStyle = getCombatGroupRowStyle(combatant.combatGroupColor);
-  const groupLabel =
-    combatant.combatGroupColor && combatant.combatGroupColor !== "None"
-      ? combatant.combatGroupLabel || combatant.combatGroupColor
-      : "No Group";
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
@@ -85,14 +81,6 @@ export function CombatantCard({
           />
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <TypeBadge type={combatant.type} />
-            <span className="inline-flex h-5 max-w-36 items-center gap-1 rounded-full border border-slate-700 bg-slate-950 px-1.5 text-[10px] font-black text-slate-300">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  groupColorClass ?? "bg-slate-600"
-                }`}
-              />
-              <span className="truncate">{groupLabel}</span>
-            </span>
           </div>
         </div>
 
@@ -156,20 +144,20 @@ export function CombatantCard({
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-[5.85rem] mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2">
-          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-200/80">
+        <section className="ml-[5rem] mr-4 mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2.5">
+          <h4 className="text-xs font-black uppercase tracking-[0.16em] text-amber-200/85">
             Legendary Actions
           </h4>
-          <div className="mt-1.5 grid gap-1.5 md:grid-cols-2">
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
             {legendaryActions.map((action) => (
               <div
-                className="rounded-md border border-slate-800 bg-slate-900/90 p-2"
+                className="rounded-lg border border-slate-800 bg-slate-900/90 p-2.5"
                 key={action.name}
               >
-                <p className="text-xs font-black text-amber-100/90">
+                <p className="text-sm font-black text-amber-100">
                   {action.name}
                 </p>
-                <p className="mt-0.5 text-[11px] leading-4 text-slate-300">
+                <p className="mt-1 text-sm leading-5 text-slate-300">
                   {action.description}
                 </p>
               </div>
