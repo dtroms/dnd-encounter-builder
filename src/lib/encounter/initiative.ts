@@ -43,9 +43,10 @@ export function advanceTurn(
   combatants: EncounterCombatant[],
   activeCombatantId: string | null,
   round: number,
-): { activeCombatantId: string | null; round: number } {
+  turnNumber = 0,
+): { activeCombatantId: string | null; round: number; turnNumber: number } {
   if (combatants.length === 0) {
-    return { activeCombatantId: null, round };
+    return { activeCombatantId: null, round, turnNumber: 0 };
   }
 
   const ordered = sortCombatantsByInitiative(combatants);
@@ -59,6 +60,7 @@ export function advanceTurn(
   return {
     activeCombatantId: ordered[nextIndex].combatantId,
     round: nextRound,
+    turnNumber: turnNumber + 1,
   };
 }
 
@@ -66,9 +68,10 @@ export function previousTurn(
   combatants: EncounterCombatant[],
   activeCombatantId: string | null,
   round: number,
-): { activeCombatantId: string | null; round: number } {
+  turnNumber = 0,
+): { activeCombatantId: string | null; round: number; turnNumber: number } {
   if (combatants.length === 0) {
-    return { activeCombatantId: null, round };
+    return { activeCombatantId: null, round, turnNumber: 0 };
   }
 
   const ordered = sortCombatantsByInitiative(combatants);
@@ -85,5 +88,6 @@ export function previousTurn(
   return {
     activeCombatantId: ordered[previousIndex].combatantId,
     round: previousRound,
+    turnNumber: Math.max(0, turnNumber - 1),
   };
 }

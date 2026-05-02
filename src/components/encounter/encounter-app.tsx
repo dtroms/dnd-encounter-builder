@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import type {
-  CombatantType,
   CreatureTemplate,
   Encounter,
   EncounterCombatant,
@@ -18,10 +17,11 @@ import {
   sortCombatantsByInitiative,
 } from "@/lib/encounter/initiative";
 import { applyDamage, applyHealing } from "@/lib/encounter/hp";
+import { AppShell, type EncounterView } from "./app-shell";
 import { EncounterBuilder } from "./encounter-builder";
 import { EncounterRunner } from "./encounter-runner";
-
-type ActiveTab = "builder" | "runner";
+import type { RunnerFilter } from "./initiative-list";
+import { TypeBadge } from "./type-badge";
 
 const starterCombatants = [
   createCombatant(sampleCreatureTemplates[0]),
@@ -31,10 +31,13 @@ const starterCombatants = [
   createCombatant(sampleCreatureTemplates[3], 2),
   createCombatant(sampleCreatureTemplates[4], 1),
   createCombatant(sampleCreatureTemplates[8], 1),
+  createCombatant(sampleCreatureTemplates[9], 1),
 ];
 
 export function EncounterApp() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("builder");
+  const [activeView, setActiveView] = useState<EncounterView>("builder");
+  const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
+  const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
     starterCombatants[0]?.combatantId ?? null,
   );
@@ -44,10 +47,10 @@ export function EncounterApp() {
     combatants: starterCombatants,
     waves: [{ id: "wave-1", name: "Opening wave" }],
     round: 1,
+    turnNumber: 0,
     activeCombatantId: null,
   });
 
-  const selectedCount = encounter.combatants.length;
   const activeName = useMemo(() => {
     return (
       encounter.combatants.find(
@@ -70,8 +73,11 @@ export function EncounterApp() {
 
   function addCombatants(template: CreatureTemplate, count: number) {
     setEncounter((current) => {
+      const sameTemplateCount = current.combatants.filter(
+        (combatant) => combatant.templateId === template.id,
+      ).length;
       const additions = Array.from({ length: count }, (_, index) =>
-        createCombatant(template, current.combatants.length + index + 1),
+        createCombatant(template, sameTemplateCount + index + 1),
       );
 
       return {
@@ -83,19 +89,37 @@ export function EncounterApp() {
     });
   }
 
+  function duplicateCombatant(combatant: EncounterCombatant) {
+    const copy: EncounterCombatant = {
+      ...combatant,
+      combatantId: `${combatant.templateId}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`,
+      displayName: `${combatant.displayName} copy`,
+      currentHp: combatant.maxHp,
+      initiative: null,
+      manualInitiative: combatant.type === "pc",
+      conditions: [],
+    };
+
+    setEncounter((current) => ({
+      ...current,
+      combatants: [...current.combatants, copy],
+    }));
+  }
+
   function removeCombatant(combatantId: string) {
     setEncounter((current) => {
       const remaining = current.combatants.filter(
         (combatant) => combatant.combatantId !== combatantId,
       );
-      const activeStillExists = remaining.some(
-        (combatant) => combatant.combatantId === current.activeCombatantId,
-      );
 
       return {
         ...current,
         combatants: remaining,
-        activeCombatantId: activeStillExists
+        activeCombatantId: remaining.some(
+          (combatant) => combatant.combatantId === current.activeCombatantId,
+        )
           ? current.activeCombatantId
           : sortCombatantsByInitiative(remaining)[0]?.combatantId ?? null,
       };
@@ -110,10 +134,7 @@ export function EncounterApp() {
     combatantId: string,
     updates: Partial<EncounterCombatant>,
   ) {
-    updateCombatant(combatantId, (combatant) => ({
-      ...combatant,
-      ...updates,
-    }));
+    updateCombatant(combatantId, (combatant) => ({ ...combatant, ...updates }));
   }
 
   function launchRunner() {
@@ -124,13 +145,27 @@ export function EncounterApp() {
         sortCombatantsByInitiative(current.combatants)[0]?.combatantId ??
         null,
     }));
-    setActiveTab("runner");
+    setActiveView("runner");
   }
 
   function rollMonstersAndNpcs() {
+    setEncounter((current) => {
+      const rolled = rollEligibleInitiatives(current.combatants);
+      return {
+        ...current,
+        combatants: rolled,
+        activeCombatantId:
+          current.activeCombatantId ??
+          sortCombatantsByInitiative(rolled)[0]?.combatantId ??
+          null,
+      };
+    });
+  }
+
+  function sortInitiative() {
     setEncounter((current) => ({
       ...current,
-      combatants: rollEligibleInitiatives(current.combatants),
+      combatants: sortCombatantsByInitiative(current.combatants),
       activeCombatantId:
         current.activeCombatantId ??
         sortCombatantsByInitiative(current.combatants)[0]?.combatantId ??
@@ -146,11 +181,13 @@ export function EncounterApp() {
               current.combatants,
               current.activeCombatantId,
               current.round,
+              current.turnNumber,
             )
           : previousTurn(
               current.combatants,
               current.activeCombatantId,
               current.round,
+              current.turnNumber,
             );
 
       return { ...current, ...turn };
@@ -158,120 +195,141 @@ export function EncounterApp() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-zinc-950">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <div>
-            <p className="text-sm font-black uppercase tracking-wide text-amber-700">
-              D&D Encounter Builder
-            </p>
-            <h1 className="text-3xl font-black tracking-normal text-zinc-950">
-              {encounter.name}
-            </h1>
-          </div>
-          <div className="flex flex-wrap gap-3 text-sm font-bold text-zinc-700">
-            <span className="rounded-md bg-zinc-100 px-3 py-2">
-              {selectedCount} combatants
-            </span>
-            <span className="rounded-md bg-zinc-100 px-3 py-2">
-              Active: {activeName}
-            </span>
-          </div>
-        </div>
-      </header>
+    <AppShell
+      activeName={activeName}
+      activeView={activeView}
+      combatantCount={encounter.combatants.length}
+      encounterName={encounter.name}
+      round={encounter.round}
+      onViewChange={(view) => (view === "runner" ? launchRunner() : setActiveView(view))}
+    >
+      {activeView === "builder" ? (
+        <EncounterBuilder
+          combatants={encounter.combatants}
+          templates={sampleCreatureTemplates}
+          onAdd={addCombatants}
+          onDuplicate={duplicateCombatant}
+          onLaunchRunner={launchRunner}
+          onRemove={removeCombatant}
+          onUpdate={patchCombatant}
+        />
+      ) : null}
 
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-        <nav className="mb-5 inline-grid grid-cols-2 rounded-lg border border-zinc-300 bg-white p-1">
-          <TabButton
-            active={activeTab === "builder"}
-            label="Encounter Builder"
-            onClick={() => setActiveTab("builder")}
-          />
-          <TabButton
-            active={activeTab === "runner"}
-            label="Encounter Runner"
-            onClick={launchRunner}
-          />
-        </nav>
+      {activeView === "runner" ? (
+        <EncounterRunner
+          activeCombatantId={encounter.activeCombatantId}
+          addPanelOpen={addPanelOpen}
+          combatants={encounter.combatants}
+          encounterName={encounter.name}
+          round={encounter.round}
+          runnerFilter={runnerFilter}
+          selectedCombatantId={selectedCombatantId}
+          templates={sampleCreatureTemplates}
+          turnNumber={encounter.turnNumber}
+          onAdd={addCombatants}
+          onDamage={(combatantId, amount) =>
+            updateCombatant(combatantId, (combatant) => ({
+              ...combatant,
+              currentHp: applyDamage(combatant.currentHp, amount),
+            }))
+          }
+          onFilterChange={setRunnerFilter}
+          onHealing={(combatantId, amount) =>
+            updateCombatant(combatantId, (combatant) => ({
+              ...combatant,
+              currentHp: applyHealing(
+                combatant.currentHp,
+                combatant.maxHp,
+                amount,
+              ),
+            }))
+          }
+          onInitiativeChange={(combatantId, initiative) =>
+            updateCombatant(combatantId, (combatant) => ({
+              ...combatant,
+              initiative,
+              manualInitiative: true,
+            }))
+          }
+          onNextTurn={() => moveTurn("next")}
+          onPreviousTurn={() => moveTurn("previous")}
+          onRemove={removeCombatant}
+          onRollEligible={rollMonstersAndNpcs}
+          onSelect={setSelectedCombatantId}
+          onSort={sortInitiative}
+          onToggleAddPanel={() => setAddPanelOpen((open) => !open)}
+        />
+      ) : null}
 
-        {activeTab === "builder" ? (
-          <EncounterBuilder
-            combatants={encounter.combatants}
-            templates={sampleCreatureTemplates}
-            onAdd={addCombatants}
-            onLaunchRunner={launchRunner}
-            onRemove={removeCombatant}
-            onUpdate={patchCombatant}
-          />
-        ) : (
-          <EncounterRunner
-            activeCombatantId={encounter.activeCombatantId}
-            combatants={encounter.combatants}
-            round={encounter.round}
-            selectedCombatantId={selectedCombatantId}
-            templates={sampleCreatureTemplates}
-            onAdd={addCombatants}
-            onDamage={(combatantId, amount) =>
-              updateCombatant(combatantId, (combatant) => ({
-                ...combatant,
-                currentHp: applyDamage(combatant.currentHp, amount),
-              }))
-            }
-            onHealing={(combatantId, amount) =>
-              updateCombatant(combatantId, (combatant) => ({
-                ...combatant,
-                currentHp: applyHealing(
-                  combatant.currentHp,
-                  combatant.maxHp,
-                  amount,
-                ),
-              }))
-            }
-            onInitiativeChange={(combatantId, initiative) =>
-              updateCombatant(combatantId, (combatant) => ({
-                ...combatant,
-                initiative,
-                manualInitiative: true,
-              }))
-            }
-            onNextTurn={() => moveTurn("next")}
-            onPreviousTurn={() => moveTurn("previous")}
-            onRemove={removeCombatant}
-            onRollEligible={rollMonstersAndNpcs}
-            onSelect={setSelectedCombatantId}
-            onTypeChange={(combatantId, type: CombatantType) =>
-              patchCombatant(combatantId, {
-                type,
-                autoRollEligible: type !== "pc",
-              })
-            }
-          />
-        )}
-      </div>
-    </div>
+      {activeView === "library" ? (
+        <LibraryPreview templates={sampleCreatureTemplates} />
+      ) : null}
+    </AppShell>
   );
 }
 
-function TabButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function LibraryPreview({ templates }: { templates: CreatureTemplate[] }) {
   return (
-    <button
-      className={`h-11 rounded-md px-4 text-sm font-black transition ${
-        active
-          ? "bg-zinc-950 text-white"
-          : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
-      }`}
-      type="button"
-      onClick={onClick}
-    >
-      {label}
-    </button>
+    <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-black text-white">Library Preview</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Placeholder view for the future creature repository. For now this is
+            just the local custom sample set.
+          </p>
+        </div>
+        <span className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-bold text-slate-300">
+          {templates.length} templates
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {templates.map((template) => (
+          <article
+            className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
+            key={template.id}
+          >
+            <TypeBadge type={template.type} />
+            <h3 className="mt-3 text-xl font-black text-white">{template.name}</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {template.size} - {template.speed}
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <LibraryStat label="AC" value={String(template.armorClass)} />
+              <LibraryStat label="HP" value={String(template.maxHp)} />
+              <LibraryStat
+                label="Init"
+                value={`${template.initiativeBonus >= 0 ? "+" : ""}${template.initiativeBonus}`}
+              />
+            </div>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-400">
+              {template.notes}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {template.tags.map((tag) => (
+                <span
+                  className="rounded-full bg-slate-950 px-2 py-1 text-xs font-semibold text-slate-400"
+                  key={tag}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LibraryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-950 p-2 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="text-lg font-black text-white">{value}</p>
+    </div>
   );
 }

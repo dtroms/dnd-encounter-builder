@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getHpPercent } from "@/lib/encounter/hp";
 
 type HpControlsProps = {
   currentHp: number;
@@ -16,42 +17,44 @@ export function HpControls({
   onHealing,
 }: HpControlsProps) {
   const [amount, setAmount] = useState(5);
+  const hpPercent = getHpPercent(currentHp, maxHp);
 
   return (
     <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-3">
-        <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Quick HP
-        </label>
+      <div className="flex items-center gap-2">
         <input
           aria-label="HP amount"
-          className="h-10 w-20 rounded-md border border-zinc-300 bg-white px-2 text-center text-lg font-bold text-zinc-950 outline-none focus:border-zinc-900"
+          className="h-10 w-20 rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-lg font-black text-white outline-none focus:border-cyan-300"
           min={0}
           type="number"
           value={amount}
           onChange={(event) => setAmount(Number(event.target.value))}
         />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
         <button
-          className="h-10 rounded-md bg-rose-700 px-3 text-sm font-bold text-white transition hover:bg-rose-800"
+          className="h-10 flex-1 rounded-xl bg-rose-500/90 px-3 text-sm font-black text-white transition hover:bg-rose-400"
           type="button"
           onClick={() => onDamage(amount)}
         >
           Damage
         </button>
         <button
-          className="h-10 rounded-md bg-emerald-700 px-3 text-sm font-bold text-white transition hover:bg-emerald-800"
+          className="h-10 flex-1 rounded-xl bg-emerald-500/90 px-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
           type="button"
           onClick={() => onHealing(amount)}
         >
           Heal
         </button>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
+      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
         <div
-          className="h-full bg-zinc-900"
-          style={{ width: `${Math.max(0, Math.min(100, (currentHp / maxHp) * 100))}%` }}
+          className={`h-full ${
+            hpPercent <= 25
+              ? "bg-rose-400"
+              : hpPercent <= 50
+                ? "bg-amber-300"
+                : "bg-emerald-400"
+          }`}
+          style={{ width: `${hpPercent}%` }}
         />
       </div>
     </div>

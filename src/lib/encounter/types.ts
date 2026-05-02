@@ -9,14 +9,20 @@ export type CombatantType =
 export type CombatantCondition =
   | "blinded"
   | "charmed"
-  | "concentrating"
+  | "deafened"
   | "frightened"
   | "grappled"
+  | "incapacitated"
   | "invisible"
+  | "paralyzed"
+  | "petrified"
   | "poisoned"
   | "prone"
   | "restrained"
-  | "stunned";
+  | "stunned"
+  | "unconscious"
+  | "concentrating"
+  | "hidden";
 
 export type AbilityScores = {
   str: number;
@@ -59,7 +65,8 @@ export type CreatureTemplate = {
   legendaryActions?: StatBlockAction[];
   notes?: string;
   tags: string[];
-  color: string;
+  accentColor: string;
+  groupLabel?: string;
   autoRollEligible: boolean;
 };
 
@@ -72,6 +79,7 @@ export type EncounterCombatant = CreatureTemplate & {
   manualInitiative: boolean;
   conditions: CombatantCondition[];
   waveId?: string;
+  waveLabel?: string;
 };
 
 export type EncounterWave = {
@@ -87,4 +95,5 @@ export type Encounter = {
   waves: EncounterWave[];
   round: number;
   activeCombatantId: string | null;
+  turnNumber: number;
 };

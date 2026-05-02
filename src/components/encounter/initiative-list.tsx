@@ -1,11 +1,16 @@
 "use client";
 
-import type { CombatantType, EncounterCombatant } from "@/lib/encounter/types";
+import type { EncounterCombatant } from "@/lib/encounter/types";
+import { getHpStatus } from "@/lib/encounter/hp";
 import { sortCombatantsByInitiative } from "@/lib/encounter/initiative";
 import { CombatantCard } from "./combatant-card";
+import { EmptyState } from "./empty-state";
+
+export type RunnerFilter = "all" | "alive" | "enemies" | "pcs";
 
 type InitiativeListProps = {
   combatants: EncounterCombatant[];
+  filter: RunnerFilter;
   activeCombatantId: string | null;
   selectedCombatantId: string | null;
   onSelect: (combatantId: string) => void;
@@ -13,11 +18,11 @@ type InitiativeListProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
-  onTypeChange: (combatantId: string, type: CombatantType) => void;
 };
 
 export function InitiativeList({
   combatants,
+  filter,
   activeCombatantId,
   selectedCombatantId,
   onSelect,
@@ -25,18 +30,20 @@ export function InitiativeList({
   onDamage,
   onHealing,
   onInitiativeChange,
-  onTypeChange,
 }: InitiativeListProps) {
-  const ordered = sortCombatantsByInitiative(combatants);
+  const ordered = sortCombatantsByInitiative(combatants).filter((combatant) => {
+    if (filter === "alive") return getHpStatus(combatant.currentHp, combatant.maxHp) !== "Down";
+    if (filter === "enemies") return combatant.type === "enemy" || combatant.type === "boss";
+    if (filter === "pcs") return combatant.type === "pc";
+    return true;
+  });
 
   if (ordered.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center">
-        <h2 className="text-xl font-black text-zinc-950">No combatants yet</h2>
-        <p className="mt-2 text-zinc-600">
-          Add creatures in the builder or use the fast add panel during combat.
-        </p>
-      </div>
+      <EmptyState
+        detail="Add combatants or adjust the runner filter to see cards here."
+        title="No combatants in this view"
+      />
     );
   }
 
@@ -55,7 +62,6 @@ export function InitiativeList({
           }
           onRemove={() => onRemove(combatant.combatantId)}
           onSelect={() => onSelect(combatant.combatantId)}
-          onTypeChange={(type) => onTypeChange(combatant.combatantId, type)}
         />
       ))}
     </div>

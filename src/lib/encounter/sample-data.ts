@@ -1,50 +1,4 @@
-import type {
-  CombatantType,
-  CreatureTemplate,
-  EncounterCombatant,
-} from "./types";
-
-export const typeStyles: Record<
-  CombatantType,
-  { label: string; accent: string; badge: string; dot: string }
-> = {
-  pc: {
-    label: "PC",
-    accent: "border-sky-500",
-    badge: "bg-sky-100 text-sky-900 border-sky-300",
-    dot: "bg-sky-500",
-  },
-  ally: {
-    label: "Ally",
-    accent: "border-emerald-500",
-    badge: "bg-emerald-100 text-emerald-900 border-emerald-300",
-    dot: "bg-emerald-500",
-  },
-  enemy: {
-    label: "Enemy",
-    accent: "border-rose-500",
-    badge: "bg-rose-100 text-rose-900 border-rose-300",
-    dot: "bg-rose-500",
-  },
-  boss: {
-    label: "Boss",
-    accent: "border-amber-500",
-    badge: "bg-amber-100 text-amber-950 border-amber-300",
-    dot: "bg-amber-500",
-  },
-  summon: {
-    label: "Summon",
-    accent: "border-violet-500",
-    badge: "bg-violet-100 text-violet-900 border-violet-300",
-    dot: "bg-violet-500",
-  },
-  neutral: {
-    label: "Neutral",
-    accent: "border-zinc-400",
-    badge: "bg-zinc-100 text-zinc-800 border-zinc-300",
-    dot: "bg-zinc-500",
-  },
-};
+import type { CreatureTemplate, EncounterCombatant } from "./types";
 
 const commonScores = {
   str: 10,
@@ -70,11 +24,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     skills: ["Athletics +5", "Insight +3"],
     senses: "passive Perception 11",
     languages: "Common, Dwarvish",
-    traits: [{ name: "Shield Line", description: "Adjacent allies gain cover while Aria is not down." }],
-    actions: [{ name: "Longblade", description: "+5 to hit, 1d8+3 slashing damage." }],
-    notes: "Front-line defender with reliable protection.",
-    tags: ["player", "defender"],
-    color: "Blue",
+    traits: [
+      {
+        name: "Shield Line",
+        description: "Adjacent allies gain light cover while Aria is standing.",
+      },
+    ],
+    actions: [
+      {
+        name: "Longblade",
+        description: "+5 to hit, reach 5 ft., 1d8+3 slashing damage.",
+      },
+    ],
+    reactions: [
+      {
+        name: "Guarded Intercept",
+        description: "Reduce damage to an adjacent ally by 1d8 once per round.",
+      },
+    ],
+    notes: "Front-line defender. Player initiative should be typed manually.",
+    tags: ["player", "defender", "frontline"],
+    accentColor: "Blue",
+    groupLabel: "Party",
     autoRollEligible: false,
   },
   {
@@ -91,12 +62,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     skills: ["Arcana +4", "Investigation +4"],
     senses: "passive Perception 12",
     languages: "Common, Elvish",
-    traits: [{ name: "Prepared Spark", description: "Once per round, mark a target after casting a spell." }],
-    actions: [{ name: "Bright Bolt", description: "+5 to hit, 1d10 radiant damage." }],
-    bonusActions: [{ name: "Arcane Step", description: "Move 10 ft. without provoking from one creature." }],
-    notes: "Mobile spellcaster. Player enters initiative manually.",
-    tags: ["player", "caster"],
-    color: "Teal",
+    traits: [
+      {
+        name: "Prepared Spark",
+        description: "After casting, mark one visible creature until her next turn.",
+      },
+    ],
+    actions: [
+      {
+        name: "Bright Bolt",
+        description: "+5 to hit, range 60 ft., 1d10 radiant damage.",
+      },
+    ],
+    bonusActions: [
+      {
+        name: "Arcane Step",
+        description: "Move 10 ft. without provoking from one marked creature.",
+      },
+    ],
+    notes: "Mobile caster. Good candidate for concentration tracking.",
+    tags: ["player", "caster", "ranged"],
+    accentColor: "Cyan",
+    groupLabel: "Party",
     autoRollEligible: false,
   },
   {
@@ -113,12 +100,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     skills: ["Stealth +8", "Perception +6"],
     senses: "passive Perception 16",
     languages: "Common, Halfling",
-    traits: [{ name: "Low Profile", description: "Can hide behind Medium or larger allies." }],
-    actions: [{ name: "Twin Knives", description: "+6 to hit, 1d4+4 piercing damage twice." }],
-    reactions: [{ name: "Slip Aside", description: "Reduce one melee hit by 1d6." }],
-    notes: "Skirmisher who likes high initiative.",
-    tags: ["player", "skirmisher"],
-    color: "Green",
+    traits: [
+      {
+        name: "Low Profile",
+        description: "Can hide behind Medium or larger allies when chaos is high.",
+      },
+    ],
+    actions: [
+      {
+        name: "Twin Knives",
+        description: "+6 to hit, 1d4+4 piercing damage twice.",
+      },
+    ],
+    reactions: [
+      {
+        name: "Slip Aside",
+        description: "Reduce one melee hit by 1d6 and move 5 ft.",
+      },
+    ],
+    notes: "Skirmisher with strong initiative. Player controls their roll.",
+    tags: ["player", "scout", "skirmisher"],
+    accentColor: "Green",
+    groupLabel: "Party",
     autoRollEligible: false,
   },
   {
@@ -135,10 +138,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     senses: "darkvision 60 ft., passive Perception 10",
     languages: "Common, gutter cant",
     challengeRating: "1/4",
-    traits: [{ name: "Smoke Duck", description: "After missing with an attack, the sneak can move 10 ft." }],
-    actions: [{ name: "Notched Dagger", description: "+5 to hit, 1d4+3 piercing damage." }],
-    tags: ["goblin-style", "ambusher"],
-    color: "Red",
+    traits: [
+      {
+        name: "Smoke Duck",
+        description: "After missing an attack, move 10 ft. without provoking.",
+      },
+    ],
+    actions: [
+      {
+        name: "Notched Dagger",
+        description: "+5 to hit, 1d4+3 piercing damage.",
+      },
+    ],
+    bonusActions: [
+      {
+        name: "Skitter",
+        description: "Dash or hide if in dim light, smoke, or clutter.",
+      },
+    ],
+    notes: "Use in pairs to pressure back-line characters.",
+    tags: ["goblin-style", "ambusher", "melee"],
+    accentColor: "Red",
+    groupLabel: "Cindercaps",
     autoRollEligible: true,
   },
   {
@@ -155,11 +176,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     senses: "darkvision 60 ft., passive Perception 9",
     languages: "Common, gutter cant",
     challengeRating: "1/4",
-    traits: [{ name: "Pack Nerve", description: "Has advantage on morale checks while near two allies." }],
-    actions: [{ name: "Clatter Sling", description: "+4 to hit, 1d6+2 bludgeoning damage." }],
-    bonusActions: [{ name: "Scatter", description: "Disengage after making a ranged attack." }],
-    tags: ["goblin-style", "ranged"],
-    color: "Red",
+    traits: [
+      {
+        name: "Pack Nerve",
+        description: "Gains +1 to attacks while two allies are within 30 ft.",
+      },
+    ],
+    actions: [
+      {
+        name: "Clatter Sling",
+        description: "+4 to hit, range 40 ft., 1d6+2 bludgeoning damage.",
+      },
+    ],
+    bonusActions: [
+      {
+        name: "Scatter",
+        description: "Disengage after making a ranged attack.",
+      },
+    ],
+    notes: "Simple ranged enemy for cluttered fights.",
+    tags: ["goblin-style", "ranged", "minion"],
+    accentColor: "Red",
+    groupLabel: "Cindercaps",
     autoRollEligible: true,
   },
   {
@@ -177,11 +215,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     senses: "darkvision 60 ft., passive Perception 11",
     languages: "Common, gutter cant",
     challengeRating: "1/2",
-    traits: [{ name: "Bad Luck Brew", description: "A creature damaged by the hexer loses 1d4 from its next attack roll." }],
-    actions: [{ name: "Murk Bolt", description: "+4 to hit, 1d8+2 necrotic damage." }],
-    reactions: [{ name: "Spiteful Pop", description: "When hit, deal 2 poison damage to the attacker." }],
-    tags: ["goblin-style", "caster"],
-    color: "Purple",
+    traits: [
+      {
+        name: "Bad Luck Brew",
+        description: "A damaged target subtracts 1d4 from its next attack roll.",
+      },
+    ],
+    actions: [
+      {
+        name: "Murk Bolt",
+        description: "+4 to hit, range 60 ft., 1d8+2 necrotic damage.",
+      },
+    ],
+    reactions: [
+      {
+        name: "Spiteful Pop",
+        description: "When hit, deal 2 poison damage to the attacker.",
+      },
+    ],
+    notes: "Control piece. Mark priority targets in notes during play.",
+    tags: ["goblin-style", "caster", "control"],
+    accentColor: "Purple",
+    groupLabel: "Cindercaps",
     autoRollEligible: true,
   },
   {
@@ -198,10 +253,22 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     senses: "darkvision 60 ft., passive Perception 10",
     languages: "Common, gutter cant",
     challengeRating: "1/2",
-    traits: [{ name: "Lock Shields", description: "Gains +1 AC while adjacent to another guard." }],
-    actions: [{ name: "Hooked Spear", description: "+4 to hit, 1d6+2 piercing damage and pull 5 ft." }],
-    tags: ["goblin-style", "guard"],
-    color: "Red",
+    traits: [
+      {
+        name: "Lock Shields",
+        description: "Gains +1 AC while adjacent to another guard.",
+      },
+    ],
+    actions: [
+      {
+        name: "Hooked Spear",
+        description: "+4 to hit, reach 10 ft., 1d6+2 piercing and pull 5 ft.",
+      },
+    ],
+    notes: "Good blocker for protecting fragile enemies.",
+    tags: ["goblin-style", "guard", "frontline"],
+    accentColor: "Red",
+    groupLabel: "Cindercaps",
     autoRollEligible: true,
   },
   {
@@ -218,11 +285,28 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     senses: "darkvision 90 ft., passive Perception 15",
     languages: "understands Shadow cant",
     challengeRating: "2",
-    traits: [{ name: "Dim Pounce", description: "Deals an extra 1d6 damage after moving out of dim light." }],
-    actions: [{ name: "Umbral Bite", description: "+5 to hit, 2d6+3 piercing damage." }],
-    bonusActions: [{ name: "Fade Low", description: "Hide while in dim light or darkness." }],
-    tags: ["shadow", "beast"],
-    color: "Indigo",
+    traits: [
+      {
+        name: "Dim Pounce",
+        description: "Deals +1d6 damage after moving from dim light or darkness.",
+      },
+    ],
+    actions: [
+      {
+        name: "Umbral Bite",
+        description: "+5 to hit, 2d6+3 piercing damage.",
+      },
+    ],
+    bonusActions: [
+      {
+        name: "Fade Low",
+        description: "Hide while in dim light or darkness.",
+      },
+    ],
+    notes: "Fast pressure monster. Works well as a second wave.",
+    tags: ["shadow", "beast", "hunter"],
+    accentColor: "Magenta",
+    groupLabel: "Shadow",
     autoRollEligible: true,
   },
   {
@@ -241,21 +325,82 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     languages: "Common, Infernal, gutter cant",
     challengeRating: "6",
     traits: [
-      { name: "Lantern Aura", description: "Enemies starting their turn within 10 ft. cannot benefit from being hidden." },
-      { name: "Commanding Glare", description: "Once per round, a nearby ally may move 10 ft. after Velkora acts." },
+      {
+        name: "Lantern Aura",
+        description: "Enemies starting their turn within 10 ft. cannot hide.",
+      },
+      {
+        name: "Commanding Glare",
+        description: "Once per round, a nearby ally may move 10 ft. after Velkora acts.",
+      },
     ],
     actions: [
-      { name: "Iron Lantern", description: "+7 to hit, 1d10+4 bludgeoning plus 1d8 fire damage." },
-      { name: "Flare Order", description: "Two allies make one weapon attack against marked targets." },
+      {
+        name: "Iron Lantern",
+        description: "+7 to hit, 1d10+4 bludgeoning plus 1d8 fire damage.",
+      },
+      {
+        name: "Flare Order",
+        description: "Two allies make one weapon attack against marked targets.",
+      },
     ],
-    reactions: [{ name: "No, You Stay", description: "A creature that leaves reach must pass a Dex save or stop moving." }],
+    reactions: [
+      {
+        name: "No, You Stay",
+        description: "A creature leaving reach must pass a Dex save or stop moving.",
+      },
+    ],
     legendaryActions: [
-      { name: "Burning Step", description: "Move up to half speed and leave a 5 ft. burning mark." },
-      { name: "Hard Stare", description: "One creature Velkora can see has disadvantage on its next save." },
+      {
+        name: "Burning Step",
+        description: "Move up to half speed and leave a 5 ft. burning mark.",
+      },
+      {
+        name: "Hard Stare",
+        description: "One visible creature has disadvantage on its next save.",
+      },
     ],
-    notes: "Boss pressure piece. Use reinforcements when she drops below half HP.",
-    tags: ["boss", "commander"],
-    color: "Gold",
+    notes: "Boss pressure piece. Bring reinforcements when she drops below half HP.",
+    tags: ["boss", "commander", "fire"],
+    accentColor: "Gold",
+    groupLabel: "Boss",
+    autoRollEligible: true,
+  },
+  {
+    id: "neutral-sable",
+    name: "Sable Market Guide",
+    type: "neutral",
+    size: "Medium",
+    armorClass: 12,
+    maxHp: 22,
+    speed: "30 ft.",
+    initiativeBonus: 1,
+    abilityScores: { ...commonScores, dex: 12, int: 13, cha: 15 },
+    skills: ["Persuasion +4", "Insight +3"],
+    senses: "passive Perception 11",
+    languages: "Common, trade cant",
+    traits: [
+      {
+        name: "Knows the Alleys",
+        description: "Can point out one shortcut or hiding spot in an urban scene.",
+      },
+    ],
+    actions: [
+      {
+        name: "Walking Cane",
+        description: "+3 to hit, 1d6+1 bludgeoning damage.",
+      },
+    ],
+    reactions: [
+      {
+        name: "Duck Behind Cover",
+        description: "Gain +2 AC against one ranged attack if cover is nearby.",
+      },
+    ],
+    notes: "Neutral NPC who might flee, bargain, or become collateral risk.",
+    tags: ["neutral", "npc", "social"],
+    accentColor: "Gray",
+    groupLabel: "Bystanders",
     autoRollEligible: true,
   },
 ];
@@ -264,7 +409,8 @@ export function createCombatant(
   template: CreatureTemplate,
   copyNumber = 1,
 ): EncounterCombatant {
-  const suffix = template.type === "pc" ? "" : ` ${copyNumber}`;
+  const suffix =
+    template.type === "pc" || template.type === "neutral" ? "" : ` ${copyNumber}`;
 
   return {
     ...template,
@@ -277,5 +423,6 @@ export function createCombatant(
     initiative: null,
     manualInitiative: template.type === "pc",
     conditions: [],
+    waveLabel: template.groupLabel,
   };
 }

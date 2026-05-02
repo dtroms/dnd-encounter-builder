@@ -22,3 +22,21 @@ input,
 select {
   font: inherit;
 }
+
+@layer components {
+  .runner-button {
+    @apply h-10 rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm font-black text-slate-200 transition hover:border-cyan-300 hover:text-white;
+  }
+
+  .runner-button-primary {
+    @apply h-10 rounded-xl bg-cyan-300 px-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200;
+  }
+
+  .runner-button-gold {
+    @apply h-10 rounded-xl bg-amber-300 px-3 text-sm font-black text-slate-950 transition hover:bg-amber-200;
+  }
+
+  .panel-heading {
+    @apply text-xs font-black uppercase tracking-[0.18em] text-slate-500;
+  }
+}

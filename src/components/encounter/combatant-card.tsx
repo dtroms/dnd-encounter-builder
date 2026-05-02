@@ -1,18 +1,12 @@
 "use client";
 
-import type { CombatantType, EncounterCombatant } from "@/lib/encounter/types";
-import { getHpStatus } from "@/lib/encounter/hp";
-import { typeStyles } from "@/lib/encounter/sample-data";
+import type { EncounterCombatant } from "@/lib/encounter/types";
+import { typeStyles } from "@/lib/encounter/colors";
+import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
+import { ConditionBadges } from "./condition-badges";
 import { HpControls } from "./hp-controls";
-
-const combatantTypes: CombatantType[] = [
-  "pc",
-  "ally",
-  "enemy",
-  "boss",
-  "summon",
-  "neutral",
-];
+import { StatusBadge } from "./status-badge";
+import { TypeBadge } from "./type-badge";
 
 type CombatantCardProps = {
   combatant: EncounterCombatant;
@@ -23,7 +17,6 @@ type CombatantCardProps = {
   onDamage: (amount: number) => void;
   onHealing: (amount: number) => void;
   onInitiativeChange: (initiative: number | null) => void;
-  onTypeChange?: (type: CombatantType) => void;
 };
 
 export function CombatantCard({
@@ -35,29 +28,35 @@ export function CombatantCard({
   onDamage,
   onHealing,
   onInitiativeChange,
-  onTypeChange,
 }: CombatantCardProps) {
   const status = getHpStatus(combatant.currentHp, combatant.maxHp);
+  const hpPercent = getHpPercent(combatant.currentHp, combatant.maxHp);
   const style = typeStyles[combatant.type];
+  const down = status === "Down";
 
   return (
     <article
-      className={`rounded-lg border-l-8 bg-white p-4 shadow-sm ring-1 ring-zinc-200 transition ${style.accent} ${
-        active ? "ring-4 ring-zinc-950" : ""
-      } ${selected ? "bg-zinc-50" : ""}`}
+      className={`relative overflow-hidden rounded-2xl border bg-slate-900/88 p-4 shadow-lg transition ${
+        style.border
+      } ${active ? `ring-4 ${style.ring}` : ""} ${
+        selected ? "outline outline-2 outline-cyan-300/70" : ""
+      } ${down ? "opacity-60 grayscale" : ""}`}
     >
-      <div className="grid gap-4 md:grid-cols-[6.5rem_1fr_12rem]">
+      {active ? (
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-cyan-300" />
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-[7.25rem_minmax(0,1fr)_17rem]">
         <button
-          className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-left transition hover:border-zinc-900"
+          className="rounded-2xl border border-slate-700 bg-slate-950/80 p-2 text-left"
           type="button"
           onClick={onSelect}
         >
-          <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <span className="block text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
             Init
           </span>
           <input
             aria-label={`${combatant.displayName} initiative`}
-            className="mt-1 h-14 w-full rounded-md border border-zinc-300 bg-white px-2 text-center text-4xl font-black tabular-nums text-zinc-950 outline-none focus:border-zinc-900"
+            className="mt-1 h-16 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-5xl font-black leading-none tabular-nums text-white outline-none focus:border-cyan-300"
             type="number"
             value={combatant.initiative ?? ""}
             onChange={(event) =>
@@ -71,68 +70,36 @@ export function CombatantCard({
 
         <button className="min-w-0 text-left" type="button" onClick={onSelect}>
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              aria-hidden="true"
-              className={`h-3 w-3 rounded-full ${style.dot}`}
-            />
-            <span
-              className={`rounded-full border px-2 py-1 text-xs font-bold uppercase tracking-wide ${style.badge}`}
-            >
-              {style.label}
-            </span>
-            {onTypeChange ? (
-              <select
-                aria-label={`${combatant.displayName} type`}
-                className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-xs font-semibold text-zinc-800"
-                value={combatant.type}
-                onChange={(event) =>
-                  onTypeChange(event.target.value as CombatantType)
-                }
-                onClick={(event) => event.stopPropagation()}
-              >
-                {combatantTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {typeStyles[type].label}
-                  </option>
-                ))}
-              </select>
+            <TypeBadge type={combatant.type} />
+            {combatant.waveLabel || combatant.groupLabel ? (
+              <span className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-bold text-slate-300">
+                {combatant.waveLabel || combatant.groupLabel}
+              </span>
             ) : null}
-            <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-600">
-              {combatant.color}
+            <span className="rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-bold text-slate-400">
+              {combatant.accentColor}
             </span>
           </div>
 
-          <h3 className="mt-2 truncate text-2xl font-black text-zinc-950">
+          <h3 className="mt-3 truncate text-2xl font-black text-white">
             {combatant.displayName}
           </h3>
 
-          <div className="mt-3 flex flex-wrap gap-3">
-            <strong className="rounded-md bg-zinc-950 px-3 py-2 text-xl text-white">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <strong className="rounded-xl bg-slate-950 px-3 py-2 text-xl text-white">
               AC {combatant.armorClass}
             </strong>
-            <strong className="rounded-md bg-zinc-100 px-3 py-2 text-xl text-zinc-950">
+            <strong className="rounded-xl bg-slate-800 px-3 py-2 text-xl text-white">
               HP {combatant.currentHp}/{combatant.maxHp}
             </strong>
-            <span className="rounded-md border border-zinc-300 px-3 py-2 text-base font-bold text-zinc-800">
-              {status}
+            <StatusBadge status={status} />
+            <span className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-bold text-slate-300">
+              {hpPercent}%
             </span>
           </div>
 
-          <div className="mt-3 flex min-h-7 flex-wrap gap-2">
-            {combatant.conditions.length > 0 ? (
-              combatant.conditions.map((condition) => (
-                <span
-                  className="rounded-full bg-zinc-900 px-2 py-1 text-xs font-semibold text-white"
-                  key={condition}
-                >
-                  {condition}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm font-medium text-zinc-500">
-                No conditions
-              </span>
-            )}
+          <div className="mt-3">
+            <ConditionBadges conditions={combatant.conditions} />
           </div>
         </button>
 
@@ -143,13 +110,22 @@ export function CombatantCard({
             onDamage={onDamage}
             onHealing={onHealing}
           />
-          <button
-            className="h-10 rounded-md border border-zinc-300 px-3 text-sm font-bold text-zinc-700 transition hover:border-rose-700 hover:text-rose-700"
-            type="button"
-            onClick={onRemove}
-          >
-            Remove
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="h-10 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 text-sm font-bold text-cyan-100 transition hover:border-cyan-300"
+              type="button"
+              onClick={onSelect}
+            >
+              View
+            </button>
+            <button
+              className="h-10 rounded-xl border border-slate-700 px-3 text-sm font-bold text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+              type="button"
+              onClick={onRemove}
+            >
+              Remove
+            </button>
+          </div>
         </div>
       </div>
     </article>
