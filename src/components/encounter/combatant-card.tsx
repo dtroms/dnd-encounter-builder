@@ -223,15 +223,15 @@ function InitiativeBox({
 
   return (
     <div
-      className="rounded-lg border border-slate-700 bg-slate-950/80 px-1 py-2 text-center"
+      className="rounded-lg border border-cyan-300/45 bg-slate-950 px-1 py-2 text-center shadow-[0_0_18px_rgba(34,211,238,0.16)] ring-1 ring-white/5"
       onClick={(event) => event.stopPropagation()}
     >
-      <span className="block text-[10px] font-black uppercase tracking-wide text-slate-400">
+      <span className="block text-[10px] font-black uppercase tracking-wide text-cyan-200">
         Init
       </span>
       <input
         aria-label={`${combatantName} initiative`}
-        className="no-spinner h-8 w-full bg-transparent px-1 text-center text-3xl font-[1000] leading-none tabular-nums text-white outline-none focus:text-cyan-100"
+        className="no-spinner h-9 w-full bg-transparent px-1 text-center text-[2.15rem] font-black leading-none tabular-nums text-white outline-none focus:text-cyan-100"
         inputMode="numeric"
         type="text"
         value={draft}
@@ -280,7 +280,7 @@ function EditableCombatantName({
       <input
         aria-label="Edit combatant name"
         autoFocus
-        className="min-h-8 w-full rounded-md border border-cyan-300/50 bg-slate-950/85 px-1.5 py-1 text-xl font-[1000] leading-6 text-white outline-none focus:border-cyan-300"
+        className="min-h-9 w-full rounded-md border border-cyan-300/60 bg-slate-950/90 px-1.5 py-1 text-2xl font-black leading-7 text-white outline-none focus:border-cyan-300"
         value={draft}
         onBlur={saveName}
         onChange={(event) => setDraft(event.target.value)}
@@ -302,7 +302,7 @@ function EditableCombatantName({
 
   return (
     <button
-      className="block max-w-full rounded-md text-left text-xl font-[1000] leading-6 text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+      className="block max-w-full rounded-md text-left text-2xl font-black leading-7 text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
       title="Click to rename"
       type="button"
       onClick={(event) => {
