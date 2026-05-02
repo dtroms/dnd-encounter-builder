@@ -22,33 +22,37 @@ export function RunnerToolbar({
   onAdd,
 }: RunnerToolbarProps) {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
-            Live Runner
-          </p>
-          <h2 className="mt-1 text-2xl font-black text-white">{encounterName}</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Round {round} - Turn {turnNumber} - Current:{" "}
-            <span className="font-bold text-slate-200">{currentName}</span>
-          </p>
+    <section className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="mr-1 truncate text-base font-black text-white md:max-w-72">
+            {encounterName}
+          </h2>
+          <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-sm font-black text-cyan-100">
+            Round {round}
+          </span>
+          <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-sm font-black text-slate-200">
+            Turn {turnNumber}
+          </span>
+          <span className="min-w-0 rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-sm font-bold text-cyan-100">
+            Current: <span className="text-white">{currentName}</span>
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <button className="runner-button" type="button" onClick={onPrevious}>
-            Previous Turn
+            Prev
           </button>
           <button className="runner-button-primary" type="button" onClick={onNext}>
-            Next Turn
+            Next
           </button>
           <button className="runner-button" type="button" onClick={onRoll}>
-            Roll NPC/Monster Initiative
+            Roll NPC Init
           </button>
           <button className="runner-button" type="button" onClick={onSort}>
-            Sort Initiative
+            Sort
           </button>
           <button className="runner-button-gold" type="button" onClick={onAdd}>
-            Add Combatant
+            Add
           </button>
         </div>
       </div>

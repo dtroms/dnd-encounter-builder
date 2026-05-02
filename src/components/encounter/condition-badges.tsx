@@ -6,14 +6,14 @@ export function ConditionBadges({
   conditions: CombatantCondition[];
 }) {
   if (conditions.length === 0) {
-    return <span className="text-xs font-medium text-slate-500">No conditions</span>;
+    return <span className="text-xs font-medium text-slate-500">Clear</span>;
   }
 
   return (
     <div className="flex flex-wrap gap-1.5">
       {conditions.map((condition) => (
         <span
-          className="rounded-full border border-slate-600 bg-slate-950 px-2 py-1 text-[11px] font-semibold capitalize text-slate-300"
+          className="rounded-full border border-slate-600 bg-slate-950 px-2 py-0.5 text-[11px] font-semibold capitalize text-slate-300"
           key={condition}
         >
           {condition}

@@ -25,19 +25,19 @@ export function UtilityRail({
   onRoll,
 }: UtilityRailProps) {
   return (
-    <aside className="grid content-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3 lg:sticky lg:top-4">
+    <aside className="grid content-start gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-2 lg:sticky lg:top-3">
       <RailButton active={addPanelOpen} label="Add combatant" onClick={onToggleAddPanel} />
-      <RailButton label="Add wave placeholder" muted onClick={() => undefined} />
-      <RailButton label="Roll NPC initiative" onClick={onRoll} />
+      <RailButton label="Add wave" muted onClick={() => undefined} />
+      <RailButton label="Roll NPCs" onClick={onRoll} />
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
-        <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-          View Filter
+      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Filter
         </p>
-        <div className="mt-2 grid gap-1">
+        <div className="mt-1.5 grid gap-1">
           {filters.map((item) => (
             <button
-              className={`rounded-lg px-3 py-2 text-left text-sm font-bold transition ${
+              className={`rounded-md px-2 py-1.5 text-left text-xs font-bold transition ${
                 filter === item.key
                   ? "bg-cyan-300 text-slate-950"
                   : "text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -71,7 +71,7 @@ function RailButton({
 }) {
   return (
     <button
-      className={`min-h-11 rounded-xl border px-3 py-2 text-left text-sm font-black transition ${
+      className={`min-h-9 rounded-lg border px-2 py-1.5 text-left text-xs font-black transition ${
         active
           ? "border-cyan-300 bg-cyan-300 text-slate-950"
           : muted
@@ -88,9 +88,9 @@ function RailButton({
 
 function Placeholder({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-3">
-      <p className="text-sm font-black text-slate-300">{title}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    <div className="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-2">
+      <p className="text-xs font-black text-slate-300">{title}</p>
+      <p className="mt-0.5 text-[11px] text-slate-500">{detail}</p>
     </div>
   );
 }

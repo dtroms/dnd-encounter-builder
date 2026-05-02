@@ -34,9 +34,9 @@ export function AppShell({
           encounterName={encounterName}
           round={round}
         />
-        <main className="mx-auto max-w-[1800px] px-4 pb-8 pt-4 sm:px-5 lg:px-6">
+        <main className="mx-auto max-w-[1800px] px-3 pb-6 pt-3 sm:px-4 lg:px-5">
           <ViewTabs activeView={activeView} onViewChange={onViewChange} />
-          <div className="mt-4">{children}</div>
+          <div className="mt-3">{children}</div>
         </main>
       </div>
     </div>

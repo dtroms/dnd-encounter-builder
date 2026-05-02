@@ -10,7 +10,7 @@ const statusStyles: Record<HpStatus, string> = {
 export function StatusBadge({ status }: { status: HpStatus }) {
   return (
     <span
-      className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-bold uppercase tracking-wide ${statusStyles[status]}`}
+      className={`inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-bold uppercase tracking-wide ${statusStyles[status]}`}
     >
       {status}
     </span>

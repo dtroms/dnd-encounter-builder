@@ -63,7 +63,7 @@ export function EncounterRunner({
       ?.displayName ?? "No active turn";
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-2.5">
       <RunnerToolbar
         currentName={activeName}
         encounterName={encounterName}
@@ -80,7 +80,7 @@ export function EncounterRunner({
         <AddCombatantPanel compact templates={templates} onAdd={onAdd} />
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_24rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[10rem_minmax(0,1fr)_21rem]">
         <UtilityRail
           addPanelOpen={addPanelOpen}
           filter={runnerFilter}

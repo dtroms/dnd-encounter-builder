@@ -48,28 +48,28 @@ export function EncounterBuilder({
   }, [query, templates, typeFilter]);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_32rem]">
-      <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-        <h2 className="text-lg font-black text-white">Builder Controls</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-400">
+    <div className="grid gap-3 xl:grid-cols-[15rem_minmax(0,1fr)_29rem]">
+      <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        <h2 className="text-base font-black text-white">Builder Controls</h2>
+        <p className="mt-1 text-xs leading-5 text-slate-400">
           Search the sample library, add copies, and prep the roster before the
           fight starts.
         </p>
-        <div className="mt-4 grid gap-3">
-          <label className="grid gap-1 text-xs font-black uppercase tracking-wide text-slate-500">
+        <div className="mt-3 grid gap-2">
+          <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
             Search
             <input
-              className="h-11 rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+              className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2.5 text-sm normal-case tracking-normal text-white outline-none focus:border-cyan-300"
               placeholder="Name, tag, type..."
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <label className="grid gap-1 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
             Type
             <select
-              className="h-11 rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+              className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2.5 text-sm normal-case tracking-normal text-white outline-none focus:border-cyan-300"
               value={typeFilter}
               onChange={(event) =>
                 setTypeFilter(event.target.value as "all" | CombatantType)
@@ -84,7 +84,7 @@ export function EncounterBuilder({
             </select>
           </label>
           <button
-            className="mt-2 h-11 rounded-xl bg-amber-300 px-4 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+            className="mt-1 h-9 rounded-lg bg-amber-300 px-3 text-xs font-black text-slate-950 transition hover:bg-amber-200"
             type="button"
             onClick={onLaunchRunner}
           >
@@ -102,17 +102,17 @@ export function EncounterBuilder({
         onTypeChange={setTypeFilter}
       />
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+      <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-black text-white">Encounter Roster</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-base font-black text-white">Encounter Roster</h2>
+            <p className="text-xs text-slate-400">
               {combatants.length} combatants ready for initiative.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-3 grid gap-1.5">
           {combatants.length === 0 ? (
             <EmptyState
               detail="Add sample creatures from the center panel to start building."
@@ -147,19 +147,19 @@ function RosterEditor({
   onUpdate: (updates: Partial<EncounterCombatant>) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3">
+    <div className="rounded-lg border border-slate-800 bg-slate-900/75 p-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <TypeBadge type={combatant.type} />
         <div className="flex gap-2">
           <button
-            className="h-8 rounded-lg border border-slate-700 px-2 text-xs font-bold text-slate-300 hover:border-cyan-300"
+            className="h-7 rounded-md border border-slate-700 px-2 text-[11px] font-bold text-slate-300 hover:border-cyan-300"
             type="button"
             onClick={onDuplicate}
           >
             Duplicate
           </button>
           <button
-            className="h-8 rounded-lg border border-slate-700 px-2 text-xs font-bold text-slate-300 hover:border-rose-400 hover:text-rose-200"
+            className="h-7 rounded-md border border-slate-700 px-2 text-[11px] font-bold text-slate-300 hover:border-rose-400 hover:text-rose-200"
             type="button"
             onClick={onRemove}
           >
@@ -167,7 +167,7 @@ function RosterEditor({
           </button>
         </div>
       </div>
-      <div className="mt-3 grid gap-2">
+      <div className="mt-2 grid gap-1.5">
         <TextField
           label="Name"
           value={combatant.displayName}
@@ -246,7 +246,7 @@ function TextField({
     <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
       {label}
       <input
-        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -267,7 +267,7 @@ function NumberField({
     <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
       {label}
       <input
-        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
         type="number"
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -291,7 +291,7 @@ function SelectField({
     <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
       {label}
       <select
-        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >

@@ -20,32 +20,32 @@ export function HpControls({
   const hpPercent = getHpPercent(currentHp, maxHp);
 
   return (
-    <div className="grid gap-2">
-      <div className="flex items-center gap-2">
+    <div className="grid min-w-48 gap-1.5">
+      <div className="flex items-center gap-1.5">
         <input
           aria-label="HP amount"
-          className="h-10 w-20 rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-lg font-black text-white outline-none focus:border-cyan-300"
+          className="h-8 w-14 rounded-lg border border-slate-700 bg-slate-950 px-1 text-center text-sm font-black text-white outline-none focus:border-cyan-300"
           min={0}
           type="number"
           value={amount}
           onChange={(event) => setAmount(Number(event.target.value))}
         />
         <button
-          className="h-10 flex-1 rounded-xl bg-rose-500/90 px-3 text-sm font-black text-white transition hover:bg-rose-400"
+          className="h-8 flex-1 rounded-lg bg-rose-500/90 px-2 text-xs font-black text-white transition hover:bg-rose-400"
           type="button"
           onClick={() => onDamage(amount)}
         >
-          Damage
+          -HP
         </button>
         <button
-          className="h-10 flex-1 rounded-xl bg-emerald-500/90 px-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
+          className="h-8 flex-1 rounded-lg bg-emerald-500/90 px-2 text-xs font-black text-slate-950 transition hover:bg-emerald-400"
           type="button"
           onClick={() => onHealing(amount)}
         >
-          Heal
+          +HP
         </button>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
         <div
           className={`h-full ${
             hpPercent <= 25

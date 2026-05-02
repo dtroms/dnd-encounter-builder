@@ -48,7 +48,7 @@ export function InitiativeList({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-1.5">
       {ordered.map((combatant) => (
         <CombatantCard
           active={combatant.combatantId === activeCombatantId}
