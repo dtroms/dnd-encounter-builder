@@ -22,6 +22,7 @@ type InitiativeListProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
+  onNameChange: (combatantId: string, name: string) => void;
   onUpdateGroup: (
     combatantId: string,
     updates: { combatGroupLabel?: string; combatGroupColor?: string },
@@ -38,6 +39,7 @@ export function InitiativeList({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onNameChange,
   onUpdateGroup,
 }: InitiativeListProps) {
   const filteredCombatants = combatants.filter((combatant) => {
@@ -78,6 +80,9 @@ export function InitiativeList({
             onHealing={(amount) => onHealing(entry.combatant.combatantId, amount)}
             onInitiativeChange={(initiative) =>
               onInitiativeChange(entry.combatant.combatantId, initiative)
+            }
+            onNameChange={(name) =>
+              onNameChange(entry.combatant.combatantId, name)
             }
             onRemove={() => onRemove(entry.combatant.combatantId)}
             onSelect={() => onSelect(entry.combatant.combatantId)}

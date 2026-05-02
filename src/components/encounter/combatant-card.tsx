@@ -22,6 +22,7 @@ type CombatantCardProps = {
   onDamage: (amount: number) => void;
   onHealing: (amount: number) => void;
   onInitiativeChange: (initiative: number | null) => void;
+  onNameChange: (name: string) => void;
   onUpdateGroup: (updates: {
     combatGroupLabel?: string;
     combatGroupColor?: string;
@@ -37,6 +38,7 @@ export function CombatantCard({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onNameChange,
   onUpdateGroup,
 }: CombatantCardProps) {
   const status = getHpStatus(combatant.currentHp, combatant.maxHp);
@@ -54,7 +56,7 @@ export function CombatantCard({
   return (
     <article
       className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
-        isBoss ? "border-amber-300/35" : groupRowStyle.border
+        isBoss ? `${groupRowStyle.border} shadow-amber-950/10` : groupRowStyle.border
       } ${
         active ? `ring-2 ${style.ring}` : ""
       } ${selected ? "outline outline-2 outline-cyan-300/70" : ""} ${
@@ -77,9 +79,10 @@ export function CombatantCard({
         />
 
         <div className="min-w-0 cursor-pointer text-left">
-          <h3 className="truncate text-base font-black text-white">
-            {combatant.displayName}
-          </h3>
+          <EditableCombatantName
+            name={combatant.displayName}
+            onNameChange={onNameChange}
+          />
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <TypeBadge type={combatant.type} />
             <span className="inline-flex h-5 max-w-36 items-center gap-1 rounded-full border border-slate-700 bg-slate-950 px-1.5 text-[10px] font-black text-slate-300">
@@ -153,17 +156,17 @@ export function CombatantCard({
       </div>
 
       {isBoss && legendaryActions.length > 0 ? (
-        <section className="ml-[5rem] mr-[5.85rem] mt-1.5 rounded-lg border border-amber-300/25 bg-slate-950/75 p-2">
-          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
+        <section className="ml-[5rem] mr-[5.85rem] mt-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-200/80">
             Legendary Actions
           </h4>
           <div className="mt-1.5 grid gap-1.5 md:grid-cols-2">
             {legendaryActions.map((action) => (
               <div
-                className="rounded-md border border-amber-300/15 bg-slate-900/90 p-2"
+                className="rounded-md border border-slate-800 bg-slate-900/90 p-2"
                 key={action.name}
               >
-                <p className="text-xs font-black text-amber-100">
+                <p className="text-xs font-black text-amber-100/90">
                   {action.name}
                 </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-slate-300">
@@ -217,5 +220,71 @@ function InitiativeBox({
         }}
       />
     </div>
+  );
+}
+
+function EditableCombatantName({
+  name,
+  onNameChange,
+}: {
+  name: string;
+  onNameChange: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  function saveName() {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== name) {
+      onNameChange(trimmed);
+    } else {
+      setDraft(name);
+    }
+    setEditing(false);
+  }
+
+  function cancelEdit() {
+    setDraft(name);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        aria-label="Edit combatant name"
+        autoFocus
+        className="h-7 w-full rounded-md border border-cyan-300/50 bg-slate-950/85 px-1.5 text-base font-black text-white outline-none focus:border-cyan-300"
+        value={draft}
+        onBlur={saveName}
+        onChange={(event) => setDraft(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+        onFocus={(event) => event.currentTarget.select()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelEdit();
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      className="block max-w-full truncate rounded-md text-left text-base font-black text-white outline-none transition hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+      title="Click to rename"
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        setDraft(name);
+        setEditing(true);
+      }}
+    >
+      {name}
+    </button>
   );
 }

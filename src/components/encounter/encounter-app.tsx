@@ -334,6 +334,9 @@ export function EncounterApp() {
               manualInitiative: true,
             }))
           }
+          onNameChange={(combatantId, name) =>
+            patchCombatant(combatantId, { displayName: name })
+          }
           onUpdateGroup={(combatantId, updates) =>
             patchCombatant(combatantId, updates)
           }

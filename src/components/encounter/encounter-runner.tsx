@@ -29,6 +29,7 @@ type EncounterRunnerProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
+  onNameChange: (combatantId: string, name: string) => void;
   onUpdateGroup: (
     combatantId: string,
     updates: { combatGroupLabel?: string; combatGroupColor?: string },
@@ -67,6 +68,7 @@ export function EncounterRunner({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onNameChange,
   onUpdateGroup,
   onRenameGroup,
   onClearGroup,
@@ -134,6 +136,7 @@ export function EncounterRunner({
             onDamage={onDamage}
             onHealing={onHealing}
             onInitiativeChange={onInitiativeChange}
+            onNameChange={onNameChange}
             onUpdateGroup={onUpdateGroup}
             onRemove={onRemove}
             onSelect={onSelect}
