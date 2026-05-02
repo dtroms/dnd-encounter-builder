@@ -10,12 +10,12 @@ export type InitiativeEntry =
       combatant: EncounterCombatant;
     }
   | {
-      id: string;
+      id: "lair-actions";
       kind: "lair";
       initiative: 20;
       initiativeBonus: 0;
       displayName: string;
-      combatant: EncounterCombatant;
+      combatants: EncounterCombatant[];
     };
 
 export function rollInitiative(initiativeBonus: number): number {
@@ -60,32 +60,34 @@ export function sortCombatantsByInitiative(
 export function getInitiativeEntries(
   combatants: EncounterCombatant[],
 ): InitiativeEntry[] {
-  return combatants.flatMap((combatant) => {
-    const combatantEntry: InitiativeEntry = {
+  const combatantEntries: InitiativeEntry[] = combatants.map((combatant) => ({
       id: combatant.combatantId,
       kind: "combatant",
       initiative: combatant.initiative,
       initiativeBonus: combatant.initiativeBonus,
       displayName: combatant.displayName,
       combatant,
-    };
+  }));
 
-    if (!combatant.lairActions || combatant.lairActions.length === 0) {
-      return [combatantEntry];
-    }
+  const lairCombatants = combatants.filter(
+    (combatant) => combatant.lairActions && combatant.lairActions.length > 0,
+  );
 
-    return [
-      combatantEntry,
-      {
-        id: `lair-${combatant.combatantId}`,
-        kind: "lair",
-        initiative: 20,
-        initiativeBonus: 0,
-        displayName: `${combatant.displayName} - Lair Action`,
-        combatant,
-      },
-    ];
-  });
+  if (lairCombatants.length === 0) {
+    return combatantEntries;
+  }
+
+  return [
+    ...combatantEntries,
+    {
+      id: "lair-actions",
+      kind: "lair",
+      initiative: 20,
+      initiativeBonus: 0,
+      displayName: "Lair Actions",
+      combatants: lairCombatants,
+    },
+  ];
 }
 
 export function sortInitiativeEntries(

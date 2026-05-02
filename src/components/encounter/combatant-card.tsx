@@ -50,7 +50,6 @@ export function CombatantCard({
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
-  const lairActions = combatant.lairActions ?? [];
   return (
     <article
       className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition ${groupRowStyle.rowTint} ${
@@ -147,19 +146,11 @@ export function CombatantCard({
 
       {isBoss && legendaryActions.length > 0 ? (
         <BossActionSection
-          accent="legendary"
           actions={legendaryActions}
           title="Legendary Actions"
         />
       ) : null}
 
-      {lairActions.length > 0 ? (
-        <BossActionSection
-          accent="lair"
-          actions={lairActions}
-          title="Lair Actions"
-        />
-      ) : null}
     </article>
   );
 }
@@ -167,26 +158,16 @@ export function CombatantCard({
 function BossActionSection({
   title,
   actions,
-  accent,
 }: {
   title: string;
   actions: StatBlockAction[];
-  accent: "legendary" | "lair";
 }) {
-  const accentClasses =
-    accent === "lair"
-      ? {
-          section: "border-amber-300/25 bg-amber-300/10",
-          title: "text-amber-100",
-          card: "border-amber-300/15 bg-slate-950/80",
-          action: "text-amber-100",
-        }
-      : {
-          section: "border-slate-700/80 bg-slate-950/70",
-          title: "text-amber-200/85",
-          card: "border-slate-800 bg-slate-900/90",
-          action: "text-amber-100",
-        };
+  const accentClasses = {
+    section: "border-slate-700/80 bg-slate-950/70",
+    title: "text-amber-200/85",
+    card: "border-slate-800 bg-slate-900/90",
+    action: "text-amber-100",
+  };
 
   return (
     <section
