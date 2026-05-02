@@ -37,7 +37,7 @@ export function ConditionTrackerPanel({
 }: ConditionTrackerPanelProps) {
   if (!combatant) {
     return (
-      <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-3">
+      <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-3">
         <EmptyState
           detail="Click a combatant row to manage its conditions and statuses here."
           title="Condition Tracker"
@@ -49,7 +49,7 @@ export function ConditionTrackerPanel({
   const hpStatus = getHpStatus(combatant.currentHp, combatant.maxHp);
 
   return (
-    <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-2.5 xl:sticky xl:top-3 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-auto">
+    <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-2.5">
       <div className="border-b border-slate-800 pb-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <TypeBadge type={combatant.type} />
