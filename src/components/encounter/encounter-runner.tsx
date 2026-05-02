@@ -6,6 +6,7 @@ import type {
   EncounterCombatant,
 } from "@/lib/encounter/types";
 import { AddCombatantPanel } from "./add-combatant-panel";
+import { CombatGroupSummary } from "./combat-group-summary";
 import { ConditionTrackerPanel } from "./condition-tracker-panel";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
 import { LairActionsPanel } from "./lair-actions-panel";
@@ -32,6 +33,12 @@ type EncounterRunnerProps = {
     combatantId: string,
     updates: { combatGroupLabel?: string; combatGroupColor?: string },
   ) => void;
+  onRenameGroup: (group: {
+    label: string;
+    color?: string;
+    newLabel: string;
+  }) => void;
+  onClearGroup: (group: { label: string; color?: string }) => void;
   onToggleCondition: (
     combatantId: string,
     condition: CombatantCondition,
@@ -61,6 +68,8 @@ export function EncounterRunner({
   onHealing,
   onInitiativeChange,
   onUpdateGroup,
+  onRenameGroup,
+  onClearGroup,
   onToggleCondition,
   onRollEligible,
   onSort,
@@ -99,12 +108,27 @@ export function EncounterRunner({
         <aside className="grid content-start gap-2.5">
           <ConditionTrackerPanel
             combatant={selectedCombatant}
-            combatants={combatants}
             onToggleCondition={(condition) => {
               if (selectedCombatant) {
                 onToggleCondition(selectedCombatant.combatantId, condition);
               }
             }}
+            onUpdateGroup={(updates) => {
+              if (selectedCombatant) {
+                onUpdateGroup(selectedCombatant.combatantId, updates);
+              }
+            }}
+          />
+          <CombatGroupSummary
+            combatants={combatants}
+            selectedCombatant={selectedCombatant}
+            onAssignSelected={(updates) => {
+              if (selectedCombatant) {
+                onUpdateGroup(selectedCombatant.combatantId, updates);
+              }
+            }}
+            onClearGroup={onClearGroup}
+            onRenameGroup={onRenameGroup}
           />
           <LairActionsPanel combatants={combatants} />
         </aside>

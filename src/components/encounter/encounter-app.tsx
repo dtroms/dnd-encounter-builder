@@ -150,6 +150,60 @@ export function EncounterApp() {
     updateCombatant(combatantId, (combatant) => ({ ...combatant, ...updates }));
   }
 
+  function renameCombatGroup({
+    label,
+    color,
+    newLabel,
+  }: {
+    label: string;
+    color?: string;
+    newLabel: string;
+  }) {
+    setEncounter((current) => ({
+      ...current,
+      combatants: current.combatants.map((combatant) => {
+        const combatantLabel =
+          combatant.combatGroupLabel ||
+          combatant.combatGroupColor ||
+          "Ungrouped";
+        const matchesLabel = combatantLabel === label;
+        const matchesColor = (combatant.combatGroupColor || "None") === color;
+
+        return matchesLabel && matchesColor
+          ? { ...combatant, combatGroupLabel: newLabel }
+          : combatant;
+      }),
+    }));
+  }
+
+  function clearCombatGroup({
+    label,
+    color,
+  }: {
+    label: string;
+    color?: string;
+  }) {
+    setEncounter((current) => ({
+      ...current,
+      combatants: current.combatants.map((combatant) => {
+        const combatantLabel =
+          combatant.combatGroupLabel ||
+          combatant.combatGroupColor ||
+          "Ungrouped";
+        const matchesLabel = combatantLabel === label;
+        const matchesColor = (combatant.combatGroupColor || "None") === color;
+
+        return matchesLabel && matchesColor
+          ? {
+              ...combatant,
+              combatGroupLabel: "",
+              combatGroupColor: "None",
+            }
+          : combatant;
+      }),
+    }));
+  }
+
   function toggleCondition(
     combatantId: string,
     condition: CombatantCondition,
@@ -283,6 +337,8 @@ export function EncounterApp() {
           onUpdateGroup={(combatantId, updates) =>
             patchCombatant(combatantId, updates)
           }
+          onClearGroup={clearCombatGroup}
+          onRenameGroup={renameCombatGroup}
           onToggleCondition={toggleCondition}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}

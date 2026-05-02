@@ -23,20 +23,20 @@ export function LairActionsPanel({
           Initiative 20
         </span>
       </div>
-      <div className="mt-2 grid gap-2">
+      <div className="mt-2.5 grid gap-2">
         {lairCombatants.map((combatant) => (
           <div
-            className="rounded-lg border border-amber-300/15 bg-slate-950/70 p-2"
+            className="rounded-lg border border-amber-300/15 bg-slate-950/70 p-2.5"
             key={combatant.combatantId}
           >
-            <p className="truncate text-xs font-black text-amber-100">
+            <p className="truncate text-sm font-black text-amber-100">
               {combatant.displayName}
             </p>
-            <div className="mt-1.5 grid gap-1.5">
+            <div className="mt-2 grid gap-2">
               {combatant.lairActions?.map((action) => (
                 <div key={action.name}>
-                  <p className="text-xs font-bold text-white">{action.name}</p>
-                  <p className="mt-0.5 text-[11px] leading-4 text-slate-300">
+                  <p className="text-sm font-black text-white">{action.name}</p>
+                  <p className="mt-0.5 text-xs leading-5 text-slate-300">
                     {action.description}
                   </p>
                 </div>

@@ -6,7 +6,6 @@ import {
   typeStyles,
 } from "@/lib/encounter/colors";
 import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
-import { ConditionBadges } from "./condition-badges";
 import { CombatGroupPicker } from "./combat-group-picker";
 import { HpControls } from "./hp-controls";
 import { StatusBadge } from "./status-badge";
@@ -43,10 +42,14 @@ export function CombatantCard({
   const style = typeStyles[combatant.type];
   const groupColorClass = getCombatGroupColorClass(combatant.combatGroupColor);
   const down = status === "Down";
+  const isBoss = combatant.type === "boss";
+  const legendaryActions = combatant.legendaryActions ?? [];
 
   return (
     <article
-      className={`relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/88 py-1.5 pl-2 pr-0 shadow-sm transition ${
+      className={`relative overflow-hidden rounded-xl border bg-slate-900/88 py-1.5 pl-2 pr-0 shadow-sm transition ${
+        isBoss ? "border-amber-300/35 bg-amber-300/5" : "border-slate-800"
+      } ${
         active ? `ring-2 ${style.ring}` : ""
       } ${selected ? "outline outline-2 outline-cyan-300/70" : ""} ${
         down ? "opacity-60 grayscale" : ""
@@ -56,7 +59,7 @@ export function CombatantCard({
       {active ? (
         <div className="absolute inset-y-0 left-0 w-1.5 bg-cyan-300" />
       ) : null}
-      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(10rem,0.9fr)_3.25rem_18.5rem_2.1rem_0.6rem]">
+      <div className="grid items-center gap-1 xl:grid-cols-[4.5rem_minmax(9rem,0.72fr)_3rem_17.25rem_2.1rem_0.6rem]">
         <div
           className="rounded-lg border border-slate-700 bg-slate-950/80 p-1 text-left"
           onClick={(event) => event.stopPropagation()}
@@ -85,15 +88,6 @@ export function CombatantCard({
               combatant={combatant}
               onUpdateGroup={onUpdateGroup}
             />
-            {combatant.waveLabel ? (
-              <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-slate-300">
-                {combatant.waveLabel}
-              </span>
-            ) : null}
-            <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-slate-400">
-              {combatant.accentColor}
-            </span>
-            <ConditionBadges conditions={combatant.conditions} />
           </div>
         </div>
 
@@ -149,6 +143,25 @@ export function CombatantCard({
 
         <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
       </div>
+
+      {isBoss && legendaryActions.length > 0 ? (
+        <section className="ml-[5rem] mr-2 mt-1.5 rounded-lg border border-amber-300/20 bg-slate-950/70 p-2">
+          <div className="flex flex-wrap items-start gap-1.5">
+            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100">
+              Legendary Actions
+            </span>
+            {legendaryActions.map((action) => (
+              <span
+                className="rounded-md border border-slate-800 bg-slate-900/85 px-2 py-1 text-[11px] leading-4 text-slate-300"
+                key={action.name}
+              >
+                <strong className="text-amber-100">{action.name}:</strong>{" "}
+                {action.description}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </article>
   );
 }
