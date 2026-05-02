@@ -16,7 +16,7 @@ export type ImportMethod =
 
 export type ImportStatus = "draft" | "parsed" | "reviewed" | "saved" | "failed";
 
-export type EncounterStatus = "draft" | "running" | "completed";
+export type EncounterStatus = "draft" | "running" | "completed" | "archived";
 
 export type InitiativeEntryType = "combatant" | "lair_action" | "custom";
 
@@ -109,6 +109,12 @@ export type EncounterRecord = {
   current_round: number;
   current_turn_index: number;
   selected_entry_id: string | null;
+  last_played_at: string | null;
+  difficulty_label: string | null;
+  party_level: number | null;
+  party_size: number | null;
+  estimated_difficulty: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 };

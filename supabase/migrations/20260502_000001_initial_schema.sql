@@ -84,6 +84,12 @@ create table if not exists public.encounters (
   current_round integer not null default 1,
   current_turn_index integer not null default 0,
   selected_entry_id uuid null,
+  last_played_at timestamptz null,
+  difficulty_label text null,
+  party_level integer null,
+  party_size integer null,
+  estimated_difficulty text null,
+  notes text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -124,7 +130,7 @@ create table if not exists public.encounter_combatants (
   sort_order integer null,
   combat_group_id uuid null references public.combat_groups(id) on delete set null,
   wave_id uuid null,
-  conditions text[] not null default '{}'::text[],
+  conditions jsonb not null default '[]'::jsonb,
   notes text null,
   ability_scores jsonb not null default '{}'::jsonb,
   saving_throws jsonb not null default '[]'::jsonb,

@@ -2,121 +2,269 @@
 
 ## Database Goals
 
-The database should support a local-first D&D Encounter Builder and Initiative Tracker that can later grow into saved libraries, saved encounters, pasted stat block imports, custom monsters, combat groups, waves, and persistent combat state.
+This database foundation is for the D&D Encounter Builder and Initiative Tracker. It is meant to support saved encounters, reusable creature records, custom monsters, pasted stat block imports, planned waves, combat groups, initiative state, HP/runtime state, and synthetic initiative rows.
 
-This pass creates the foundation only. The current UI still uses local React state and local sample data.
+This pass only creates planning, schema, TypeScript record types, mapper scaffolding, and seed notes. The current app still uses local React state and local sample data.
 
-The design must support:
-- reusable creature records
-- encounter-specific combatant snapshots
-- combat groups and waves
-- initiative state, including synthetic rows such as Lair Actions
-- HP, conditions, and runtime edits
-- imported stat blocks as user-provided content
-- future auth and campaigns without requiring auth now
+The main design rule is:
+
+Creature templates are reusable library records. Encounter combatants are live snapshots inside a specific encounter.
+
+That separation keeps a saved or running encounter stable if a reusable library creature is edited later.
+
+## App Sections Supported By The Database
+
+The schema is intended to support these app areas:
+
+- Saved Encounters Dashboard
+- Encounter Builder
+- Encounter Runner
+- Creature Library
+- Stat Block Importer
+
+The database does not implement these screens in this pass. It only gives them a shared model to build on later.
 
 ## Core Entities
 
-The core model separates reusable library data from live encounter data:
-
-- `creature_templates`: reusable creature, monster, NPC, summon, boss, or player character templates.
-- `stat_block_imports`: raw pasted/imported stat block attempts before they become saved creatures.
-- `encounters`: saved encounter containers.
-- `encounter_combatants`: live copies/snapshots of templates in one encounter.
-- `combat_groups`: encounter-specific groups like Party, Red Warband, or Gold Vanguard.
-- `encounter_waves`: planned waves/reinforcements.
-- `encounter_wave_members`: planned template quantities inside a wave.
-- `initiative_entries`: tracker rows, including real combatants and synthetic entries.
-- `encounter_log`: optional future combat history/undo trail.
+- `creature_templates`: reusable creatures for the Creature Library, including PCs, monsters, NPCs, summons, bosses, custom creatures, and imported creatures.
+- `stat_block_imports`: raw stat block import attempts before they become saved creatures.
+- `encounters`: saved encounter containers for the dashboard, builder, and runner.
+- `encounter_combatants`: live combatant snapshots inside one encounter.
+- `combat_groups`: encounter-specific groups such as Party, Red Warband, or Skullfang Pack.
+- `encounter_waves`: planned waves or reinforcements.
+- `encounter_wave_members`: planned creature quantities inside a wave.
+- `initiative_entries`: tracker rows, including real combatants and synthetic rows such as Lair Actions.
+- `encounter_log`: future combat history, undo, and activity feed.
 
 ## Table List
 
-MVP schema tables:
+Initial schema tables:
 
 - `creature_templates`
 - `stat_block_imports`
 - `encounters`
-- `combat_groups`
 - `encounter_combatants`
+- `combat_groups`
 - `encounter_waves`
 - `encounter_wave_members`
 - `initiative_entries`
 - `encounter_log`
 
-## Templates vs. Encounter Combatants
+## Saved Encounters Dashboard
 
-Creature templates are reusable library records. Encounter combatants are live copies used inside one encounter.
+The dashboard should start from `encounters`.
 
-This matters because a reusable creature can change later. For example, if a DM edits the template for a custom monster, that should not automatically rewrite a combatant already running in a saved encounter unless the DM intentionally refreshes that combatant.
+Dashboard-friendly fields include:
 
-`encounter_combatants` therefore stores snapshot fields such as AC, max HP, current HP, speed, actions, traits, legendary actions, and lair actions. The combatant can still point back to `creature_templates.creature_template_id`, but the encounter does not depend on the current template value during play.
+- `name`
+- `description`
+- `location`
+- `status`
+- `last_played_at`
+- `difficulty_label`
+- `party_level`
+- `party_size`
+- `estimated_difficulty`
+- `notes`
+- `created_at`
+- `updated_at`
 
-## Combat Groups
+The dashboard can search by name/location/notes later, filter by `status`, and open an encounter in either Builder or Runner. Future duplicate/archive/delete behavior can operate on `encounters` plus its child rows.
 
-Combat groups are encounter-specific. They are not global library categories.
+Statuses should include:
+
+- `draft`
+- `running`
+- `completed`
+- `archived`
+
+## Creature Library
+
+The Creature Library is based on `creature_templates`.
+
+Templates are reusable records with stat block data, tags, source metadata, and import metadata. They should include both original sample creatures and user-created/imported creatures later. Official copyrighted monster data should not be bundled.
+
+## Stat Block Importer
+
+The Stat Block Importer is its own workspace, separate from the Encounter Builder.
+
+Recommended flow:
+
+1. User opens the Stat Block Importer.
+2. User pastes stat block text or provides a future supported source URL.
+3. The app creates a `stat_block_imports` draft record.
+4. A parser attempts to fill `parsed_result`.
+5. User reviews and edits parsed fields.
+6. User approves the result.
+7. The app creates a `creature_templates` record.
+8. The import record changes to `status = 'saved'` and points to the new creature template.
+
+A messy pasted stat block should not immediately become a saved creature. It should first be an import attempt, then a reviewed draft, then a saved creature template.
+
+## Encounter Builder
+
+The Builder should use `encounters`, `creature_templates`, `combat_groups`, `encounter_waves`, and `encounter_wave_members`.
+
+Builder responsibilities later:
+
+- choose creature templates from the library
+- create combat groups
+- plan waves/reinforcements
+- set quantities
+- preview difficulty metadata
+- create encounter combatant snapshots when the encounter is prepared or started
+
+The Builder should not mutate running combatant state unless the user intentionally applies changes to the live encounter.
+
+## Encounter Runner
+
+The Runner uses live encounter data:
+
+- `encounters` for round, current turn, and selected row
+- `encounter_combatants` for HP, conditions, initiative, notes, snapshots, and group assignment
+- `combat_groups` for group names/colors/counts
+- `initiative_entries` for normal and synthetic tracker rows
+- `encounter_log` later for history and undo
+
+The current UI is not wired to these tables yet.
+
+## Why Creature Templates And Encounter Combatants Are Separate
+
+Creature templates are reusable library records. Encounter combatants are live copies used inside a specific encounter.
+
+Example:
+
+- A template named "Cindercap Sneak" exists in the Creature Library.
+- The DM adds three copies to an encounter.
+- The encounter creates three `encounter_combatants` with names such as "Cindercap Sneak 1", "Cindercap Sneak 2", and "Cindercap Sneak Alpha".
+
+If the library template changes later, those live combatants should not change automatically. A running encounter needs stability.
+
+## How Encounter Combatants Are Snapshots/Copies Of Templates
+
+`encounter_combatants` can keep `creature_template_id` as a source reference, but it also stores the runtime copy:
+
+- display name
+- combatant type/role
+- AC
+- max HP
+- current HP
+- speed
+- initiative bonus
+- traits/actions/reactions/legendary actions/lair actions
+- notes
+- tags
+- conditions
+- group assignment
+
+This lets a saved encounter resume exactly as it was.
+
+## How Combat Groups Work
+
+Combat groups are encounter-specific, not global library folders.
 
 Examples:
+
 - Party
 - Red Warband
-- Blue Warband
+- Gold Warband
 - Skullfang Pack
-- Gold Vanguard
 
-`combat_groups` stores the group name and color key. `encounter_combatants.combat_group_id` links each live combatant to one group. Group initiative tools, shared initiative, row tinting, and far-right color end-caps should use this encounter-level group.
+`combat_groups` stores group name, color, and sort order. `encounter_combatants.combat_group_id` links a combatant to one group.
 
-## Waves
+The current Runner workflow maps cleanly to this:
 
-Waves are planned reinforcements. `encounter_waves` stores the wave name, description, deployment state, and sort order.
+- groups are created and managed in the Combat Groups card
+- row-level assignment uses existing created groups
+- group counts derive from assigned combatants
+- row tint and end-cap use the group's `color_key`
+- group Roll Init and Shared Init operate on assigned eligible combatants
 
-`encounter_wave_members` stores planned creature template quantities for each wave, with an optional default combat group. When a wave is deployed later, the app can create `encounter_combatants` snapshots from those planned templates.
+## How Waves/Reinforcements Work
 
-## Initiative State
+`encounter_waves` stores planned reinforcement groups for an encounter.
 
-`encounters` stores high-level tracker state such as `current_round`, `current_turn_index`, and `selected_entry_id`.
+`encounter_wave_members` stores planned template quantities and optional default group assignment.
 
-`initiative_entries` stores row-level tracker entries. This is useful because the current Runner already supports rows that are not normal creatures.
+When a wave is deployed later, the app can create `encounter_combatants` snapshots from the wave members. `deployed` and `deployed_at` record whether the wave has entered play.
 
-Entry types:
-- `combatant`: points to an `encounter_combatant`
-- `lair_action`: synthetic row tied to a source combatant
-- `custom`: future reminder/timer row
+## How Initiative State Works
 
-## Synthetic Initiative Entries
+High-level state lives on `encounters`:
 
-Synthetic entries are tracker rows that are not normal combatants. They can still be clicked, renamed cosmetically, and assigned an initiative value.
+- `current_round`
+- `current_turn_index`
+- `selected_entry_id`
+
+Tracker rows live in `initiative_entries`. This is useful because not every row is a real creature. Lair Actions are already synthetic rows in the current Runner.
+
+## Initiative Logic
+
+Normal roll:
+
+- roll `d20 + initiative_bonus`
+
+Global Roll NPC Init:
+
+- rolls eligible non-PC combatants
+- does not roll PCs by default
+
+Group Roll Init:
+
+- rolls each eligible combatant in the group separately
+- does not roll PCs by default
+- does not roll synthetic Lair Action rows
+
+Shared Init:
+
+- rolls each eligible group member behind the scenes
+- averages the rolled totals
+- rounds with `Math.round`
+- applies the same result to eligible group members
+- does not overwrite PCs by default
+- does not affect synthetic Lair Action rows
+
+Manual typed initiative:
+
+- user input wins
+- typed value overrides the current initiative value
+
+## How Synthetic Initiative Entries Work
+
+Synthetic entries are initiative tracker rows that are not normal combatants.
 
 `initiative_entries` supports:
+
+- `entry_type`
 - `is_synthetic`
+- `display_name`
+- `initiative_value`
 - `source_combatant_id`
-- custom `display_name`
-- custom `initiative_value`
+- `metadata`
 
-This preserves the link to the source monster while allowing the row label and initiative to be customized.
+This allows cosmetic overrides without losing the link to the real source combatant.
 
-## Synthetic Lair Action Rows
+## How Synthetic Lair Action Rows Work
 
-Lair Actions should live in a synthetic initiative row. The default initiative is 20, but the user can override it cosmetically.
+Synthetic Lair Action rows should:
 
-The synthetic row should:
 - appear only when a tracked combatant has lair actions
-- use `entry_type = 'lair_action'`
-- point `source_combatant_id` to the boss/monster
-- store custom display names like "Alley Lair Actions"
-- store custom initiative values if the DM overrides the default
+- default to initiative 20
+- allow cosmetic name overrides
+- allow cosmetic initiative overrides
+- remain linked to the source combatant through `source_combatant_id`
+- continue showing the source combatant's lair action cards
 
-Legendary Actions stay inside the boss combatant row. Lair Actions live in the synthetic initiative row.
+Legendary Actions live in boss/monster rows. Lair Actions live in synthetic Initiative 20 rows.
 
-## Conditions
+If multiple combatants have lair actions, the synthetic row can group content by source owner inside the row.
 
-For MVP, conditions can be stored as a `text[]` column on `encounter_combatants`.
+## How HP/Runtime State Works
 
-This is simple and matches the current local state. If durations, sources, save ends, concentration links, or reminders become important later, conditions can be normalized into a separate `combatant_conditions` table.
+Runtime state belongs on `encounter_combatants`, not on `creature_templates`.
 
-## HP And Runtime State
+Important runtime fields:
 
-Runtime HP belongs on `encounter_combatants`, not on `creature_templates`.
-
-Important fields:
 - `max_hp`
 - `current_hp`
 - `temporary_hp`
@@ -125,12 +273,20 @@ Important fields:
 - `conditions`
 - `notes`
 - `is_active`
+- `combat_group_id`
 
-This lets a saved encounter resume exactly where it left off.
+This lets the Runner save and resume combat.
 
-## Legendary Actions And Lair Actions
+## How Conditions Work
 
-For MVP, stat block sections should be JSONB:
+For MVP, `conditions` is a JSONB field on `encounter_combatants`. It can store the current list of active condition keys and later grow into richer objects if the app adds duration, save DC, source, or reminder metadata.
+
+A later normalized `combatant_conditions` table is possible, but JSONB keeps the first database pass simple and aligned with current local state.
+
+## How Legendary Actions And Lair Actions Are Stored
+
+Stat block sections use JSONB for MVP:
+
 - `traits`
 - `actions`
 - `bonus_actions`
@@ -139,6 +295,7 @@ For MVP, stat block sections should be JSONB:
 - `lair_actions`
 
 Each action object should support:
+
 - `id` or `slug`
 - `name`
 - `description`
@@ -147,25 +304,27 @@ Each action object should support:
 - `recharge`
 - `uses`
 
-JSONB is flexible for homebrew, pasted stat blocks, and odd creature formatting. Normalized action tables can come later if searching, analytics, or advanced action tracking require it.
+JSONB is best for MVP flexibility, homebrew formats, and pasted stat blocks. Normalized action tables can come later if advanced search, action tracking, or analytics require them.
 
-## Reusable Data vs. Encounter Runtime Data
+## What Is Reusable Creature Data vs. Encounter Runtime State
 
 Reusable creature data:
+
 - name
 - type/role
 - size
 - AC
-- max HP
+- HP
 - speed
 - initiative bonus
 - ability scores
 - senses/languages
-- traits/actions/reactions/legendary/lair actions
+- traits/actions/reactions/legendary actions/lair actions
 - tags
-- import/source metadata
+- source/import metadata
 
-Encounter-specific runtime data:
+Encounter-specific runtime state:
+
 - display name override
 - current HP
 - temporary HP
@@ -174,92 +333,94 @@ Encounter-specific runtime data:
 - wave assignment
 - initiative value
 - manual initiative flag
-- selected row
 - active turn
+- selected row
 - synthetic row overrides
 - encounter notes
 
-## Stat Block Importing And Source Metadata
+## How Pasted Stat Blocks Flow Into Review And Saved Creature Templates
 
-The app should eventually support copy/paste stat block import as a user-provided content workflow.
+The importer should save raw input first:
 
-Flow:
-1. User pastes raw stat block text.
-2. The app creates a `stat_block_imports` record with `status = 'draft'` or `status = 'parsed'`.
-3. A parser attempts to create a structured `parsed_result`.
-4. The user reviews and edits the parsed fields.
-5. Only after confirmation does the app create a `creature_templates` record.
-6. The import record can then store `status = 'saved'` and point to the saved template.
+1. Create `stat_block_imports` with `raw_text`, `import_method = 'paste'`, and `status = 'draft'`.
+2. Parser writes `parsed_result`, `parser_confidence`, and `parse_errors`.
+3. User reviews and edits the parsed fields in a future review screen.
+4. On approval, create `creature_templates` with `source_type = 'imported'`.
+5. Copy useful source metadata to the template.
+6. Update import status to `saved` and set `creature_template_id`.
 
-Imported creature templates should use `source_type = 'imported'` or `source_type = 'custom'`. Useful import/source fields are stored directly on `creature_templates` for filtering:
-- `source_name`
-- `source_url`
-- `import_method`
-- `imported_at`
-- `original_import_text`
-- `parser_version`
-- `parser_confidence`
+This makes failed or messy imports recoverable without polluting the Creature Library.
 
-`import_metadata` JSONB can store flexible extra details.
+## Future D&D Beyond/Homebrew Link Import Considerations
 
-The original pasted/imported text may be stored for troubleshooting and re-parsing. Parser confidence and parse errors can be stored later. A future import review screen should show parsed fields before saving.
+The schema includes `source_url` and `import_method` values such as `url` and `dndbeyond_homebrew` so future link-based workflows have a place to store metadata.
 
-Link-based import is a future feature. It must respect access controls and legal constraints. Do not bypass protected content, do not scrape private content, and do not add D&D Beyond integration in this pass. D&D Beyond or homebrew source URLs can be stored as metadata if the user provides them.
+This does not implement scraping or integration.
 
-## Future D&D Beyond/Homebrew Link Considerations
+Future link import must:
 
-The schema allows source URLs and import methods such as `dndbeyond_homebrew`, but this does not mean the app currently imports from those links.
+- use user-provided URLs
+- respect access controls
+- avoid private/protected content
+- avoid bypassing website restrictions
+- avoid bundling official copyrighted monster data
+- require user review before saving
 
-Future link import rules:
-- user-provided URLs only
-- no scraping protected/private pages
-- no bypassing access controls
-- user review before saving
-- imported content belongs to the importing user unless explicitly shared
-- no bundled official copyrighted monster data
+Source URLs can be stored as metadata even before the app knows how to parse them.
 
-## Future Auth, User, And Campaign Notes
+## Future Auth/User/Campaign Considerations
 
-Most tables include nullable `owner_user_id`. This is intentionally auth-ready but not auth-dependent.
-
-Later, when auth exists:
-- RLS should ensure users only access their own creature templates, imports, and encounters.
-- Imported content should belong to the importing user.
-- Campaign sharing can be added with tables like `campaigns` and `campaign_members`.
-- Public/shared encounter templates can be added separately.
-
-RLS is not implemented in this pass because the project does not have a configured auth/Supabase runtime yet.
-
-## MVP Scope vs. Later Features
-
-MVP database foundation:
-- schema files
-- database design docs
-- TypeScript record types
-- mapper helpers
-- seed plan
+Most user-owned tables include nullable `owner_user_id`. That makes the database future-ready without adding auth now.
 
 Later:
+
+- RLS should ensure users only access their own creatures, imports, and encounters.
+- Imported content should belong to the importing user unless intentionally shared.
+- Campaign sharing could use `campaigns` and `campaign_members`.
+- Public encounter or creature templates could be added separately.
+
+RLS policies are not included in this pass because auth is not set up yet.
+
+## MVP Database Scope vs. Later Features
+
+MVP foundation in this pass:
+
+- design document
+- migration file
+- TypeScript DB record types
+- mapper scaffolding
+- sample seed plan
+
+Later features:
+
 - Supabase client setup
+- actual local/remote migration application
 - auth
 - RLS policies
-- UI database wiring
-- import parser
-- import review screen
-- campaign sharing
+- Saved Encounters dashboard UI
+- Builder database wiring
+- Runner database wiring
+- Stat Block Importer UI
+- parser/review workflow
 - combat log UI
-- sync/offline strategy
+- undo/history features
+- campaign sharing
 
-## Intentionally Not Implemented Yet
+## What Is Intentionally Not Implemented Yet
 
 This pass does not:
-- connect the UI to Supabase
+
+- wire the UI to a database
+- add Supabase client setup
+- add environment variables
 - add auth
 - add RLS policies
-- apply migrations to any database
+- start or apply a remote database
 - replace local React state
-- remove sample data
-- add official D&D monster data
-- scrape D&D Beyond or external websites
+- remove local sample data
+- create the Saved Encounters dashboard UI
+- create the Stat Block Importer UI
 - add external APIs
-- add payment, teams, organizations, or cloud sync UI
+- scrape D&D Beyond or any website
+- bundle official copyrighted D&D monster data
+- add payment, team, organization, or cloud sync features
