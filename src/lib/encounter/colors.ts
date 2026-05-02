@@ -87,3 +87,25 @@ export const accentColorOptions = [
   "Cyan",
   "Magenta",
 ];
+
+export const combatGroupOptions = [
+  { label: "No Group", color: "None", className: "bg-slate-500" },
+  { label: "Red Warband", color: "Red", className: "bg-red-500" },
+  { label: "Blue Warband", color: "Blue", className: "bg-blue-500" },
+  { label: "Green Warband", color: "Green", className: "bg-green-500" },
+  { label: "Gold Warband", color: "Gold", className: "bg-amber-300" },
+  { label: "Purple Warband", color: "Purple", className: "bg-purple-500" },
+  { label: "Cyan Warband", color: "Cyan", className: "bg-cyan-300" },
+  { label: "Gray Warband", color: "Gray", className: "bg-zinc-400" },
+];
+
+export function getCombatGroupColorClass(groupColor?: string): string | null {
+  if (!groupColor || groupColor === "None") {
+    return null;
+  }
+
+  return (
+    combatGroupOptions.find((option) => option.color === groupColor)?.className ??
+    null
+  );
+}

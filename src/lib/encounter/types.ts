@@ -68,6 +68,8 @@ export type CreatureTemplate = {
   tags: string[];
   accentColor: string;
   groupLabel?: string;
+  combatGroupLabel?: string;
+  combatGroupColor?: string;
   autoRollEligible: boolean;
 };
 

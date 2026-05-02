@@ -22,6 +22,10 @@ type InitiativeListProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
+  onUpdateGroup: (
+    combatantId: string,
+    updates: { combatGroupLabel?: string; combatGroupColor?: string },
+  ) => void;
 };
 
 export function InitiativeList({
@@ -34,6 +38,7 @@ export function InitiativeList({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onUpdateGroup,
 }: InitiativeListProps) {
   const filteredCombatants = combatants.filter((combatant) => {
     if (filter === "alive") return getHpStatus(combatant.currentHp, combatant.maxHp) !== "Down";
@@ -76,6 +81,9 @@ export function InitiativeList({
             }
             onRemove={() => onRemove(entry.combatant.combatantId)}
             onSelect={() => onSelect(entry.combatant.combatantId)}
+            onUpdateGroup={(updates) =>
+              onUpdateGroup(entry.combatant.combatantId, updates)
+            }
           />
         ),
       )}

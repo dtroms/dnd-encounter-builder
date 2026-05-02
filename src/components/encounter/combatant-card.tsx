@@ -1,9 +1,13 @@
 "use client";
 
 import type { EncounterCombatant } from "@/lib/encounter/types";
-import { typeStyles } from "@/lib/encounter/colors";
+import {
+  getCombatGroupColorClass,
+  typeStyles,
+} from "@/lib/encounter/colors";
 import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
 import { ConditionBadges } from "./condition-badges";
+import { CombatGroupPicker } from "./combat-group-picker";
 import { HpControls } from "./hp-controls";
 import { StatusBadge } from "./status-badge";
 import { TypeBadge } from "./type-badge";
@@ -17,6 +21,10 @@ type CombatantCardProps = {
   onDamage: (amount: number) => void;
   onHealing: (amount: number) => void;
   onInitiativeChange: (initiative: number | null) => void;
+  onUpdateGroup: (updates: {
+    combatGroupLabel?: string;
+    combatGroupColor?: string;
+  }) => void;
 };
 
 export function CombatantCard({
@@ -28,10 +36,12 @@ export function CombatantCard({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onUpdateGroup,
 }: CombatantCardProps) {
   const status = getHpStatus(combatant.currentHp, combatant.maxHp);
   const hpPercent = getHpPercent(combatant.currentHp, combatant.maxHp);
   const style = typeStyles[combatant.type];
+  const groupColorClass = getCombatGroupColorClass(combatant.combatGroupColor);
   const down = status === "Down";
 
   return (
@@ -71,9 +81,13 @@ export function CombatantCard({
           </h3>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <TypeBadge type={combatant.type} />
-            {combatant.waveLabel || combatant.groupLabel ? (
+            <CombatGroupPicker
+              combatant={combatant}
+              onUpdateGroup={onUpdateGroup}
+            />
+            {combatant.waveLabel ? (
               <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-slate-300">
-                {combatant.waveLabel || combatant.groupLabel}
+                {combatant.waveLabel}
               </span>
             ) : null}
             <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-bold text-slate-400">
@@ -128,7 +142,7 @@ export function CombatantCard({
           </button>
         </div>
 
-        <div className={`h-full min-h-14 w-full ${style.dot}`} />
+        <div className={`h-full min-h-14 w-full ${groupColorClass ?? style.dot}`} />
       </div>
     </article>
   );

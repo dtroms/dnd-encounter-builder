@@ -185,12 +185,14 @@ function RosterEditor({
               })
             }
           />
-          <SelectField
-            label="Accent"
-            value={combatant.accentColor}
-            values={accentColorOptions}
-            onChange={(accentColor) => onUpdate({ accentColor })}
-          />
+                  <SelectField
+                    label="Accent"
+                    value={combatant.combatGroupColor ?? combatant.accentColor}
+                    values={accentColorOptions}
+                    onChange={(combatGroupColor) =>
+                      onUpdate({ combatGroupColor })
+                    }
+                  />
         </div>
         <div className="grid grid-cols-3 gap-2">
           <NumberField
@@ -225,8 +227,8 @@ function RosterEditor({
         </div>
         <TextField
           label="Group"
-          value={combatant.groupLabel ?? ""}
-          onChange={(groupLabel) => onUpdate({ groupLabel })}
+          value={combatant.combatGroupLabel ?? combatant.groupLabel ?? ""}
+          onChange={(combatGroupLabel) => onUpdate({ combatGroupLabel })}
         />
       </div>
     </div>

@@ -46,6 +46,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["player", "defender", "frontline"],
     accentColor: "Blue",
     groupLabel: "Party",
+    combatGroupLabel: "Party",
+    combatGroupColor: "Blue",
     autoRollEligible: false,
   },
   {
@@ -84,6 +86,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["player", "caster", "ranged"],
     accentColor: "Cyan",
     groupLabel: "Party",
+    combatGroupLabel: "Party",
+    combatGroupColor: "Blue",
     autoRollEligible: false,
   },
   {
@@ -122,6 +126,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["player", "scout", "skirmisher"],
     accentColor: "Green",
     groupLabel: "Party",
+    combatGroupLabel: "Party",
+    combatGroupColor: "Blue",
     autoRollEligible: false,
   },
   {
@@ -160,6 +166,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["goblin-style", "ambusher", "melee"],
     accentColor: "Red",
     groupLabel: "Cindercaps",
+    combatGroupLabel: "Red Warband",
+    combatGroupColor: "Red",
     autoRollEligible: true,
   },
   {
@@ -198,6 +206,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["goblin-style", "ranged", "minion"],
     accentColor: "Red",
     groupLabel: "Cindercaps",
+    combatGroupLabel: "Red Warband",
+    combatGroupColor: "Red",
     autoRollEligible: true,
   },
   {
@@ -237,6 +247,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["goblin-style", "caster", "control"],
     accentColor: "Purple",
     groupLabel: "Cindercaps",
+    combatGroupLabel: "Red Warband",
+    combatGroupColor: "Red",
     autoRollEligible: true,
   },
   {
@@ -269,6 +281,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["goblin-style", "guard", "frontline"],
     accentColor: "Red",
     groupLabel: "Cindercaps",
+    combatGroupLabel: "Red Warband",
+    combatGroupColor: "Red",
     autoRollEligible: true,
   },
   {
@@ -307,6 +321,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["shadow", "beast", "hunter"],
     accentColor: "Magenta",
     groupLabel: "Shadow",
+    combatGroupLabel: "Blue Warband",
+    combatGroupColor: "Blue",
     autoRollEligible: true,
   },
   {
@@ -374,6 +390,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["boss", "commander", "fire"],
     accentColor: "Gold",
     groupLabel: "Boss",
+    combatGroupLabel: "Gold Warband",
+    combatGroupColor: "Gold",
     autoRollEligible: true,
   },
   {
@@ -411,6 +429,8 @@ export const sampleCreatureTemplates: CreatureTemplate[] = [
     tags: ["neutral", "npc", "social"],
     accentColor: "Gray",
     groupLabel: "Bystanders",
+    combatGroupLabel: "No Group",
+    combatGroupColor: "None",
     autoRollEligible: true,
   },
 ];
@@ -434,5 +454,7 @@ export function createCombatant(
     manualInitiative: template.type === "pc",
     conditions: [],
     waveLabel: template.groupLabel,
+    combatGroupLabel: template.combatGroupLabel ?? template.groupLabel,
+    combatGroupColor: template.combatGroupColor ?? template.accentColor,
   };
 }

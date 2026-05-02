@@ -280,6 +280,9 @@ export function EncounterApp() {
               manualInitiative: true,
             }))
           }
+          onUpdateGroup={(combatantId, updates) =>
+            patchCombatant(combatantId, updates)
+          }
           onToggleCondition={toggleCondition}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}

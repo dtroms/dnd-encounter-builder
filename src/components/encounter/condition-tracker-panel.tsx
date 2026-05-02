@@ -4,6 +4,7 @@ import type {
 } from "@/lib/encounter/types";
 import { getHpStatus } from "@/lib/encounter/hp";
 import { ConditionBadges } from "./condition-badges";
+import { CombatGroupSummary } from "./combat-group-summary";
 import { EmptyState } from "./empty-state";
 import { StatusBadge } from "./status-badge";
 import { TypeBadge } from "./type-badge";
@@ -29,11 +30,13 @@ const conditionOptions: CombatantCondition[] = [
 
 type ConditionTrackerPanelProps = {
   combatant: EncounterCombatant | null;
+  combatants: EncounterCombatant[];
   onToggleCondition: (condition: CombatantCondition) => void;
 };
 
 export function ConditionTrackerPanel({
   combatant,
+  combatants,
   onToggleCondition,
 }: ConditionTrackerPanelProps) {
   if (!combatant) {
@@ -43,6 +46,7 @@ export function ConditionTrackerPanel({
           detail="Click a combatant row to manage its conditions and statuses here."
           title="Condition Tracker"
         />
+        <CombatGroupSummary combatants={combatants} />
       </aside>
     );
   }
@@ -135,6 +139,7 @@ export function ConditionTrackerPanel({
           </div>
         </section>
       ) : null}
+      <CombatGroupSummary combatants={combatants} />
     </aside>
   );
 }

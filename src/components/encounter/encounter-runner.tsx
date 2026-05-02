@@ -27,6 +27,10 @@ type EncounterRunnerProps = {
   onDamage: (combatantId: string, amount: number) => void;
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
+  onUpdateGroup: (
+    combatantId: string,
+    updates: { combatGroupLabel?: string; combatGroupColor?: string },
+  ) => void;
   onToggleCondition: (
     combatantId: string,
     condition: CombatantCondition,
@@ -55,6 +59,7 @@ export function EncounterRunner({
   onDamage,
   onHealing,
   onInitiativeChange,
+  onUpdateGroup,
   onToggleCondition,
   onRollEligible,
   onSort,
@@ -92,6 +97,7 @@ export function EncounterRunner({
       <div className="grid gap-2.5 xl:grid-cols-[20rem_minmax(0,0.95fr)_34rem]">
         <ConditionTrackerPanel
           combatant={selectedCombatant}
+          combatants={combatants}
           onToggleCondition={(condition) => {
             if (selectedCombatant) {
               onToggleCondition(selectedCombatant.combatantId, condition);
@@ -111,6 +117,7 @@ export function EncounterRunner({
             onDamage={onDamage}
             onHealing={onHealing}
             onInitiativeChange={onInitiativeChange}
+            onUpdateGroup={onUpdateGroup}
             onRemove={onRemove}
             onSelect={onSelect}
           />
