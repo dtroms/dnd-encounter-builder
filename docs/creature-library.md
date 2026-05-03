@@ -94,6 +94,10 @@ creature list for the current browser session. Those creatures use the Imported
 source badge and become searchable in both the Library and Builder. This is
 still local state only and does not persist to Supabase.
 
+The Importer can also import selected SRD preview creatures into the same local
+session list. Those creatures use the SRD / Creative Commons source badge and
+preserve Tabyltop CC-SRD source, license, URL, and attribution metadata.
+
 Future SRD imports should preserve license, attribution, source name, source
 document version, and source URL metadata separately from non-SRD or
 user-provided content.
@@ -116,7 +120,7 @@ This pass intentionally does not include:
 
 - Supabase reads or writes.
 - Auth or RLS.
-- SRD importer implementation.
+- Persistent SRD importer implementation.
 - Paste-stat-block parsing beyond the current heuristic local review scaffold.
 - Official copyrighted monster data.
 - Runtime fetching from GitHub or other external sources.

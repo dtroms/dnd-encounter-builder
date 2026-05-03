@@ -10,8 +10,8 @@ The Importer currently has three sections:
 
 - Paste Stat Block: paste user-provided stat block text, parse it locally, and
   review the detected creature fields before saving.
-- Import SRD Monsters: planned Creative Commons SRD import workflow using the
-  Tabyltop CC-SRD repository as the likely source.
+- Import SRD Monsters: local/session Creative Commons SRD import workflow using
+  Tabyltop CC-SRD-shaped sample data as the first structured source model.
 - Import History: placeholder for future saved import attempts and parser
   status once persistence exists.
 
@@ -26,10 +26,40 @@ The planned SRD source is:
 - Source type: `srd`
 
 This pass does not fetch from GitHub at runtime and does not bundle a bulk SRD
-monster dataset. The UI shows a source card and mock preview state only.
+monster dataset. The UI uses a tiny local Tabyltop-shaped sample subset so the
+review, validation, selection, duplicate prevention, and local import flow can
+be tested safely.
 
 Future SRD import work should use a local adapter script or curated import file,
 then review the output before records become Library creature templates.
+
+## SRD Import Workflow
+
+The SRD tab now supports:
+
+1. Load Local Preview.
+2. Normalize Tabyltop-shaped SRD records into the app creature template shape.
+3. Show validation status for each record: Ready, Needs Review, Error, or
+   Already in library.
+4. Select records for import.
+5. Import selected records into the local Creature Library session state.
+
+Imported SRD creatures use:
+
+- `sourceType = srd`
+- `sourceName = Tabyltop CC-SRD`
+- `sourceUrl = https://github.com/Tabyltop/CC-SRD`
+- `licenseName = CC-BY-4.0`
+- `importMethod = srd-json-review`
+
+Duplicate prevention is simple for now: if a local Library creature already has
+the same name from Tabyltop CC-SRD, the preview marks it as already in the
+Library and disables selection.
+
+The normalizer extracts or preserves common fields such as name, meta
+size/type/alignment, AC, HP, speed, ability scores, saving throws, skills,
+senses, languages, CR, traits, actions, reactions, legendary actions, lair
+actions, defenses, license metadata, and raw source JSON.
 
 ## Paste Stat Block Workflow
 

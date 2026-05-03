@@ -1,53 +1,75 @@
 # SRD Import Plan
 
-This plan covers a future Creative Commons SRD monster import workflow for the Creature Library. It does not implement importer UI, fetch external data, wire Supabase reads/writes, scrape websites, or add official non-SRD D&D monsters.
+The first structured SRD import workflow is planned around Tabyltop CC-SRD:
 
-## Planned Source
+- Repository: `https://github.com/Tabyltop/CC-SRD`
+- Source type: SRD / Creative Commons
+- Source document: SRD 5.1
+- License: CC-BY-4.0
 
-Initial planned structured source:
+The repository contains converted SRD data. Because conversion errors may exist,
+the app should normalize and validate records before they become Creature
+Library templates.
 
-- `source_name`: `Tabyltop CC-SRD`
-- `source_type`: `srd`
-- `source_document_version`: `SRD 5.1`
-- `license_name`: `CC-BY-4.0`
-- `source_url`: `https://github.com/Tabyltop/CC-SRD`
+## Current Local Workflow
 
-Imported `creature_templates` should preserve source, license, and attribution metadata.
+The Importer SRD tab currently uses a tiny local Tabyltop-shaped sample subset.
+It does not fetch GitHub at runtime and does not bundle the full SRD monster
+list.
 
-## Source Caution
+The workflow is:
 
-The Tabyltop CC-SRD repository converts SRD 5.1 Creative Commons content into machine-friendly formats. Because conversion from PDF/data formats can introduce formatting or JSON conversion errors, the app should not blindly trust imported JSON.
+1. Load Local Preview.
+2. Normalize sample records into the local creature template shape.
+3. Show validation state: Ready, Needs Review, Error, or Already in library.
+4. Select importable records.
+5. Import selected records into local session state.
 
-Before records become Creature Library templates, the import workflow should validate and normalize the data, then show a reviewable import preview.
+Imported creatures appear in the Creature Library and Builder during the same
+browser session because both use the shared local creature list.
 
-## Future Adapter Workflow
+## Normalization
 
-Recommended future workflow:
+The helper in `src/lib/encounter/srd-importer.ts` maps likely Tabyltop/SRD JSON
+fields into the app creature template shape:
 
-1. Obtain the Tabyltop CC-SRD monster JSON through a reviewed local file or adapter script.
-2. Normalize source fields into the app's `CreatureTemplateRecord` shape.
-3. Validate required fields such as name, AC, HP, initiative bonus, challenge rating, and actions.
-4. Preserve source/license/attribution metadata on each normalized record.
-5. Generate an import preview with warnings for missing, malformed, or uncertain fields.
-6. Let the user import all monsters or selected monsters into their Creature Library.
+- Name
+- Meta size/type/alignment
+- Armor Class and armor note
+- Hit Points and HP formula
+- Speed
+- STR, DEX, CON, INT, WIS, CHA
+- Saving throws
+- Skills
+- Senses
+- Languages
+- Challenge Rating and XP text
+- Traits
+- Actions
+- Bonus actions
+- Reactions
+- Legendary actions
+- Lair actions
+- Damage vulnerabilities, resistances, and immunities
+- Condition immunities
+- Source/license/attribution metadata
 
-## Separate From Pasted Stat Blocks
+Validation blocks obvious broken records from import and marks incomplete
+records as Needs Review.
 
-Pasted stat block import and SRD bulk import should stay separate:
+## Boundaries
 
-- Pasted stat block import is for messy, individual, user-provided content.
-- Tabyltop CC-SRD import is a structured Creative Commons bulk import source.
+This is local/session-only for now.
 
-The pasted importer should keep using draft/review/save states for one-off content. The SRD adapter should focus on repeatable validation, normalization, attribution, and bulk selection.
+Not included yet:
 
-## Beta Recommendation
+- Supabase persistence.
+- Auth or RLS.
+- Runtime GitHub fetching.
+- Full SRD bulk import.
+- D&D Beyond scraping.
+- Official non-SRD D&D monster data.
 
-Avoid runtime fetching from GitHub for early beta unless caching, version pinning, network failure handling, and error handling are designed.
-
-Preferred beta path:
-
-1. Use a local adapter script or curated import file.
-2. Review the normalized output.
-3. Import reviewed records into the database deliberately.
-
-This keeps the first SRD import workflow predictable and avoids making the app depend on GitHub availability at runtime.
+Future production import should use either a curated pinned CC-SRD JSON file or
+a reviewed local adapter output, then perform licensing and schema review before
+public release.

@@ -757,6 +757,7 @@ export function EncounterApp() {
 
       {activeView === "importer" ? (
         <StatBlockImporterPlaceholder
+          existingCreatures={creatureTemplates}
           onSaveCreature={(creature) =>
             setCreatureTemplates((current) => [creature, ...current])
           }

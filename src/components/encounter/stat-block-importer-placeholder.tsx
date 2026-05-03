@@ -14,6 +14,12 @@ import {
   type ParsedCreatureDraft,
   type StatBlockParseResult,
 } from "@/lib/encounter/stat-block-parser";
+import {
+  normalizeTabyltopSrdMonster,
+  TABYLTOP_SRD_SOURCE,
+  tabyltopSrdSampleMonsters,
+  type SrdImportPreview,
+} from "@/lib/encounter/srd-importer";
 
 type ImporterTab = "paste" | "srd" | "history";
 
@@ -56,8 +62,10 @@ const sizeOptions = [
 ];
 
 export function StatBlockImporterPlaceholder({
+  existingCreatures = [],
   onSaveCreature,
 }: {
+  existingCreatures?: LibraryCreature[];
   onSaveCreature?: (creature: LibraryCreature) => void;
 }) {
   const [activeTab, setActiveTab] = useState<ImporterTab>("paste");
@@ -69,7 +77,31 @@ export function StatBlockImporterPlaceholder({
   );
   const [draft, setDraft] = useState<LibraryCreature | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
-  const [srdPreviewOpen, setSrdPreviewOpen] = useState(false);
+  const [srdPreviewLoaded, setSrdPreviewLoaded] = useState(false);
+  const [selectedSrdIds, setSelectedSrdIds] = useState<string[]>([]);
+  const [activeSrdId, setActiveSrdId] = useState("");
+  const [srdImportMessage, setSrdImportMessage] = useState("");
+
+  const srdPreviews = useMemo(
+    () => tabyltopSrdSampleMonsters.map(normalizeTabyltopSrdMonster),
+    [],
+  );
+  const existingSrdKeys = useMemo(
+    () =>
+      new Set(
+        existingCreatures
+          .filter(
+            (creature) =>
+              creature.sourceType === "srd" &&
+              creature.sourceName === TABYLTOP_SRD_SOURCE.sourceName,
+          )
+          .map((creature) => creature.name.toLowerCase()),
+      ),
+    [existingCreatures],
+  );
+  const activeSrdPreview =
+    srdPreviews.find((preview) => preview.creature.id === activeSrdId) ??
+    srdPreviews[0];
 
   const missingFields = useMemo(() => {
     if (!draft) {
@@ -153,6 +185,58 @@ export function StatBlockImporterPlaceholder({
     setSavedMessage(`${normalized.name} was saved to the local Creature Library.`);
   }
 
+  function loadSrdPreview() {
+    setSrdPreviewLoaded(true);
+    const importableIds = srdPreviews
+      .filter(
+        (preview) =>
+          preview.status !== "error" &&
+          !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+      )
+      .map((preview) => preview.creature.id);
+    setSelectedSrdIds(importableIds);
+    setActiveSrdId(srdPreviews[0]?.creature.id ?? "");
+    setSrdImportMessage("");
+  }
+
+  function toggleSrdSelection(creatureId: string) {
+    setSelectedSrdIds((current) =>
+      current.includes(creatureId)
+        ? current.filter((id) => id !== creatureId)
+        : [...current, creatureId],
+    );
+  }
+
+  function importSelectedSrdCreatures() {
+    if (!onSaveCreature) {
+      return;
+    }
+
+    const selectedPreviews = srdPreviews.filter((preview) =>
+      selectedSrdIds.includes(preview.creature.id),
+    );
+    const importablePreviews = selectedPreviews.filter(
+      (preview) =>
+        preview.status !== "error" &&
+        !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+    );
+
+    importablePreviews.forEach((preview) => {
+      onSaveCreature({
+        ...preview.creature,
+        id: `${preview.creature.id}-${Date.now()}`,
+        notes: `${preview.creature.notes}\nImported locally at ${new Date().toISOString()}.`,
+      });
+    });
+
+    setSelectedSrdIds([]);
+    setSrdImportMessage(
+      importablePreviews.length
+        ? `${importablePreviews.length} SRD creature${importablePreviews.length === 1 ? "" : "s"} added to the local Creature Library.`
+        : "No new SRD creatures were imported.",
+    );
+  }
+
   return (
     <section className="space-y-4">
       <header className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-2xl shadow-black/20">
@@ -214,8 +298,16 @@ export function StatBlockImporterPlaceholder({
 
       {activeTab === "srd" ? (
         <SrdImportPlanning
-          previewOpen={srdPreviewOpen}
-          onPreview={() => setSrdPreviewOpen(true)}
+          activePreview={activeSrdPreview}
+          existingSrdKeys={existingSrdKeys}
+          importMessage={srdImportMessage}
+          previewLoaded={srdPreviewLoaded}
+          previews={srdPreviews}
+          selectedIds={selectedSrdIds}
+          onImportSelected={importSelectedSrdCreatures}
+          onLoadPreview={loadSrdPreview}
+          onSelectPreview={setActiveSrdId}
+          onToggleSelection={toggleSrdSelection}
         />
       ) : null}
 
@@ -667,15 +759,33 @@ function ReviewPanel({
 }
 
 function SrdImportPlanning({
-  previewOpen,
-  onPreview,
+  activePreview,
+  existingSrdKeys,
+  importMessage,
+  previewLoaded,
+  previews,
+  selectedIds,
+  onImportSelected,
+  onLoadPreview,
+  onSelectPreview,
+  onToggleSelection,
 }: {
-  previewOpen: boolean;
-  onPreview: () => void;
+  activePreview?: SrdImportPreview;
+  existingSrdKeys: Set<string>;
+  importMessage: string;
+  previewLoaded: boolean;
+  previews: SrdImportPreview[];
+  selectedIds: string[];
+  onImportSelected: () => void;
+  onLoadPreview: () => void;
+  onSelectPreview: (creatureId: string) => void;
+  onToggleSelection: (creatureId: string) => void;
 }) {
+  const selectedCount = selectedIds.length;
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
-      <StepLabel step="1" text="Planned SRD Source" />
+      <StepLabel step="1" text="SRD Source / Preview" />
       <div className="mt-3 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-4">
           <p className="text-xs font-black uppercase tracking-wide text-emerald-100">
@@ -686,33 +796,37 @@ function SrdImportPlanning({
           </h3>
           <dl className="mt-4 grid gap-3 text-sm">
             <SourceFact label="GitHub" value="github.com/Tabyltop/CC-SRD" />
-            <SourceFact label="Document" value="SRD 5.1" />
-            <SourceFact label="License" value="CC-BY-4.0" />
+            <SourceFact label="Document" value={TABYLTOP_SRD_SOURCE.sourceDocumentVersion} />
+            <SourceFact label="License" value={TABYLTOP_SRD_SOURCE.licenseName} />
             <SourceFact label="Source Type" value="srd" />
           </dl>
+          <p className="mt-4 rounded-lg border border-emerald-300/20 bg-slate-950/45 p-3 text-sm leading-6 text-emerald-50/90">
+            Imports Creative Commons SRD content only. Review normalized records
+            before adding them to your library. Non-SRD official monsters are
+            not bundled.
+          </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               className="rounded-lg border border-emerald-300/50 bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-200"
               type="button"
-              onClick={onPreview}
+              onClick={onLoadPreview}
             >
-              Preview SRD Import
+              Load Local Preview
             </button>
             <button
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
+              className="rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:border-cyan-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
+              disabled={!selectedCount}
               type="button"
+              onClick={onImportSelected}
             >
-              Import All later
-            </button>
-            <button
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
-              type="button"
-            >
-              Select Monsters later
+              Import Selected ({selectedCount})
             </button>
           </div>
+          {importMessage ? (
+            <p className="mt-3 text-sm font-bold text-emerald-100">
+              {importMessage}
+            </p>
+          ) : null}
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
@@ -727,35 +841,240 @@ function SrdImportPlanning({
             <li>5. Save selected creatures only after review.</li>
           </ol>
           <p className="mt-4 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50/90">
-            No GitHub fetch or bulk import is performed in this UI pass. Early
-            beta should prefer a curated local import file or adapter script
-            with reviewed output.
+            This pass uses a tiny local Tabyltop-shaped sample subset. No
+            GitHub fetch, database write, or full SRD bundle is performed.
           </p>
         </div>
       </div>
 
-      {previewOpen ? (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-4">
-          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-            Mock Import Preview
-          </p>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            <PreviewItem
-              label="Schema Check"
-              text="Adapter output would be checked for required creature fields."
-            />
-            <PreviewItem
-              label="Attribution"
-              text="Source, license, URL, and attribution metadata would be preserved."
-            />
-            <PreviewItem
-              label="Review Gate"
-              text="Records would remain drafts until approved for the Library."
-            />
+      {previewLoaded ? (
+        <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_0.85fr]">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                Local SRD Preview
+              </p>
+              <span className="text-xs font-black uppercase tracking-wide text-slate-400">
+                {previews.length} records normalized
+              </span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {previews.map((preview) => {
+                const duplicate = existingSrdKeys.has(
+                  preview.creature.name.toLowerCase(),
+                );
+                const disabled = duplicate || preview.status === "error";
+
+                return (
+                  <button
+                    key={preview.creature.id}
+                    className={`w-full rounded-xl border p-3 text-left transition ${
+                      activePreview?.creature.id === preview.creature.id
+                        ? "border-emerald-300/60 bg-emerald-300/10"
+                        : "border-slate-800 bg-slate-950/65 hover:border-slate-600"
+                    }`}
+                    type="button"
+                    onClick={() => onSelectPreview(preview.creature.id)}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <label
+                        className="flex min-w-0 flex-1 items-start gap-3"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          checked={selectedIds.includes(preview.creature.id)}
+                          className="mt-1"
+                          disabled={disabled}
+                          type="checkbox"
+                          onChange={() => onToggleSelection(preview.creature.id)}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-base font-black text-white">
+                            {preview.creature.name || "Unnamed SRD Creature"}
+                          </span>
+                          <span className="mt-1 block text-xs font-bold text-slate-400">
+                            {preview.creature.size} {preview.creature.monsterType} - CR{" "}
+                            {preview.creature.challengeRating || "Needs review"} - AC{" "}
+                            {preview.creature.armorClass} - HP {preview.creature.maxHp}
+                          </span>
+                        </span>
+                      </label>
+                      <StatusPill
+                        duplicate={duplicate}
+                        status={preview.status}
+                        warnings={preview.warnings.length}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          <SrdReviewPanel preview={activePreview} />
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-900/45 p-6 text-center">
+          <h3 className="text-lg font-black text-white">
+            Load a Local SRD Preview
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            This will normalize a small local Tabyltop-shaped sample subset so
+            you can review validation status and import selected records into
+            the local Library session.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatusPill({
+  duplicate,
+  status,
+  warnings,
+}: {
+  duplicate: boolean;
+  status: SrdImportPreview["status"];
+  warnings: number;
+}) {
+  if (duplicate) {
+    return (
+      <span className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-300">
+        Already in library
+      </span>
+    );
+  }
+
+  const styles: Record<SrdImportPreview["status"], string> = {
+    error: "border-red-300/35 bg-red-400/10 text-red-100",
+    "needs-review": "border-amber-300/35 bg-amber-300/10 text-amber-100",
+    ready: "border-emerald-300/35 bg-emerald-300/10 text-emerald-100",
+  };
+
+  return (
+    <span
+      className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wide ${styles[status]}`}
+    >
+      {status === "needs-review" ? `${warnings} warnings` : status}
+    </span>
+  );
+}
+
+function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
+  if (!preview) {
+    return null;
+  }
+
+  const creature = preview.creature;
+
+  return (
+    <aside className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
+      <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+        Selected SRD Review
+      </p>
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-black text-white">{creature.name}</h3>
+          <p className="mt-1 text-sm font-bold text-slate-400">
+            {creature.size} {creature.monsterType}
+            {creature.alignment ? `, ${creature.alignment}` : ""} - CR{" "}
+            {creature.challengeRating || "Needs review"}
+          </p>
+        </div>
+        <StatusPill
+          duplicate={false}
+          status={preview.status}
+          warnings={preview.warnings.length}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <PreviewStat label="AC" value={String(creature.armorClass)} />
+        <PreviewStat label="HP" value={String(creature.maxHp)} />
+        <PreviewStat label="Init" value={signed(creature.initiativeBonus)} />
+      </div>
+
+      {preview.warnings.length || preview.missingRequiredFields.length ? (
+        <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">
+          <p className="text-xs font-black uppercase tracking-wide text-amber-100">
+            Validation Notes
+          </p>
+          <ul className="mt-2 space-y-1 text-sm leading-5 text-amber-50/90">
+            {preview.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+            {preview.missingRequiredFields.length ? (
+              <li>
+                Missing required fields:{" "}
+                {preview.missingRequiredFields.join(", ")}.
+              </li>
+            ) : null}
+          </ul>
         </div>
       ) : null}
-    </section>
+
+      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+          Source / License
+        </p>
+        <p className="mt-2 text-sm font-bold text-slate-300">
+          {creature.sourceName} - {creature.licenseName}
+        </p>
+        <p className="mt-1 break-all text-xs font-semibold text-slate-500">
+          {creature.sourceUrl}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        <PreviewEntries title="Traits" entries={creature.traits} />
+        <PreviewEntries title="Actions" entries={creature.actions} />
+        {creature.legendaryActions?.length ? (
+          <PreviewEntries
+            title="Legendary Actions"
+            entries={creature.legendaryActions}
+          />
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function PreviewStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/55 p-3 text-center">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function PreviewEntries({
+  entries,
+  title,
+}: {
+  entries: StatBlockAction[];
+  title: string;
+}) {
+  return (
+    <div>
+      <h4 className="text-sm font-black text-white">{title}</h4>
+      <div className="mt-2 space-y-2">
+        {entries.slice(0, 3).map((entry) => (
+          <div key={`${title}-${entry.name}`} className="text-sm leading-6">
+            <span className="font-black text-slate-200">{entry.name}. </span>
+            <span className="text-slate-400">{entry.description}</span>
+          </div>
+        ))}
+      </div>
+      {entries.length > 3 ? (
+        <p className="mt-2 text-xs font-bold text-slate-500">
+          + {entries.length - 3} more
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -808,15 +1127,6 @@ function SourceFact({ label, value }: { label: string; value: string }) {
         {label}
       </dt>
       <dd className="text-right text-sm font-black text-white">{value}</dd>
-    </div>
-  );
-}
-
-function PreviewItem({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950/75 p-3">
-      <h4 className="text-sm font-black text-white">{label}</h4>
-      <p className="mt-1 text-sm leading-5 text-slate-400">{text}</p>
     </div>
   );
 }
@@ -1059,6 +1369,10 @@ function splitTags(value: string) {
 
 function labelize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function signed(value: number) {
+  return value >= 0 ? `+${value}` : String(value);
 }
 
 function slugify(value: string) {
