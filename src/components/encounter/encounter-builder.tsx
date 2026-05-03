@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type {
+  CombatGroup,
   CombatantType,
   CreatureTemplate,
   EncounterCombatant,
@@ -9,7 +10,7 @@ import type {
   StatBlockTrait,
 } from "@/lib/encounter/types";
 import {
-  accentColorOptions,
+  combatGroupOptions,
   combatantTypeOrder,
   getCombatGroupColorClass,
 } from "@/lib/encounter/colors";
@@ -17,9 +18,13 @@ import { EmptyState } from "./empty-state";
 import { TypeBadge } from "./type-badge";
 
 type EncounterBuilderProps = {
+  campaignId: string;
+  combatGroups: CombatGroup[];
   combatants: EncounterCombatant[];
   encounterName?: string;
   templates: CreatureTemplate[];
+  onCreateGroup: (group: { name: string; color: string }) => void;
+  onCampaignChange: (campaignId: string) => void;
   onAdd: (template: CreatureTemplate, count: number) => void;
   onDuplicate: (combatant: EncounterCombatant) => void;
   onRemove: (combatantId: string) => void;
@@ -57,10 +62,22 @@ const futureTaxonomy = [
   "Undead",
 ];
 
+const campaignOptions = [
+  { id: "lantern-road", name: "The Lantern Road" },
+  { id: "moonwell-vale", name: "Moonwell Vale" },
+  { id: "ash-gate", name: "Ash Gate" },
+  { id: "violet-keg-cellars", name: "Violet Keg Cellars" },
+  { id: "unassigned", name: "Unassigned / No Campaign" },
+];
+
 export function EncounterBuilder({
+  campaignId,
+  combatGroups,
   combatants,
   encounterName = "Lantern Alley Ambush",
   templates,
+  onCampaignChange,
+  onCreateGroup,
   onAdd,
   onDuplicate,
   onRemove,
@@ -76,6 +93,10 @@ export function EncounterBuilder({
     templates[3]?.id ?? templates[0]?.id ?? null,
   );
   const [addCounts, setAddCounts] = useState<Record<string, number>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [draftNotice, setDraftNotice] = useState("");
 
   const availableSizes = useMemo(
     () => [...new Set(templates.map((template) => template.size))].sort(),
@@ -119,6 +140,7 @@ export function EncounterBuilder({
   const hasLairActions = combatants.some(
     (combatant) => combatant.lairActions && combatant.lairActions.length > 0,
   );
+  const campaignName = getCampaignName(campaignId);
 
   function addCopies(template: CreatureTemplate, count = 1) {
     onAdd(template, count);
@@ -234,6 +256,9 @@ export function EncounterBuilder({
               <h2 className="mt-1 text-xl font-black text-white">
                 {encounterName}
               </h2>
+              <p className="mt-1 text-xs font-bold text-slate-500">
+                Campaign: {campaignName}
+              </p>
             </div>
             <button
               className="rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
@@ -248,40 +273,56 @@ export function EncounterBuilder({
             <SummaryPill label="Combatants" value={String(combatants.length)} />
             <SummaryPill label="Groups" value={String(groupCount)} />
             <SummaryPill label="Bosses" value={bossCount > 0 ? String(bossCount) : "None"} />
-            <SummaryPill label="Lair" value={hasLairActions ? "Ready" : "None"} />
+            <SummaryPill label="Campaign" value={campaignName} />
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
+            <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+              Campaign
+              <select
+                className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+                value={campaignId}
+                onChange={(event) => {
+                  onCampaignChange(event.target.value);
+                  setDraftNotice("");
+                }}
+              >
+                {campaignOptions.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
-              className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
               type="button"
+              onClick={() =>
+                setDraftNotice(`Draft staged for ${getCampaignName(campaignId)}.`)
+              }
             >
               Save Draft later
             </button>
+            <span className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1 text-[11px] font-black text-slate-500">
+              Lair: {hasLairActions ? "Ready" : "None"}
+            </span>
           </div>
+          {draftNotice ? (
+            <p className="mt-2 text-xs font-semibold text-cyan-200">
+              {draftNotice} Supabase save comes later.
+            </p>
+          ) : null}
         </section>
 
         <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-black text-white">Combat Groups</h3>
-            <span className="text-xs font-bold text-slate-500">
-              Group editing expands later
-            </span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {groupedCombatants.map((group) => (
-              <span
-                className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-xs font-black text-slate-300"
-                key={`${group.name}-${group.color}`}
-              >
-                <span
-                  className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${getCombatGroupColorClass(group.color) ?? "bg-slate-500"}`}
-                />
-                {group.name} ({group.combatants.length})
-              </span>
-            ))}
-          </div>
+          <BuilderCombatGroups
+            combatGroups={combatGroups}
+            combatants={combatants}
+            onCreateGroup={onCreateGroup}
+          />
         </section>
 
         <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
@@ -298,10 +339,18 @@ export function EncounterBuilder({
               <RosterGroup
                 color={group.color}
                 combatants={group.combatants}
+                groups={combatGroups}
+                isCollapsed={Boolean(collapsedGroups[group.key])}
                 key={`${group.name}-${group.color}`}
                 name={group.name}
                 onDuplicate={onDuplicate}
                 onRemove={onRemove}
+                onToggleCollapse={() =>
+                  setCollapsedGroups((current) => ({
+                    ...current,
+                    [group.key]: !current[group.key],
+                  }))
+                }
                 onUpdate={onUpdate}
               />
             ))}
@@ -636,56 +685,77 @@ function CreaturePreview({
 function RosterGroup({
   color,
   combatants,
+  groups,
+  isCollapsed,
   name,
   onDuplicate,
   onRemove,
+  onToggleCollapse,
   onUpdate,
 }: {
   color?: string;
   combatants: EncounterCombatant[];
+  groups: CombatGroup[];
+  isCollapsed: boolean;
   name: string;
   onDuplicate: (combatant: EncounterCombatant) => void;
   onRemove: (combatantId: string) => void;
+  onToggleCollapse: () => void;
   onUpdate: (combatantId: string, updates: Partial<EncounterCombatant>) => void;
 }) {
   return (
-    <div>
-      <div className="mb-1.5 flex items-center gap-2">
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${getCombatGroupColorClass(color) ?? "bg-slate-500"}`}
-        />
-        <h4 className="text-xs font-black text-slate-300">{name}</h4>
-        <span className="text-[11px] font-bold text-slate-600">
-          {combatants.length}
-        </span>
-      </div>
-      <div className="grid gap-1.5">
-        {combatants.map((combatant) => (
-          <RosterEditor
-            combatant={combatant}
-            key={combatant.combatantId}
-            onDuplicate={() => onDuplicate(combatant)}
-            onRemove={() => onRemove(combatant.combatantId)}
-            onUpdate={(updates) => onUpdate(combatant.combatantId, updates)}
+    <div className="rounded-lg border border-slate-800 bg-slate-900/45">
+      <button
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+        type="button"
+        onClick={onToggleCollapse}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${getCombatGroupColorClass(color) ?? "bg-slate-500"}`}
           />
-        ))}
-      </div>
+          <span className="truncate text-sm font-black text-slate-100">{name}</span>
+          <span className="text-[11px] font-bold text-slate-500">
+            {combatants.length} combatants
+          </span>
+        </span>
+        <span className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-[10px] font-black text-slate-300">
+          {isCollapsed ? "Expand" : "Collapse"}
+        </span>
+      </button>
+      {!isCollapsed ? (
+        <div className="grid gap-1.5 border-t border-slate-800 p-2">
+          {combatants.map((combatant) => (
+            <RosterEditor
+              combatant={combatant}
+              groups={groups}
+              key={combatant.combatantId}
+              onDuplicate={() => onDuplicate(combatant)}
+              onRemove={() => onRemove(combatant.combatantId)}
+              onUpdate={(updates) => onUpdate(combatant.combatantId, updates)}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function RosterEditor({
   combatant,
+  groups,
   onDuplicate,
   onRemove,
   onUpdate,
 }: {
   combatant: EncounterCombatant;
+  groups: CombatGroup[];
   onDuplicate: () => void;
   onRemove: () => void;
   onUpdate: (updates: Partial<EncounterCombatant>) => void;
 }) {
   const groupColor = combatant.combatGroupColor ?? combatant.accentColor;
+  const selectedGroupValue = getSelectedGroupValue(combatant, groups);
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/65 p-2">
@@ -713,16 +783,30 @@ function RosterEditor({
             onChange={(event) => onUpdate({ displayName: event.target.value })}
           />
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <SelectField
-              label="Group Color"
-              value={groupColor}
-              values={["None", ...accentColorOptions]}
-              onChange={(combatGroupColor) => onUpdate({ combatGroupColor })}
+            <GroupAssignmentField
+              groups={groups}
+              value={selectedGroupValue}
+              onChange={(value) => {
+                const group = groups.find((item) => item.id === value);
+
+                if (!group || value === "ungrouped") {
+                  onUpdate({
+                    combatGroupColor: "None",
+                    combatGroupLabel: "Ungrouped",
+                  });
+                  return;
+                }
+
+                onUpdate({
+                  combatGroupColor: group.color,
+                  combatGroupLabel: group.name,
+                });
+              }}
             />
             <TextField
-              label="Group Name"
-              value={combatant.combatGroupLabel ?? combatant.groupLabel ?? ""}
-              onChange={(combatGroupLabel) => onUpdate({ combatGroupLabel })}
+              label="Display"
+              value={combatant.displayName}
+              onChange={(displayName) => onUpdate({ displayName })}
             />
           </div>
         </div>
@@ -744,6 +828,164 @@ function RosterEditor({
         </div>
       </div>
     </div>
+  );
+}
+
+function BuilderCombatGroups({
+  combatGroups,
+  combatants,
+  onCreateGroup,
+}: {
+  combatGroups: CombatGroup[];
+  combatants: EncounterCombatant[];
+  onCreateGroup: (group: { name: string; color: string }) => void;
+}) {
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupColor, setNewGroupColor] = useState("Red");
+  const colorOptions = combatGroupOptions.filter(
+    (option) => option.color !== "None",
+  );
+
+  function createGroup() {
+    const name = newGroupName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    onCreateGroup({ name, color: newGroupColor });
+    setNewGroupName("");
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-base font-black text-white">Combat Groups</h3>
+        <span className="text-xs font-bold text-slate-500">
+          {combatGroups.length} groups
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-1.5">
+        {combatGroups.map((group) => (
+          <div
+            className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900/65 px-2.5 py-2"
+            key={group.id}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 shrink-0 rounded-full ${getCombatGroupColorClass(group.color) ?? "bg-slate-500"}`}
+              />
+              <span className="truncate text-xs font-black text-slate-200">
+                {group.name}
+              </span>
+            </span>
+            <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
+              {countCombatantsInGroup(combatants, group)}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/35 px-2.5 py-2 text-xs font-bold text-slate-400">
+          <span>Ungrouped / No Group</span>
+          <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black">
+            {
+              combatants.filter(
+                (combatant) =>
+                  !combatant.combatGroupColor ||
+                  combatant.combatGroupColor === "None",
+              ).length
+            }
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-dashed border-slate-700 p-2">
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Create Group
+        </p>
+        <input
+          className="mt-2 h-8 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
+          placeholder="Skeleton Patrol"
+          value={newGroupName}
+          onChange={(event) => setNewGroupName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              createGroup();
+            }
+          }}
+        />
+        <div
+          aria-label="Choose combat group color"
+          className="mt-2 grid grid-cols-4 gap-1"
+          role="radiogroup"
+        >
+          {colorOptions.map((option) => {
+            const selected = newGroupColor === option.color;
+
+            return (
+              <button
+                aria-checked={selected}
+                aria-label={`Use ${option.color}`}
+                className={`flex h-8 items-center justify-center rounded-lg border bg-slate-950 transition ${
+                  selected
+                    ? "scale-[1.03] border-white shadow-[0_0_14px_rgba(255,255,255,0.22)]"
+                    : "border-slate-800 hover:border-slate-500"
+                }`}
+                key={option.color}
+                role="radio"
+                title={option.color}
+                type="button"
+                onClick={() => setNewGroupColor(option.color)}
+              >
+                <span
+                  className={`h-4 w-4 rounded-md ${option.className} ${
+                    selected
+                      ? "ring-2 ring-white/80 ring-offset-2 ring-offset-slate-950"
+                      : ""
+                  }`}
+                />
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="mt-2 h-8 w-full rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!newGroupName.trim()}
+          type="button"
+          onClick={createGroup}
+        >
+          Create Group
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GroupAssignmentField({
+  groups,
+  value,
+  onChange,
+}: {
+  groups: CombatGroup[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      Group
+      <select
+        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value="ungrouped">Ungrouped / No Group</option>
+        {groups.map((group) => (
+          <option key={group.id} value={group.id}>
+            {group.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -850,41 +1092,13 @@ function TextField({
   );
 }
 
-function SelectField({
-  label,
-  value,
-  values,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  values: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-      {label}
-      <select
-        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {values.map((item) => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function groupCombatantsByCombatGroup(combatants: EncounterCombatant[]) {
   const groups = new Map<
     string,
     {
       color?: string;
       combatants: EncounterCombatant[];
+      key: string;
       name: string;
     }
   >();
@@ -907,11 +1121,40 @@ function groupCombatantsByCombatGroup(combatants: EncounterCombatant[]) {
     groups.set(key, {
       color,
       combatants: [combatant],
+      key,
       name,
     });
   });
 
   return [...groups.values()];
+}
+
+function getSelectedGroupValue(
+  combatant: EncounterCombatant,
+  groups: CombatGroup[],
+) {
+  if (!combatant.combatGroupColor || combatant.combatGroupColor === "None") {
+    return "ungrouped";
+  }
+
+  return (
+    groups.find(
+      (group) =>
+        group.name === combatant.combatGroupLabel &&
+        group.color === combatant.combatGroupColor,
+    )?.id ?? "ungrouped"
+  );
+}
+
+function countCombatantsInGroup(
+  combatants: EncounterCombatant[],
+  group: CombatGroup,
+) {
+  return combatants.filter(
+    (combatant) =>
+      combatant.combatGroupLabel === group.name &&
+      combatant.combatGroupColor === group.color,
+  ).length;
 }
 
 function parseChallengeRating(value?: string) {
@@ -930,4 +1173,11 @@ function parseChallengeRating(value?: string) {
 
 function formatModifier(value: number) {
   return `${value >= 0 ? "+" : ""}${value}`;
+}
+
+function getCampaignName(campaignId: string) {
+  return (
+    campaignOptions.find((campaign) => campaign.id === campaignId)?.name ??
+    "Unassigned / No Campaign"
+  );
 }

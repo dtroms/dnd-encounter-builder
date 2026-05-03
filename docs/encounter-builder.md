@@ -52,6 +52,7 @@ No database writes happen in this pass.
 The right column shows the current encounter setup:
 
 - encounter name
+- campaign assignment
 - combatant count
 - group count
 - boss indicator
@@ -61,15 +62,47 @@ The right column shows the current encounter setup:
 
 The roster is grouped by combat group and uses the same group color concepts as the Runner. Each roster item shows display name, role/type, AC, HP, initiative bonus, group marker, duplicate, remove, and compact group/name editing.
 
+Roster groups are collapsible. Each group header shows the group color marker, group name, combatant count, and an Expand/Collapse control. Collapsing a group hides its combatant rows while preserving the count.
+
+## Builder Combat Groups
+
+The Builder can create combat groups locally before launching the Runner.
+
+The Combat Groups section supports:
+
+- group name input
+- bright color swatches using the same color options as the Runner
+- Create Group button
+- group rows with color marker, name, and current count
+- Ungrouped / No Group count
+
+Created groups become available in roster combatant group assignment controls. Assigning a combatant updates its `combatGroupLabel` and `combatGroupColor`, immediately regrouping the Builder roster. Because the Builder and Runner share local encounter state, these group assignments carry into the Runner when Launch Runner is clicked.
+
+The assignment dropdown intentionally lists only Ungrouped / No Group and groups currently available in local Builder/Runner state. It does not show unused preset groups.
+
+## Campaign Assignment
+
+The Builder includes a compact Campaign selector in the current encounter setup panel.
+
+Local mock campaign options are:
+
+- The Lantern Road
+- Moonwell Vale
+- Ash Gate
+- Violet Keg Cellars
+- Unassigned / No Campaign
+
+Selecting a campaign updates local app state and appears in the Builder summary. The Save Draft later button currently stages a local UI notice only; it does not write to Supabase or create a saved encounter record yet.
+
+Future database work will need campaign persistence, likely either campaign fields on saved encounters or a dedicated `campaigns` table. That future wiring should allow the Saved Encounters dashboard campaign filters to use real saved encounter campaign assignments.
+
 ## Future Sections
 
-Combat group creation and wave editing are intentionally light in this pass.
+Wave editing is intentionally light in this pass.
 
 The Builder includes:
 
-- compact current group summary
-- `Group editing expands later`
 - `Waves / Reinforcements`
 - `Add Wave later`
 
-Future work can deepen these sections without changing the basic browser-plus-roster workflow.
+Future work can deepen waves, group rename/delete, and saved draft behavior without changing the basic browser-plus-roster workflow.

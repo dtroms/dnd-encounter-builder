@@ -68,6 +68,8 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 
 export function EncounterApp() {
   const [activeView, setActiveView] = useState<EncounterView>("encounters");
+  const [encounterCampaignId, setEncounterCampaignId] =
+    useState("lantern-road");
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
@@ -441,9 +443,13 @@ export function EncounterApp() {
 
       {activeView === "builder" ? (
         <EncounterBuilder
+          campaignId={encounterCampaignId}
+          combatGroups={combatGroups}
           combatants={encounter.combatants}
           encounterName={encounter.name}
           templates={sampleCreatureTemplates}
+          onCampaignChange={setEncounterCampaignId}
+          onCreateGroup={createCombatGroup}
           onAdd={addCombatants}
           onDuplicate={duplicateCombatant}
           onLaunchRunner={launchRunner}
