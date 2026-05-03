@@ -45,7 +45,11 @@ const starterCombatants = [
   createCombatant(sampleCreatureTemplates[4], 1),
   createCombatant(sampleCreatureTemplates[8], 1),
   createCombatant(sampleCreatureTemplates[9], 1),
-];
+].map((combatant) => ({
+  ...combatant,
+  waveId: "wave-1",
+  waveLabel: "Wave 1",
+}));
 
 function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup[] {
   const groups = new Map<string, CombatGroup>();
@@ -95,7 +99,7 @@ export function EncounterApp() {
     id: "local-encounter",
     name: "Lantern Alley Ambush",
     combatants: starterCombatants,
-    waves: [],
+    waves: [{ id: "wave-1", name: "Wave 1", deployed: true }],
     round: 1,
     turnNumber: 0,
     activeCombatantId: null,
@@ -139,14 +143,21 @@ export function EncounterApp() {
     }));
   }
 
-  function addCombatants(template: CreatureTemplate, count: number) {
+  function addCombatants(template: CreatureTemplate, count: number, waveId?: string) {
     setEncounter((current) => {
+      const wave = waveId
+        ? current.waves.find((item) => item.id === waveId)
+        : null;
       const sameTemplateCount = current.combatants.filter(
         (combatant) => combatant.templateId === template.id,
       ).length;
-      const additions = Array.from({ length: count }, (_, index) =>
-        createCombatant(template, sameTemplateCount + index + 1),
-      );
+      const additions = Array.from({ length: count }, (_, index) => {
+        const combatant = createCombatant(template, sameTemplateCount + index + 1);
+
+        return wave
+          ? { ...combatant, waveId: wave.id, waveLabel: wave.name }
+          : combatant;
+      });
 
       return {
         ...current,
@@ -216,7 +227,12 @@ export function EncounterApp() {
     }
   }
 
-  function createWave(input: { name: string; description?: string }) {
+  function createWave(input: {
+    deployed?: boolean;
+    description?: string;
+    id?: string;
+    name: string;
+  }) {
     const name = input.name.trim();
 
     if (!name) {
@@ -228,10 +244,10 @@ export function EncounterApp() {
       waves: [
         ...current.waves,
         {
-          id: `wave-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: input.id ?? `wave-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           name,
           description: input.description?.trim(),
-          deployed: false,
+          deployed: input.deployed ?? false,
         },
       ],
     }));
@@ -243,6 +259,13 @@ export function EncounterApp() {
   ) {
     setEncounter((current) => ({
       ...current,
+      combatants: updates.name
+        ? current.combatants.map((combatant) =>
+            combatant.waveId === waveId
+              ? { ...combatant, waveLabel: updates.name }
+              : combatant,
+          )
+        : current.combatants,
       waves: current.waves.map((wave) =>
         wave.id === waveId ? { ...wave, ...updates } : wave,
       ),
@@ -250,34 +273,26 @@ export function EncounterApp() {
   }
 
   function deleteWave(waveId: string) {
-    setEncounter((current) => ({
-      ...current,
-      combatants: current.combatants.map((combatant) =>
-        combatant.waveId === waveId
-          ? { ...combatant, waveId: undefined, waveLabel: undefined }
-          : combatant,
-      ),
-      waves: current.waves.filter((wave) => wave.id !== waveId),
-    }));
-  }
-
-  function assignCombatantToWave(combatantId: string, waveId: string | null) {
     setEncounter((current) => {
-      const wave = waveId
-        ? current.waves.find((item) => item.id === waveId)
-        : null;
+      if (current.waves.length <= 1) {
+        return current;
+      }
+
+      const remainingWaves = current.waves.filter((wave) => wave.id !== waveId);
+      const fallbackWave = remainingWaves[0];
 
       return {
         ...current,
         combatants: current.combatants.map((combatant) =>
-          combatant.combatantId === combatantId
+          combatant.waveId === waveId
             ? {
                 ...combatant,
-                waveId: wave?.id,
-                waveLabel: wave?.name,
+                waveId: fallbackWave.id,
+                waveLabel: fallbackWave.name,
               }
             : combatant,
         ),
+        waves: remainingWaves,
       };
     });
   }
@@ -635,7 +650,6 @@ export function EncounterApp() {
           encounterName={encounter.name}
           templates={creatureTemplates}
           waves={encounter.waves}
-          onAssignToWave={assignCombatantToWave}
           onCampaignChange={setEncounterCampaignId}
           onCreateWave={createWave}
           onCreateGroup={createCombatGroup}

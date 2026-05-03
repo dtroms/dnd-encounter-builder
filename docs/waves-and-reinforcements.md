@@ -8,30 +8,27 @@ This feature is local-only for now. It does not persist to Supabase yet.
 
 ## Builder Setup
 
-In the Builder, the Waves / Reinforcements section supports:
+In the Builder, wave setup lives inside the Encounter Roster as tabs. The
+separate Waves / Reinforcements card is no longer the primary workflow.
 
-- creating a wave with a name and optional description
-- editing the wave name and description
-- seeing whether the wave is deployed or not deployed
-- seeing which combatants are assigned to each wave
-- removing a combatant from a wave
-- deleting a wave
+The roster tabs support:
 
-Roster combatants have a compact Wave assignment field. The options are:
+- Wave 1 as the default starting encounter
+- `+` to create Wave 2, Wave 3, and later waves
+- switching between waves by clicking a tab
+- adding new browser creatures directly to the active wave
+- renaming a wave from its three-dot menu
+- deleting a wave from its three-dot menu when more than one wave exists
 
-- Active at start
-- each created wave
+The active wave tab determines where newly added creatures go. For example, if
+Wave 2 is selected, Add and Add Multiple create Wave 2 combatants.
 
-The Wave assignment field only appears after at least one wave has been created.
-If there are no waves, roster rows stay focused on group assignment and basic
-combatant editing.
+Deleting a wave asks for confirmation. The only remaining wave cannot be
+deleted. Confirmed deletion moves that wave's combatants to the first remaining
+wave, so combatants are not silently deleted.
 
-Assigning a combatant to a wave keeps it visible in Builder for planning, but it
-holds that combatant out of the live Runner initiative list until the wave is
-deployed.
-
-Deleting a wave returns assigned combatants to Active at start. It does not
-delete the combatants themselves.
+Combat groups remain separate from waves. A combatant can belong to Wave 2 and
+also be part of Red Warband, Gold Vanguard, or another combat group.
 
 ## Runner Deployment
 
@@ -45,8 +42,9 @@ Each undeployed wave shows:
 - count of held combatants
 - Deploy button
 
-Deploying a wave marks it as deployed and makes its assigned combatants appear
-in the live initiative tracker.
+Wave 1 is deployed by default and represents the starting encounter. Later waves
+are available for Runner deployment. Deploying a wave marks it as deployed and
+makes its assigned combatants appear in the live initiative tracker.
 
 ## Initiative Behavior
 

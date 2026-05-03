@@ -26,12 +26,16 @@ type EncounterBuilderProps = {
   encounterName?: string;
   templates: CreatureTemplate[];
   waves: EncounterWave[];
-  onAssignToWave: (combatantId: string, waveId: string | null) => void;
   onCreateGroup: (group: { name: string; color: string }) => void;
-  onCreateWave: (wave: { name: string; description?: string }) => void;
+  onCreateWave: (wave: {
+    deployed?: boolean;
+    description?: string;
+    id?: string;
+    name: string;
+  }) => void;
   onDeleteWave: (waveId: string) => void;
   onCampaignChange: (campaignId: string) => void;
-  onAdd: (template: CreatureTemplate, count: number) => void;
+  onAdd: (template: CreatureTemplate, count: number, waveId?: string) => void;
   onDuplicate: (combatant: EncounterCombatant) => void;
   onRemove: (combatantId: string) => void;
   onUpdate: (combatantId: string, updates: Partial<EncounterCombatant>) => void;
@@ -91,7 +95,6 @@ export function EncounterBuilder({
   encounterName = "Lantern Alley Ambush",
   templates,
   waves,
-  onAssignToWave,
   onCampaignChange,
   onCreateGroup,
   onCreateWave,
@@ -118,6 +121,7 @@ export function EncounterBuilder({
     {},
   );
   const [draftNotice, setDraftNotice] = useState("");
+  const [activeWaveId, setActiveWaveId] = useState(waves[0]?.id ?? "wave-1");
 
   const availableSizes = useMemo(
     () => [...new Set(templates.map((template) => template.size))].sort(),
@@ -165,9 +169,22 @@ export function EncounterBuilder({
     });
   }, [crMax, crMin, monsterTypeFilter, query, sizeFilter, templates, typeFilter]);
 
+  const activeWaveKey = waves.some((wave) => wave.id === activeWaveId)
+    ? activeWaveId
+    : waves[0]?.id ?? "wave-1";
+  const activeWave = waves.find((wave) => wave.id === activeWaveKey) ?? waves[0];
+  const activeWaveCombatants = useMemo(
+    () =>
+      combatants.filter((combatant) =>
+        activeWaveKey === "wave-1"
+          ? combatant.waveId === activeWaveKey || !combatant.waveId
+          : combatant.waveId === activeWaveKey,
+      ),
+    [activeWaveKey, combatants],
+  );
   const groupedCombatants = useMemo(
-    () => groupCombatantsByCombatGroup(combatants),
-    [combatants],
+    () => groupCombatantsByCombatGroup(activeWaveCombatants),
+    [activeWaveCombatants],
   );
   const groupCount = groupedCombatants.length;
   const bossCount = combatants.filter((combatant) => combatant.type === "boss").length;
@@ -177,7 +194,7 @@ export function EncounterBuilder({
   const campaignName = getCampaignName(campaignId);
 
   function addCopies(template: CreatureTemplate, count = 1) {
-    onAdd(template, count);
+    onAdd(template, count, activeWaveKey);
   }
 
   function getAddCount(templateId: string) {
@@ -313,12 +330,49 @@ export function EncounterBuilder({
         </section>
 
         <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <h3 className="text-base font-black text-white">Encounter Roster</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-black text-white">
+                Encounter Roster
+              </h3>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Adding creatures sends them to {activeWave?.name ?? "Wave 1"}.
+              </p>
+            </div>
+            <span className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] font-black text-slate-400">
+              {activeWaveCombatants.length} in tab
+            </span>
+          </div>
+
+          <WaveTabs
+            activeWaveId={activeWave?.id ?? "wave-1"}
+            combatants={combatants}
+            waves={waves}
+            onCreateWave={() => {
+              const nextWave = createNextWave(waves);
+              onCreateWave(nextWave);
+              setActiveWaveId(nextWave.id);
+            }}
+            onDeleteWave={(waveId) => {
+              const remaining = waves.filter((wave) => wave.id !== waveId);
+              onDeleteWave(waveId);
+              setActiveWaveId(remaining[0]?.id ?? "wave-1");
+            }}
+            onRenameWave={onUpdateWave}
+            onSelectWave={setActiveWaveId}
+          />
+
+          {activeWave?.description ? (
+            <p className="mt-3 rounded-lg border border-slate-800 bg-slate-900/55 px-3 py-2 text-xs font-semibold leading-5 text-slate-400">
+              {activeWave.description}
+            </p>
+          ) : null}
+
           <div className="mt-3 space-y-3">
-            {combatants.length === 0 ? (
+            {activeWaveCombatants.length === 0 ? (
               <EmptyState
                 detail="Add creatures from the browser to start building."
-                title="No roster yet"
+                title="No creatures in this wave yet"
               />
             ) : null}
 
@@ -330,8 +384,6 @@ export function EncounterBuilder({
                 isCollapsed={Boolean(collapsedGroups[group.key])}
                 key={`${group.name}-${group.color}`}
                 name={group.name}
-                waves={waves}
-                onAssignToWave={onAssignToWave}
                 onDuplicate={onDuplicate}
                 onRemove={onRemove}
                 onToggleCollapse={() =>
@@ -344,17 +396,6 @@ export function EncounterBuilder({
               />
             ))}
           </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <BuilderWavesPanel
-            combatants={combatants}
-            waves={waves}
-            onAssignToWave={onAssignToWave}
-            onCreateWave={onCreateWave}
-            onDeleteWave={onDeleteWave}
-            onUpdateWave={onUpdateWave}
-          />
         </section>
       </aside>
       </div>
@@ -761,8 +802,6 @@ function RosterGroup({
   groups,
   isCollapsed,
   name,
-  waves,
-  onAssignToWave,
   onDuplicate,
   onRemove,
   onToggleCollapse,
@@ -773,8 +812,6 @@ function RosterGroup({
   groups: CombatGroup[];
   isCollapsed: boolean;
   name: string;
-  waves: EncounterWave[];
-  onAssignToWave: (combatantId: string, waveId: string | null) => void;
   onDuplicate: (combatant: EncounterCombatant) => void;
   onRemove: (combatantId: string) => void;
   onToggleCollapse: () => void;
@@ -807,10 +844,6 @@ function RosterGroup({
               combatant={combatant}
               groups={groups}
               key={combatant.combatantId}
-              waves={waves}
-              onAssignToWave={(waveId) =>
-                onAssignToWave(combatant.combatantId, waveId)
-              }
               onDuplicate={() => onDuplicate(combatant)}
               onRemove={() => onRemove(combatant.combatantId)}
               onUpdate={(updates) => onUpdate(combatant.combatantId, updates)}
@@ -825,16 +858,12 @@ function RosterGroup({
 function RosterEditor({
   combatant,
   groups,
-  waves,
-  onAssignToWave,
   onDuplicate,
   onRemove,
   onUpdate,
 }: {
   combatant: EncounterCombatant;
   groups: CombatGroup[];
-  waves: EncounterWave[];
-  onAssignToWave: (waveId: string | null) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onUpdate: (updates: Partial<EncounterCombatant>) => void;
@@ -854,10 +883,6 @@ function RosterEditor({
             {combatant.waveLabel ? (
               <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">
                 {combatant.waveLabel}
-              </span>
-            ) : waves.length > 0 ? (
-              <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-black text-slate-400">
-                Starts Active
               </span>
             ) : null}
             <span className="text-xs font-bold text-slate-500">
@@ -902,15 +927,6 @@ function RosterEditor({
               value={combatant.displayName}
               onChange={(displayName) => onUpdate({ displayName })}
             />
-            {waves.length > 0 ? (
-              <WaveAssignmentField
-                value={combatant.waveId ?? "active"}
-                waves={waves}
-                onChange={(value) =>
-                  onAssignToWave(value === "active" ? null : value)
-                }
-              />
-            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
@@ -930,6 +946,196 @@ function RosterEditor({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WaveTabs({
+  activeWaveId,
+  combatants,
+  waves,
+  onCreateWave,
+  onDeleteWave,
+  onRenameWave,
+  onSelectWave,
+}: {
+  activeWaveId: string;
+  combatants: EncounterCombatant[];
+  waves: EncounterWave[];
+  onCreateWave: () => void;
+  onDeleteWave: (waveId: string) => void;
+  onRenameWave: (
+    waveId: string,
+    updates: Partial<Pick<EncounterWave, "description" | "name">>,
+  ) => void;
+  onSelectWave: (waveId: string) => void;
+}) {
+  const [menuWaveId, setMenuWaveId] = useState<string | null>(null);
+  const [renameWaveId, setRenameWaveId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [deleteConfirmWaveId, setDeleteConfirmWaveId] = useState<string | null>(
+    null,
+  );
+
+  function startRename(wave: EncounterWave) {
+    setRenameWaveId(wave.id);
+    setRenameDraft(wave.name);
+    setDeleteConfirmWaveId(null);
+  }
+
+  function saveRename(waveId: string) {
+    const nextName = renameDraft.trim();
+
+    if (nextName) {
+      onRenameWave(waveId, { name: nextName });
+    }
+
+    setRenameWaveId(null);
+    setRenameDraft("");
+    setMenuWaveId(null);
+  }
+
+  return (
+    <div className="relative mt-3 flex flex-wrap gap-1.5 border-b border-slate-800 pb-2">
+      {waves.map((wave) => {
+        const isActive = activeWaveId === wave.id;
+        const count = combatants.filter((combatant) =>
+          wave.id === "wave-1"
+            ? combatant.waveId === wave.id || !combatant.waveId
+            : combatant.waveId === wave.id,
+        ).length;
+
+        return (
+          <div className="relative" key={wave.id}>
+            <div
+              className={`flex items-center overflow-hidden rounded-lg border text-xs font-black transition ${
+                isActive
+                  ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500 hover:text-white"
+              }`}
+            >
+              <button
+                className="px-2.5 py-1.5"
+                type="button"
+                onClick={() => onSelectWave(wave.id)}
+              >
+                {wave.name}
+                <span className="ml-1 opacity-70">({count})</span>
+              </button>
+              <button
+                aria-label={`Open ${wave.name} menu`}
+                className={`border-l px-2 py-1.5 ${
+                  isActive ? "border-slate-950/20" : "border-slate-700"
+                }`}
+                type="button"
+                onClick={() => {
+                  setMenuWaveId(menuWaveId === wave.id ? null : wave.id);
+                  setDeleteConfirmWaveId(null);
+                  setRenameWaveId(null);
+                }}
+              >
+                ⋮
+              </button>
+            </div>
+
+            {menuWaveId === wave.id ? (
+              <div className="absolute left-0 z-20 mt-1 w-64 rounded-xl border border-slate-800 bg-slate-950 p-2 shadow-2xl shadow-black/40">
+                {renameWaveId === wave.id ? (
+                  <div className="grid gap-2">
+                    <input
+                      aria-label={`Rename ${wave.name}`}
+                      autoFocus
+                      className="h-8 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
+                      value={renameDraft}
+                      onChange={(event) => setRenameDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          saveRename(wave.id);
+                        }
+
+                        if (event.key === "Escape") {
+                          setRenameWaveId(null);
+                          setRenameDraft("");
+                        }
+                      }}
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        className="h-7 flex-1 rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950"
+                        type="button"
+                        onClick={() => saveRename(wave.id)}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className="h-7 flex-1 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-300"
+                        type="button"
+                        onClick={() => setRenameWaveId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : deleteConfirmWaveId === wave.id ? (
+                  <div className="grid gap-2">
+                    <p className="text-xs font-semibold leading-5 text-slate-300">
+                      Move this wave&apos;s combatants to the first remaining
+                      wave and delete it?
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button
+                        className="h-7 flex-1 rounded-md bg-rose-400 px-2 text-[10px] font-black text-slate-950"
+                        type="button"
+                        onClick={() => {
+                          onDeleteWave(wave.id);
+                          setMenuWaveId(null);
+                          setDeleteConfirmWaveId(null);
+                        }}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        className="h-7 flex-1 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-300"
+                        type="button"
+                        onClick={() => setDeleteConfirmWaveId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-1">
+                    <button
+                      className="rounded-md px-2 py-1.5 text-left text-xs font-black text-slate-200 hover:bg-slate-900"
+                      type="button"
+                      onClick={() => startRename(wave)}
+                    >
+                      Rename Wave
+                    </button>
+                    <button
+                      className="rounded-md px-2 py-1.5 text-left text-xs font-black text-rose-200 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:text-slate-600"
+                      disabled={waves.length <= 1}
+                      type="button"
+                      onClick={() => setDeleteConfirmWaveId(wave.id)}
+                    >
+                      Delete Wave
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <button
+        aria-label="Create next wave"
+        className="rounded-lg border border-dashed border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+        type="button"
+        onClick={onCreateWave}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -1061,207 +1267,6 @@ function BuilderCombatGroups({
         </button>
       </div>
     </div>
-  );
-}
-
-function BuilderWavesPanel({
-  combatants,
-  waves,
-  onAssignToWave,
-  onCreateWave,
-  onDeleteWave,
-  onUpdateWave,
-}: {
-  combatants: EncounterCombatant[];
-  waves: EncounterWave[];
-  onAssignToWave: (combatantId: string, waveId: string | null) => void;
-  onCreateWave: (wave: { name: string; description?: string }) => void;
-  onDeleteWave: (waveId: string) => void;
-  onUpdateWave: (
-    waveId: string,
-    updates: Partial<Pick<EncounterWave, "description" | "name">>,
-  ) => void;
-}) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const activeCount = combatants.filter((combatant) => !combatant.waveId).length;
-
-  function createWave() {
-    const trimmedName = name.trim();
-
-    if (!trimmedName) {
-      return;
-    }
-
-    onCreateWave({ name: trimmedName, description: description.trim() });
-    setName("");
-    setDescription("");
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-black text-white">
-          Waves / Reinforcements
-        </h3>
-        <span className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] font-black text-slate-400">
-          {waves.length} waves
-        </span>
-      </div>
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-        Assign roster combatants to a wave to hold them for Runner deployment.
-      </p>
-
-      <div className="mt-3 rounded-lg border border-dashed border-slate-700 p-2">
-        <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-          Create Wave
-        </p>
-        <input
-          className="mt-2 h-8 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-bold text-white outline-none focus:border-cyan-300"
-          placeholder="Wave 2: Reinforcements"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <textarea
-          className="mt-2 min-h-16 w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs font-semibold leading-5 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
-          placeholder="Optional note for when to deploy this wave"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
-        <button
-          className="mt-2 h-8 w-full rounded-md bg-cyan-300 px-2 text-[10px] font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!name.trim()}
-          type="button"
-          onClick={createWave}
-        >
-          Create Wave
-        </button>
-      </div>
-
-      <div className="mt-3 grid gap-2">
-        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2 text-xs font-bold text-slate-400">
-          <span>Active at start</span>
-          <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black">
-            {activeCount}
-          </span>
-        </div>
-
-        {waves.length === 0 ? (
-          <p className="rounded-lg border border-slate-800 bg-slate-900/35 p-3 text-xs font-semibold leading-5 text-slate-500">
-            No planned waves yet. Add a wave, then use each roster row&apos;s
-            Wave field to assign combatants.
-          </p>
-        ) : null}
-
-        {waves.map((wave) => {
-          const members = combatants.filter(
-            (combatant) => combatant.waveId === wave.id,
-          );
-
-          return (
-            <div
-              className="rounded-lg border border-slate-800 bg-slate-900/55 p-2.5"
-              key={wave.id}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <input
-                    aria-label={`Rename ${wave.name}`}
-                    className="h-8 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-sm font-black text-white outline-none focus:border-cyan-300"
-                    value={wave.name}
-                    onChange={(event) =>
-                      onUpdateWave(wave.id, { name: event.target.value })
-                    }
-                  />
-                  <textarea
-                    aria-label={`Edit ${wave.name} description`}
-                    className="mt-2 min-h-14 w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs font-semibold leading-5 text-slate-300 outline-none placeholder:text-slate-500 focus:border-cyan-300"
-                    placeholder="Deployment note"
-                    value={wave.description ?? ""}
-                    onChange={(event) =>
-                      onUpdateWave(wave.id, { description: event.target.value })
-                    }
-                  />
-                </div>
-                <button
-                  className="rounded-md border border-slate-700 px-2 py-1 text-[10px] font-black text-slate-400 transition hover:border-rose-400 hover:text-rose-200"
-                  type="button"
-                  onClick={() => onDeleteWave(wave.id)}
-                >
-                  Remove
-                </button>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-2 py-1 text-[11px] font-black ${
-                    wave.deployed
-                      ? "bg-emerald-500/15 text-emerald-100"
-                      : "bg-amber-300/10 text-amber-100"
-                  }`}
-                >
-                  {wave.deployed ? "Deployed" : "Not Deployed"}
-                </span>
-                <span className="text-[11px] font-bold text-slate-500">
-                  {members.length} combatants
-                </span>
-              </div>
-              <div className="mt-2 grid gap-1">
-                {members.length === 0 ? (
-                  <p className="text-xs font-semibold text-slate-500">
-                    No combatants assigned.
-                  </p>
-                ) : null}
-                {members.map((combatant) => (
-                  <div
-                    className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5"
-                    key={combatant.combatantId}
-                  >
-                    <span className="min-w-0 truncate text-xs font-bold text-slate-200">
-                      {combatant.displayName}
-                    </span>
-                    <button
-                      className="shrink-0 text-[11px] font-black text-slate-500 hover:text-rose-200"
-                      type="button"
-                      onClick={() => onAssignToWave(combatant.combatantId, null)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function WaveAssignmentField({
-  value,
-  waves,
-  onChange,
-}: {
-  value: string;
-  waves: EncounterWave[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-      Wave
-      <select
-        className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-xs font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="active">Active at start</option>
-        {waves.map((wave) => (
-          <option key={wave.id} value={wave.id}>
-            {wave.name}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -1484,4 +1489,18 @@ function getCampaignName(campaignId: string) {
     campaignOptions.find((campaign) => campaign.id === campaignId)?.name ??
     "Unassigned / No Campaign"
   );
+}
+
+function createNextWave(waves: EncounterWave[]): EncounterWave {
+  const existingWaveNumbers = waves.map((wave) => {
+    const match = wave.name.match(/^Wave (\d+)$/);
+    return match ? Number(match[1]) : 0;
+  });
+  const nextNumber = Math.max(waves.length, ...existingWaveNumbers) + 1;
+
+  return {
+    deployed: false,
+    id: `wave-${nextNumber}-${Date.now()}`,
+    name: `Wave ${nextNumber}`,
+  };
 }

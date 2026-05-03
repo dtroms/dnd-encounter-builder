@@ -42,7 +42,7 @@ The header includes:
 - Launch Runner action
 
 Below the header, the Builder work area contains the Creature Browser on the
-left and the roster, combat groups, and waves tools on the right.
+left and the tabbed Encounter Roster plus Combat Groups on the right.
 
 ## Expandable Creature Preview
 
@@ -78,16 +78,21 @@ No database writes happen in this pass.
 
 ## Encounter Roster
 
-The right column shows the current encounter setup:
+The Encounter Roster uses wave tabs:
 
-- encounter name
-- campaign assignment
-- combatant count
-- group count
-- boss indicator
-- lair action indicator
-- Launch Runner action
-- Save Draft later placeholder
+- Wave 1 is the default starting encounter.
+- The `+` tab creates the next wave, such as Wave 2 or Wave 3.
+- The active wave tab controls which wave the roster displays.
+- The active wave tab also controls where newly added creatures go.
+- Each wave tab has a compact three-dot menu for Rename Wave and Delete Wave.
+
+If Wave 2 is active, Add and Add Multiple from the creature browser add those
+new combatants to Wave 2. No separate wave assignment selector is needed for the
+normal add flow.
+
+Deleting a wave is protected by a confirmation step. The only remaining wave
+cannot be deleted. When a wave is deleted, its combatants move to the first
+remaining wave instead of being removed.
 
 The roster is grouped by combat group and uses the same group color concepts as the Runner. Each roster item shows display name, role/type, AC, HP, initiative bonus, group marker, duplicate, remove, and compact group/name editing.
 
@@ -127,23 +132,20 @@ Future database work will need campaign persistence, likely either campaign fiel
 
 ## Waves / Reinforcements
 
-The Builder now includes local-only wave setup for reinforcements.
+The Builder now uses the Encounter Roster wave tabs as the local-only wave setup
+for reinforcements.
 
 The basic workflow is:
 
-- Add creatures to the encounter roster as usual.
-- Create a wave with a name and optional description.
-- After at least one wave exists, use each roster combatant's Wave field to
-  assign it to Active at start or a planned wave.
-- Review each wave's combatant count and deployed/not deployed state.
+- Use Wave 1 for the starting encounter.
+- Click `+` to create Wave 2, Wave 3, and later waves.
+- Select the wave tab you want to build.
+- Add creatures from the browser; they are added to the active wave.
+- Use the three-dot menu to rename or delete a wave.
 - Launch Runner and deploy undeployed waves from the Runner when needed.
 
-Wave assignment controls are hidden until at least one wave exists. This keeps
-the roster simpler when the encounter does not use reinforcements.
-
-Assigning a combatant to a wave keeps the combatant in the Builder roster for
-planning, but it is held out of the live Runner initiative list until that wave
-is deployed. Removing a wave returns its members to Active at start.
+Wave 1 is deployed by default and represents the starting encounter. Later waves
+are held out of the live Runner initiative list until they are deployed.
 
 Wave data is local React state only. It does not write to Supabase yet.
 
