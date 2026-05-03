@@ -120,6 +120,7 @@ export type CreatureTemplate = {
   tags: string[];
   accentColor: string;
   groupLabel?: string;
+  combatGroupId?: string;
   combatGroupLabel?: string;
   combatGroupColor?: string;
   normalizedRawImportText?: string;

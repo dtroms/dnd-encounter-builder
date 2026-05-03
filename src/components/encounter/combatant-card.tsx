@@ -51,8 +51,12 @@ export function CombatantCard({
   const status = getHpStatus(combatant.currentHp, combatant.maxHp);
   const hpPercent = getHpPercent(combatant.currentHp, combatant.maxHp);
   const style = typeStyles[combatant.type];
-  const groupColorClass = getCombatGroupColorClass(combatant.combatGroupColor);
-  const groupRowStyle = getCombatGroupRowStyle(combatant.combatGroupColor);
+  const assignedGroup = combatGroups.find(
+    (group) => group.id === combatant.combatGroupId,
+  );
+  const resolvedGroupColor = assignedGroup?.color ?? combatant.combatGroupColor;
+  const groupColorClass = getCombatGroupColorClass(resolvedGroupColor);
+  const groupRowStyle = getCombatGroupRowStyle(resolvedGroupColor);
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];

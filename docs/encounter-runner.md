@@ -42,6 +42,28 @@ Future database persistence should keep standard conditions and spell effects as
 separate fields or records. Future custom spell effects can build on the current
 local `spellEffects` structure.
 
+## Combat Groups
+
+Combat groups are encounter-level shared state. The Builder and Runner both read
+and update the same local group list for the current encounter.
+
+Combatants are assigned with `combatGroupId`. Group labels and colors are kept
+on combatants only as local display fallbacks, while the current group name and
+row color are resolved from the shared group id where possible.
+
+This means:
+
+- Creating a group in Builder makes it available in Runner.
+- Renaming or recoloring a group in Runner updates Builder.
+- Assigning a combatant to a group in either view updates the other view.
+- Clear unassigns combatants from the group while keeping the group available.
+- Remove deletes the group and safely moves assigned combatants to Ungrouped.
+
+Combat groups are separate from waves. A combatant can be in a reinforcement
+wave and still belong to any encounter-level combat group. Ungrouped is
+represented by no group assignment; counts are derived from combatant
+assignments.
+
 ## Not Wired Yet
 
 This runner behavior is intentionally local/session-only. It does not include:

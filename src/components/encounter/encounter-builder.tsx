@@ -27,6 +27,10 @@ type EncounterBuilderProps = {
   templates: CreatureTemplate[];
   waves: EncounterWave[];
   onCreateGroup: (group: { name: string; color: string }) => void;
+  onRenameGroup: (group: { groupId: string; newLabel: string }) => void;
+  onUpdateGroupColor: (groupId: string, color: string) => void;
+  onClearGroup: (groupId: string) => void;
+  onRemoveGroup: (groupId: string) => void;
   onCreateWave: (wave: {
     deployed?: boolean;
     description?: string;
@@ -97,6 +101,10 @@ export function EncounterBuilder({
   waves,
   onCampaignChange,
   onCreateGroup,
+  onRenameGroup,
+  onUpdateGroupColor,
+  onClearGroup,
+  onRemoveGroup,
   onCreateWave,
   onDeleteWave,
   onAdd,
@@ -183,8 +191,8 @@ export function EncounterBuilder({
     [activeWaveKey, combatants],
   );
   const groupedCombatants = useMemo(
-    () => groupCombatantsByCombatGroup(activeWaveCombatants),
-    [activeWaveCombatants],
+    () => groupCombatantsByCombatGroup(activeWaveCombatants, combatGroups),
+    [activeWaveCombatants, combatGroups],
   );
   const groupCount = groupedCombatants.length;
   const bossCount = combatants.filter((combatant) => combatant.type === "boss").length;
@@ -326,6 +334,10 @@ export function EncounterBuilder({
             combatGroups={combatGroups}
             combatants={combatants}
             onCreateGroup={onCreateGroup}
+            onRenameGroup={onRenameGroup}
+            onUpdateGroupColor={onUpdateGroupColor}
+            onClearGroup={onClearGroup}
+            onRemoveGroup={onRemoveGroup}
           />
         </section>
 
@@ -868,7 +880,11 @@ function RosterEditor({
   onRemove: () => void;
   onUpdate: (updates: Partial<EncounterCombatant>) => void;
 }) {
-  const groupColor = combatant.combatGroupColor ?? combatant.accentColor;
+  const assignedGroup = groups.find(
+    (group) => group.id === combatant.combatGroupId,
+  );
+  const groupColor =
+    assignedGroup?.color ?? combatant.combatGroupColor ?? combatant.accentColor;
   const selectedGroupValue = getSelectedGroupValue(combatant, groups);
 
   return (
@@ -910,6 +926,7 @@ function RosterEditor({
 
                 if (!group || value === "ungrouped") {
                   onUpdate({
+                    combatGroupId: undefined,
                     combatGroupColor: "None",
                     combatGroupLabel: "Ungrouped",
                   });
@@ -917,6 +934,7 @@ function RosterEditor({
                 }
 
                 onUpdate({
+                  combatGroupId: group.id,
                   combatGroupColor: group.color,
                   combatGroupLabel: group.name,
                 });
@@ -1144,10 +1162,18 @@ function BuilderCombatGroups({
   combatGroups,
   combatants,
   onCreateGroup,
+  onRenameGroup,
+  onUpdateGroupColor,
+  onClearGroup,
+  onRemoveGroup,
 }: {
   combatGroups: CombatGroup[];
   combatants: EncounterCombatant[];
   onCreateGroup: (group: { name: string; color: string }) => void;
+  onRenameGroup: (group: { groupId: string; newLabel: string }) => void;
+  onUpdateGroupColor: (groupId: string, color: string) => void;
+  onClearGroup: (groupId: string) => void;
+  onRemoveGroup: (groupId: string) => void;
 }) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("Red");
@@ -1178,20 +1204,66 @@ function BuilderCombatGroups({
       <div className="mt-3 grid gap-1.5">
         {combatGroups.map((group) => (
           <div
-            className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900/65 px-2.5 py-2"
+            className="grid gap-2 rounded-lg border border-slate-800 bg-slate-900/65 px-2.5 py-2"
             key={group.id}
           >
-            <span className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span
                 className={`h-2.5 w-2.5 shrink-0 rounded-full ${getCombatGroupColorClass(group.color) ?? "bg-slate-500"}`}
               />
-              <span className="truncate text-xs font-black text-slate-200">
-                {group.name}
+              <input
+                aria-label={`Rename ${group.name}`}
+                className="h-7 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-xs font-black text-white outline-none focus:border-cyan-300"
+                value={group.name}
+                onChange={(event) => {
+                  const newLabel = event.target.value.trim();
+                  if (newLabel) {
+                    onRenameGroup({ groupId: group.id, newLabel });
+                  }
+                }}
+                onBlur={(event) => {
+                  if (!event.target.value.trim()) {
+                    onRenameGroup({
+                      groupId: group.id,
+                      newLabel: "Unnamed Group",
+                    });
+                  }
+                }}
+              />
+              <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
+                {countCombatantsInGroup(combatants, group)}
               </span>
-            </span>
-            <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-black text-slate-400">
-              {countCombatantsInGroup(combatants, group)}
-            </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              {colorOptions.slice(0, 6).map((option) => (
+                <button
+                  aria-label={`Use ${option.color} for ${group.name}`}
+                  className={`h-5 w-5 rounded-md border ${option.className} ${
+                    group.color === option.color
+                      ? "border-white ring-1 ring-white/70"
+                      : "border-slate-800"
+                  }`}
+                  key={option.color}
+                  title={option.color}
+                  type="button"
+                  onClick={() => onUpdateGroupColor(group.id, option.color)}
+                />
+              ))}
+              <button
+                className="ml-auto h-6 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-500 hover:border-cyan-300 hover:text-cyan-100"
+                type="button"
+                onClick={() => onClearGroup(group.id)}
+              >
+                Clear
+              </button>
+              <button
+                className="h-6 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-500 hover:border-rose-400 hover:text-rose-200"
+                type="button"
+                onClick={() => onRemoveGroup(group.id)}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         ))}
         <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/35 px-2.5 py-2 text-xs font-bold text-slate-400">
@@ -1200,8 +1272,10 @@ function BuilderCombatGroups({
             {
               combatants.filter(
                 (combatant) =>
-                  !combatant.combatGroupColor ||
-                  combatant.combatGroupColor === "None",
+                  !combatant.combatGroupId ||
+                  !combatGroups.some(
+                    (group) => group.id === combatant.combatGroupId,
+                  ),
               ).length
             }
           </span>
@@ -1401,7 +1475,10 @@ function TextField({
   );
 }
 
-function groupCombatantsByCombatGroup(combatants: EncounterCombatant[]) {
+function groupCombatantsByCombatGroup(
+  combatants: EncounterCombatant[],
+  combatGroups: CombatGroup[],
+) {
   const groups = new Map<
     string,
     {
@@ -1413,13 +1490,17 @@ function groupCombatantsByCombatGroup(combatants: EncounterCombatant[]) {
   >();
 
   combatants.forEach((combatant) => {
+    const assignedGroup = combatGroups.find(
+      (group) => group.id === combatant.combatGroupId,
+    );
     const name =
+      assignedGroup?.name ||
       combatant.combatGroupLabel ||
       combatant.groupLabel ||
       combatant.combatGroupColor ||
       "Ungrouped";
-    const color = combatant.combatGroupColor ?? combatant.accentColor;
-    const key = `${name}-${color}`;
+    const color = assignedGroup?.color ?? combatant.combatGroupColor ?? "None";
+    const key = assignedGroup?.id ?? `${name}-${color}`;
     const existing = groups.get(key);
 
     if (existing) {
@@ -1442,6 +1523,12 @@ function getSelectedGroupValue(
   combatant: EncounterCombatant,
   groups: CombatGroup[],
 ) {
+  if (combatant.combatGroupId) {
+    return groups.some((group) => group.id === combatant.combatGroupId)
+      ? combatant.combatGroupId
+      : "ungrouped";
+  }
+
   if (!combatant.combatGroupColor || combatant.combatGroupColor === "None") {
     return "ungrouped";
   }
@@ -1460,9 +1547,7 @@ function countCombatantsInGroup(
   group: CombatGroup,
 ) {
   return combatants.filter(
-    (combatant) =>
-      combatant.combatGroupLabel === group.name &&
-      combatant.combatGroupColor === group.color,
+    (combatant) => combatant.combatGroupId === group.id,
   ).length;
 }
 

@@ -12,11 +12,12 @@ type CombatGroupSummaryProps = {
   combatants: EncounterCombatant[];
   onCreateGroup: (group: { name: string; color: string }) => void;
   onRenameGroup: (group: {
-    label: string;
-    color?: string;
+    groupId: string;
     newLabel: string;
   }) => void;
-  onClearGroup: (group: { label: string; color?: string }) => void;
+  onUpdateGroupColor: (groupId: string, color: string) => void;
+  onClearGroup: (groupId: string) => void;
+  onRemoveGroup: (groupId: string) => void;
   onRollGroupInitiative: (group: { label: string; color?: string }) => void;
   onRollSharedGroupInitiative: (group: {
     label: string;
@@ -29,7 +30,9 @@ export function CombatGroupSummary({
   combatants,
   onCreateGroup,
   onRenameGroup,
+  onUpdateGroupColor,
   onClearGroup,
+  onRemoveGroup,
   onRollGroupInitiative,
   onRollSharedGroupInitiative,
 }: CombatGroupSummaryProps) {
@@ -40,16 +43,15 @@ export function CombatGroupSummary({
   );
   const groupCounts = combatGroups.reduce<Record<string, number>>((acc, group) => {
     acc[group.id] = combatants.filter(
-      (combatant) =>
-        combatant.combatGroupLabel === group.name &&
-        combatant.combatGroupColor === group.color,
+      (combatant) => combatant.combatGroupId === group.id,
     ).length;
 
     return acc;
   }, {});
   const ungroupedCount = combatants.filter(
     (combatant) =>
-      !combatant.combatGroupColor || combatant.combatGroupColor === "None",
+      !combatant.combatGroupId ||
+      !combatGroups.some((group) => group.id === combatant.combatGroupId),
   ).length;
 
   return (
@@ -83,8 +85,7 @@ export function CombatGroupSummary({
                       const newLabel = event.target.value.trim();
                       if (newLabel) {
                         onRenameGroup({
-                          label: group.name,
-                          color: group.color,
+                          groupId: group.id,
                           newLabel,
                         });
                       }
@@ -93,8 +94,7 @@ export function CombatGroupSummary({
                       const newLabel = event.target.value.trim();
                       if (!newLabel) {
                       onRenameGroup({
-                        label: group.name,
-                        color: group.color,
+                        groupId: group.id,
                         newLabel: "Unnamed Group",
                       });
                     }
@@ -111,6 +111,28 @@ export function CombatGroupSummary({
                 </span>
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 border-t border-slate-800/80 pt-1.5">
+                <div
+                  aria-label={`Change color for ${group.name}`}
+                  className="mr-auto flex gap-1"
+                  role="radiogroup"
+                >
+                  {colorPickerOptions.slice(0, 6).map((option) => (
+                    <button
+                      aria-checked={group.color === option.color}
+                      aria-label={`Use ${option.color} for ${group.name}`}
+                      className={`h-5 w-5 rounded-md border ${option.className} ${
+                        group.color === option.color
+                          ? "border-white ring-1 ring-white/70"
+                          : "border-slate-800"
+                      }`}
+                      key={option.color}
+                      role="radio"
+                      title={option.color}
+                      type="button"
+                      onClick={() => onUpdateGroupColor(group.id, option.color)}
+                    />
+                  ))}
+                </div>
                 <button
                   className="h-7 rounded-md border border-cyan-700/70 px-2 text-[10px] font-black text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-300/10 hover:text-white"
                   type="button"
@@ -142,11 +164,16 @@ export function CombatGroupSummary({
                 <button
                   className="ml-auto h-7 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-500 transition hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-200"
                   type="button"
-                  onClick={() =>
-                    onClearGroup({ label: group.name, color: group.color })
-                  }
+                  onClick={() => onClearGroup(group.id)}
                 >
                   Clear
+                </button>
+                <button
+                  className="h-7 rounded-md border border-slate-700 px-2 text-[10px] font-black text-slate-500 transition hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-200"
+                  type="button"
+                  onClick={() => onRemoveGroup(group.id)}
+                >
+                  Remove
                 </button>
               </div>
             </div>

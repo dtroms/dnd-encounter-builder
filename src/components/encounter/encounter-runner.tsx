@@ -48,14 +48,19 @@ type EncounterRunnerProps = {
   ) => void;
   onUpdateGroup: (
     combatantId: string,
-    updates: { combatGroupLabel?: string; combatGroupColor?: string },
+    updates: {
+      combatGroupId?: string;
+      combatGroupLabel?: string;
+      combatGroupColor?: string;
+    },
   ) => void;
   onRenameGroup: (group: {
-    label: string;
-    color?: string;
+    groupId: string;
     newLabel: string;
   }) => void;
-  onClearGroup: (group: { label: string; color?: string }) => void;
+  onUpdateGroupColor: (groupId: string, color: string) => void;
+  onClearGroup: (groupId: string) => void;
+  onRemoveGroup: (groupId: string) => void;
   onCreateGroup: (group: { name: string; color: string }) => void;
   onRollGroupInitiative: (group: { label: string; color?: string }) => void;
   onRollSharedGroupInitiative: (group: {
@@ -103,7 +108,9 @@ export function EncounterRunner({
   onUpdateGroup,
   onRenameGroup,
   onClearGroup,
+  onRemoveGroup,
   onCreateGroup,
+  onUpdateGroupColor,
   onToggleCondition,
   onToggleSpellEffect,
   onRollGroupInitiative,
@@ -167,6 +174,8 @@ export function EncounterRunner({
               onClearGroup={onClearGroup}
               onCreateGroup={onCreateGroup}
               onRenameGroup={onRenameGroup}
+              onRemoveGroup={onRemoveGroup}
+              onUpdateGroupColor={onUpdateGroupColor}
               onRollGroupInitiative={onRollGroupInitiative}
               onRollSharedGroupInitiative={onRollSharedGroupInitiative}
             />

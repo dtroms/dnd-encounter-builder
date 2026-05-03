@@ -138,6 +138,7 @@ export function encounterCombatantRecordToEncounterCombatant(
     notes: record.notes ?? undefined,
     tags: record.tags,
     accentColor: "Gray",
+    combatGroupId: undefined,
     combatGroupLabel: undefined,
     combatGroupColor: undefined,
     autoRollEligible: record.combatant_type !== "pc",

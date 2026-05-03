@@ -11,6 +11,7 @@ type CombatGroupPickerProps = {
   groups: CombatGroup[];
   variant?: "chip" | "menu";
   onUpdateGroup: (updates: {
+    combatGroupId?: string;
     combatGroupLabel?: string;
     combatGroupColor?: string;
   }) => void;
@@ -27,10 +28,16 @@ export function CombatGroupPicker({
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const assignedGroup = groups.find(
+    (group) => group.id === combatant.combatGroupId,
+  );
   const colorClass =
-    getCombatGroupColorClass(combatant.combatGroupColor) ?? "bg-slate-600";
+    getCombatGroupColorClass(assignedGroup?.color ?? combatant.combatGroupColor) ??
+    "bg-slate-600";
   const label =
-    combatant.combatGroupColor && combatant.combatGroupColor !== "None"
+    assignedGroup
+      ? assignedGroup.name
+      : combatant.combatGroupColor && combatant.combatGroupColor !== "None"
       ? combatant.combatGroupLabel || combatant.combatGroupColor
       : "No Group";
 
@@ -124,6 +131,7 @@ export function CombatGroupPicker({
           type="button"
           onClick={() => {
             onUpdateGroup({
+              combatGroupId: undefined,
               combatGroupLabel: "",
               combatGroupColor: "None",
             });
@@ -140,6 +148,7 @@ export function CombatGroupPicker({
             type="button"
             onClick={() => {
               onUpdateGroup({
+                combatGroupId: group.id,
                 combatGroupLabel: group.name,
                 combatGroupColor: group.color,
               });

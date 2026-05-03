@@ -444,6 +444,8 @@ export function createCombatant(
 ): EncounterCombatant {
   const suffix =
     template.type === "pc" || template.type === "neutral" ? "" : ` ${copyNumber}`;
+  const combatGroupColor = template.combatGroupColor ?? template.accentColor;
+  const combatGroupLabel = template.combatGroupLabel ?? template.groupLabel;
 
   return {
     ...template,
@@ -458,7 +460,19 @@ export function createCombatant(
     conditions: [],
     spellEffects: [],
     waveLabel: template.groupLabel,
-    combatGroupLabel: template.combatGroupLabel ?? template.groupLabel,
-    combatGroupColor: template.combatGroupColor ?? template.accentColor,
+    combatGroupId: getInitialCombatGroupId(combatGroupLabel, combatGroupColor),
+    combatGroupLabel,
+    combatGroupColor,
   };
+}
+
+function getInitialCombatGroupId(label?: string, color?: string) {
+  if (!color || color === "None") {
+    return undefined;
+  }
+
+  return `${color}-${label || color || "Group"}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }

@@ -100,19 +100,24 @@ Roster groups are collapsible. Each group header shows the group color marker, g
 
 ## Builder Combat Groups
 
-The Builder can create combat groups locally before launching the Runner.
+The Builder uses encounter-level combat groups shared with the Runner.
 
 The Combat Groups section supports:
 
 - group name input
 - bright color swatches using the same color options as the Runner
 - Create Group button
-- group rows with color marker, name, and current count
+- group rows with editable name, color controls, clear/remove actions, and current count
 - Ungrouped / No Group count
 
-Created groups become available in roster combatant group assignment controls. Assigning a combatant updates its `combatGroupLabel` and `combatGroupColor`, immediately regrouping the Builder roster. Because the Builder and Runner share local encounter state, these group assignments carry into the Runner when Launch Runner is clicked.
+Created groups become available in roster combatant group assignment controls and in the Runner row menu. Assigning a combatant stores the shared `combatGroupId` on the combatant, with label/color kept as local display fallbacks. Renaming or recoloring a group updates Builder and Runner together because both views read the same encounter-level group list.
 
 The assignment dropdown intentionally lists only Ungrouped / No Group and groups currently available in local Builder/Runner state. It does not show unused preset groups.
+
+Combat groups are separate from waves. A combatant can belong to Wave 2 and also
+belong to a shared group such as Skeleton Patrol. Ungrouped combatants are
+represented by no `combatGroupId`; group counts are derived from combatant
+assignments.
 
 ## Campaign Assignment
 

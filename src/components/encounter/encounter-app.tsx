@@ -62,10 +62,9 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 
     const name =
       combatant.combatGroupLabel || combatant.combatGroupColor || "Group";
-    const id = `${combatant.combatGroupColor}-${name}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    const id =
+      combatant.combatGroupId ??
+      createLocalCombatGroupId(name, combatant.combatGroupColor);
 
     groups.set(id, {
       id,
@@ -376,66 +375,65 @@ export function EncounterApp() {
   }
 
   function renameCombatGroup({
-    label,
-    color,
+    groupId,
     newLabel,
   }: {
-    label: string;
-    color?: string;
+    groupId: string;
     newLabel: string;
   }) {
     setCombatGroups((current) =>
       current.map((group) =>
-        group.name === label && group.color === color
-          ? { ...group, name: newLabel }
-          : group,
+        group.id === groupId ? { ...group, name: newLabel } : group,
       ),
     );
     setEncounter((current) => ({
       ...current,
-      combatants: current.combatants.map((combatant) => {
-        const combatantLabel =
-          combatant.combatGroupLabel ||
-          combatant.combatGroupColor ||
-          "Ungrouped";
-        const matchesLabel = combatantLabel === label;
-        const matchesColor = (combatant.combatGroupColor || "None") === color;
-
-        return matchesLabel && matchesColor
+      combatants: current.combatants.map((combatant) =>
+        combatant.combatGroupId === groupId
           ? { ...combatant, combatGroupLabel: newLabel }
-          : combatant;
-      }),
+          : combatant,
+      ),
     }));
   }
 
-  function clearCombatGroup({
-    label,
-    color,
-  }: {
-    label: string;
-    color?: string;
-  }) {
+  function updateCombatGroupColor(groupId: string, color: string) {
     setCombatGroups((current) =>
-      current.filter((group) => !(group.name === label && group.color === color)),
+      current.map((group) =>
+        group.id === groupId ? { ...group, color } : group,
+      ),
     );
     setEncounter((current) => ({
       ...current,
-      combatants: current.combatants.map((combatant) => {
-        const combatantLabel =
-          combatant.combatGroupLabel ||
-          combatant.combatGroupColor ||
-          "Ungrouped";
-        const matchesLabel = combatantLabel === label;
-        const matchesColor = (combatant.combatGroupColor || "None") === color;
+      combatants: current.combatants.map((combatant) =>
+        combatant.combatGroupId === groupId
+          ? { ...combatant, combatGroupColor: color }
+          : combatant,
+      ),
+    }));
+  }
 
-        return matchesLabel && matchesColor
+  function clearCombatGroup(groupId: string) {
+    unassignCombatGroupMembers(groupId);
+  }
+
+  function removeCombatGroup(groupId: string) {
+    setCombatGroups((current) => current.filter((group) => group.id !== groupId));
+    unassignCombatGroupMembers(groupId);
+  }
+
+  function unassignCombatGroupMembers(groupId: string) {
+    setEncounter((current) => ({
+      ...current,
+      combatants: current.combatants.map((combatant) =>
+        combatant.combatGroupId === groupId
           ? {
               ...combatant,
+              combatGroupId: undefined,
               combatGroupLabel: "",
               combatGroupColor: "None",
             }
-          : combatant;
-      }),
+          : combatant,
+      ),
     }));
   }
 
@@ -446,10 +444,7 @@ export function EncounterApp() {
     name: string;
     color: string;
   }) {
-    const id = `${color}-${name}-${Date.now()}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    const id = `${createLocalCombatGroupId(name, color)}-${Date.now()}`;
 
     setCombatGroups((current) => {
       const duplicate = current.some(
@@ -694,6 +689,10 @@ export function EncounterApp() {
           onCampaignChange={setEncounterCampaignId}
           onCreateWave={createWave}
           onCreateGroup={createCombatGroup}
+          onRenameGroup={renameCombatGroup}
+          onUpdateGroupColor={updateCombatGroupColor}
+          onClearGroup={clearCombatGroup}
+          onRemoveGroup={removeCombatGroup}
           onDeleteWave={deleteWave}
           onAdd={addCombatants}
           onDuplicate={duplicateCombatant}
@@ -762,6 +761,8 @@ export function EncounterApp() {
           onClearGroup={clearCombatGroup}
           onCreateGroup={createCombatGroup}
           onRenameGroup={renameCombatGroup}
+          onRemoveGroup={removeCombatGroup}
+          onUpdateGroupColor={updateCombatGroupColor}
           onRollGroupInitiative={rollCombatGroupInitiative}
           onRollSharedGroupInitiative={rollSharedCombatGroupInitiative}
           onToggleCondition={toggleCondition}
@@ -814,4 +815,11 @@ function getDeployedCombatants(
   return combatants.filter(
     (combatant) => !combatant.waveId || deployedWaveIds.has(combatant.waveId),
   );
+}
+
+function createLocalCombatGroupId(name: string, color?: string) {
+  return `${color || "group"}-${name}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
