@@ -442,6 +442,7 @@ export function EncounterApp() {
       {activeView === "builder" ? (
         <EncounterBuilder
           combatants={encounter.combatants}
+          encounterName={encounter.name}
           templates={sampleCreatureTemplates}
           onAdd={addCombatants}
           onDuplicate={duplicateCombatant}
