@@ -95,14 +95,7 @@ export function EncounterApp() {
     id: "local-encounter",
     name: "Lantern Alley Ambush",
     combatants: starterCombatants,
-    waves: [
-      {
-        id: "wave-2",
-        name: "Wave 2: Reinforcements",
-        description: "Hold assigned combatants back until the fight escalates.",
-        deployed: false,
-      },
-    ],
+    waves: [],
     round: 1,
     turnNumber: 0,
     activeCombatantId: null,

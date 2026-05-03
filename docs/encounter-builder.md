@@ -26,6 +26,24 @@ the same local creature templates used by the Creature Library. New, edited, and
 duplicated Library creatures become available in Builder during the same session.
 No Supabase persistence is involved yet.
 
+## Current Encounter Header
+
+The Current Encounter panel now spans the full Builder page above the work area.
+It acts as the Builder control header.
+
+The header includes:
+
+- Current Encounter label
+- encounter name
+- campaign name
+- compact summary pills for combatants, groups, bosses, and lair readiness
+- campaign selector
+- Save Draft later placeholder
+- Launch Runner action
+
+Below the header, the Builder work area contains the Creature Browser on the
+left and the roster, combat groups, and waves tools on the right.
+
 ## Expandable Creature Preview
 
 Expanded creature rows show combat-relevant sample data:
@@ -115,10 +133,13 @@ The basic workflow is:
 
 - Add creatures to the encounter roster as usual.
 - Create a wave with a name and optional description.
-- Use each roster combatant's Wave field to assign it to Active at start or a
-  planned wave.
+- After at least one wave exists, use each roster combatant's Wave field to
+  assign it to Active at start or a planned wave.
 - Review each wave's combatant count and deployed/not deployed state.
 - Launch Runner and deploy undeployed waves from the Runner when needed.
+
+Wave assignment controls are hidden until at least one wave exists. This keeps
+the roster simpler when the encounter does not use reinforcements.
 
 Assigning a combatant to a wave keeps the combatant in the Builder roster for
 planning, but it is held out of the live Runner initiative list until that wave

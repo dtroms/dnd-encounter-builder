@@ -192,7 +192,27 @@ export function EncounterBuilder({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem]">
+    <div className="space-y-4">
+      <CurrentEncounterHeader
+        bossCount={bossCount}
+        campaignId={campaignId}
+        campaignName={campaignName}
+        combatantCount={combatants.length}
+        draftNotice={draftNotice}
+        groupCount={groupCount}
+        hasLairActions={hasLairActions}
+        encounterName={encounterName}
+        onCampaignChange={(nextCampaignId) => {
+          onCampaignChange(nextCampaignId);
+          setDraftNotice("");
+        }}
+        onLaunchRunner={onLaunchRunner}
+        onSaveDraft={() =>
+          setDraftNotice(`Draft staged for ${getCampaignName(campaignId)}.`)
+        }
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem]">
       <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -285,76 +305,6 @@ export function EncounterBuilder({
 
       <aside className="space-y-3">
         <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">
-                Current Encounter
-              </p>
-              <h2 className="mt-1 text-xl font-black text-white">
-                {encounterName}
-              </h2>
-              <p className="mt-1 text-xs font-bold text-slate-500">
-                Campaign: {campaignName}
-              </p>
-            </div>
-            <button
-              className="rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
-              type="button"
-              onClick={onLaunchRunner}
-            >
-              Launch Runner
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <SummaryPill label="Combatants" value={String(combatants.length)} />
-            <SummaryPill label="Groups" value={String(groupCount)} />
-            <SummaryPill label="Bosses" value={bossCount > 0 ? String(bossCount) : "None"} />
-            <SummaryPill label="Campaign" value={campaignName} />
-          </div>
-
-          <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
-            <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-              Campaign
-              <select
-                className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
-                value={campaignId}
-                onChange={(event) => {
-                  onCampaignChange(event.target.value);
-                  setDraftNotice("");
-                }}
-              >
-                {campaignOptions.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
-              type="button"
-              onClick={() =>
-                setDraftNotice(`Draft staged for ${getCampaignName(campaignId)}.`)
-              }
-            >
-              Save Draft later
-            </button>
-            <span className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1 text-[11px] font-black text-slate-500">
-              Lair: {hasLairActions ? "Ready" : "None"}
-            </span>
-          </div>
-          {draftNotice ? (
-            <p className="mt-2 text-xs font-semibold text-cyan-200">
-              {draftNotice} Supabase save comes later.
-            </p>
-          ) : null}
-        </section>
-
-        <section className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
           <BuilderCombatGroups
             combatGroups={combatGroups}
             combatants={combatants}
@@ -407,6 +357,7 @@ export function EncounterBuilder({
           />
         </section>
       </aside>
+      </div>
     </div>
   );
 }
@@ -435,6 +386,94 @@ function QuickFilters({
         </button>
       ))}
     </div>
+  );
+}
+
+function CurrentEncounterHeader({
+  bossCount,
+  campaignId,
+  campaignName,
+  combatantCount,
+  draftNotice,
+  encounterName,
+  groupCount,
+  hasLairActions,
+  onCampaignChange,
+  onLaunchRunner,
+  onSaveDraft,
+}: {
+  bossCount: number;
+  campaignId: string;
+  campaignName: string;
+  combatantCount: number;
+  draftNotice: string;
+  encounterName: string;
+  groupCount: number;
+  hasLairActions: boolean;
+  onCampaignChange: (campaignId: string) => void;
+  onLaunchRunner: () => void;
+  onSaveDraft: () => void;
+}) {
+  return (
+    <section className="rounded-xl border border-slate-800 bg-slate-950/75 p-4 shadow-2xl shadow-black/20">
+      <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.9fr)_minmax(20rem,1.1fr)_minmax(18rem,0.9fr)] xl:items-center">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">
+            Current Encounter
+          </p>
+          <h2 className="mt-1 text-2xl font-black leading-tight text-white">
+            {encounterName}
+          </h2>
+          <p className="mt-1 text-sm font-bold text-slate-500">
+            Campaign: {campaignName}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <SummaryPill label="Combatants" value={String(combatantCount)} />
+          <SummaryPill label="Groups" value={String(groupCount)} />
+          <SummaryPill label="Bosses" value={bossCount > 0 ? String(bossCount) : "None"} />
+          <SummaryPill label="Lair" value={hasLairActions ? "Ready" : "None"} />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] xl:grid-cols-1 2xl:grid-cols-[minmax(12rem,1fr)_auto_auto]">
+          <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+            Campaign
+            <select
+              className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+              value={campaignId}
+              onChange={(event) => onCampaignChange(event.target.value)}
+            >
+              {campaignOptions.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="self-end rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+            type="button"
+            onClick={onSaveDraft}
+          >
+            Save Draft later
+          </button>
+          <button
+            className="self-end rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
+            type="button"
+            onClick={onLaunchRunner}
+          >
+            Launch Runner
+          </button>
+        </div>
+      </div>
+
+      {draftNotice ? (
+        <p className="mt-3 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-100">
+          {draftNotice} Supabase save comes later.
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -812,6 +851,15 @@ function RosterEditor({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <TypeBadge type={combatant.type} />
+            {combatant.waveLabel ? (
+              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">
+                {combatant.waveLabel}
+              </span>
+            ) : waves.length > 0 ? (
+              <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[11px] font-black text-slate-400">
+                Starts Active
+              </span>
+            ) : null}
             <span className="text-xs font-bold text-slate-500">
               AC {combatant.armorClass}
             </span>
@@ -854,13 +902,15 @@ function RosterEditor({
               value={combatant.displayName}
               onChange={(displayName) => onUpdate({ displayName })}
             />
-            <WaveAssignmentField
-              value={combatant.waveId ?? "active"}
-              waves={waves}
-              onChange={(value) =>
-                onAssignToWave(value === "active" ? null : value)
-              }
-            />
+            {waves.length > 0 ? (
+              <WaveAssignmentField
+                value={combatant.waveId ?? "active"}
+                waves={waves}
+                onChange={(value) =>
+                  onAssignToWave(value === "active" ? null : value)
+                }
+              />
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">

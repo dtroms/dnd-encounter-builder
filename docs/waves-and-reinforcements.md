@@ -22,9 +22,16 @@ Roster combatants have a compact Wave assignment field. The options are:
 - Active at start
 - each created wave
 
+The Wave assignment field only appears after at least one wave has been created.
+If there are no waves, roster rows stay focused on group assignment and basic
+combatant editing.
+
 Assigning a combatant to a wave keeps it visible in Builder for planning, but it
 holds that combatant out of the live Runner initiative list until the wave is
 deployed.
+
+Deleting a wave returns assigned combatants to Active at start. It does not
+delete the combatants themselves.
 
 ## Runner Deployment
 
