@@ -18,6 +18,7 @@ import {
   normalizeTabyltopSrdMonster,
   parseSrdMonsterDataset,
   TABYLTOP_SRD_SOURCE,
+  tabyltopSrdAutomatedMonsterSource,
   tabyltopSrdSampleMonsters,
   type SrdImportPreview,
 } from "@/lib/encounter/srd-importer";
@@ -85,6 +86,8 @@ export function StatBlockImporterPlaceholder({
   const [srdJsonInput, setSrdJsonInput] = useState("");
   const [srdDatasetError, setSrdDatasetError] = useState("");
   const [srdDatasetShape, setSrdDatasetShape] = useState("local-sample");
+  const [srdImporting, setSrdImporting] = useState(false);
+  const [srdImportError, setSrdImportError] = useState("");
   const [processedSrdPreviews, setProcessedSrdPreviews] = useState<
     SrdImportPreview[]
   >([]);
@@ -105,7 +108,7 @@ export function StatBlockImporterPlaceholder({
               creature.sourceType === "srd" &&
               creature.sourceName === TABYLTOP_SRD_SOURCE.sourceName,
           )
-          .map((creature) => creature.name.toLowerCase()),
+          .map(getSrdDuplicateKey),
       ),
     [existingCreatures],
   );
@@ -201,12 +204,13 @@ export function StatBlockImporterPlaceholder({
       .filter(
         (preview) =>
           preview.status === "ready" &&
-          !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+          !existingSrdKeys.has(getSrdDuplicateKey(preview.creature)),
       )
       .map((preview) => preview.creature.id);
     setSelectedSrdIds(importableIds);
     setActiveSrdId(srdPreviews[0]?.creature.id ?? "");
     setSrdImportMessage("");
+    setSrdImportError("");
   }
 
   function processSrdJsonInput() {
@@ -231,7 +235,7 @@ export function StatBlockImporterPlaceholder({
         .filter(
           (preview) =>
             preview.status === "ready" &&
-            !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+            !existingSrdKeys.has(getSrdDuplicateKey(preview.creature)),
         )
         .map((preview) => preview.creature.id),
     );
@@ -254,25 +258,87 @@ export function StatBlockImporterPlaceholder({
       return;
     }
 
+    const importedKeys = new Set(existingSrdKeys);
     const selectedPreviews = srdPreviews.filter((preview) =>
       selectedSrdIds.includes(preview.creature.id),
     );
-    const importablePreviews = selectedPreviews.filter(
-      (preview) =>
-        preview.status === "ready" &&
-        !existingSrdKeys.has(preview.creature.name.toLowerCase()),
-    );
+    const importablePreviews = selectedPreviews.filter((preview) => {
+      const duplicateKey = getSrdDuplicateKey(preview.creature);
+      const canImport =
+        preview.status === "ready" && !importedKeys.has(duplicateKey);
+      if (canImport) {
+        importedKeys.add(duplicateKey);
+      }
 
-    importablePreviews.forEach((preview) => {
+      return canImport;
+    });
+    const importedAt = new Date().toISOString();
+
+    importablePreviews.forEach((preview, index) => {
       onSaveCreature({
         ...preview.creature,
-        id: `${preview.creature.id}-${Date.now()}`,
-        notes: `${preview.creature.notes}\nImported locally at ${new Date().toISOString()}.`,
+        id: `${preview.creature.id}-${Date.now()}-${index}`,
+        importedAt,
+        notes: `${preview.creature.notes}\nImported locally at ${importedAt}.`,
       });
     });
 
     setSelectedSrdIds([]);
     setSrdImportMessage(buildSrdImportReport(srdPreviews, importablePreviews.length, existingSrdKeys));
+  }
+
+  function importAllSrdMonsters() {
+    if (!onSaveCreature || srdImporting) {
+      return;
+    }
+
+    setSrdImporting(true);
+    setSrdImportError("");
+
+    try {
+      const previews = tabyltopSrdAutomatedMonsterSource.map(
+        normalizeTabyltopSrdMonster,
+      );
+      const importedKeys = new Set(existingSrdKeys);
+      const importablePreviews = previews.filter((preview) => {
+        const duplicateKey = getSrdDuplicateKey(preview.creature);
+        const canImport =
+          preview.status === "ready" && !importedKeys.has(duplicateKey);
+        if (canImport) {
+          importedKeys.add(duplicateKey);
+        }
+
+        return canImport;
+      });
+      const importedAt = new Date().toISOString();
+
+      importablePreviews.forEach((preview, index) => {
+        onSaveCreature({
+          ...preview.creature,
+          id: `${preview.creature.id}-${Date.now()}-${index}`,
+          importMethod: "automated-srd-json",
+          importedAt,
+          notes: `${preview.creature.notes}\nImported locally at ${importedAt}.`,
+        });
+      });
+
+      setProcessedSrdPreviews(previews);
+      setSrdDatasetShape("local-static-json");
+      setSrdPreviewLoaded(true);
+      setSelectedSrdIds([]);
+      setActiveSrdId(previews[0]?.creature.id ?? "");
+      setSrdImportMessage(
+        buildSrdImportReport(previews, importablePreviews.length, existingSrdKeys),
+      );
+    } catch (error) {
+      setSrdImportError(
+        error instanceof Error
+          ? error.message
+          : "The automated SRD import could not be processed.",
+      );
+    } finally {
+      setSrdImporting(false);
+    }
   }
 
   return (
@@ -344,7 +410,10 @@ export function StatBlockImporterPlaceholder({
           previews={srdPreviews}
           processingError={srdDatasetError}
           sourceShape={srdDatasetShape}
+          importError={srdImportError}
+          importing={srdImporting}
           selectedIds={selectedSrdIds}
+          onImportAll={importAllSrdMonsters}
           onImportSelected={importSelectedSrdCreatures}
           onLoadPreview={loadSrdPreview}
           onProcessJson={processSrdJsonInput}
@@ -804,6 +873,8 @@ function ReviewPanel({
 function SrdImportPlanning({
   activePreview,
   existingSrdKeys,
+  importError,
+  importing,
   importMessage,
   jsonInput,
   previewLoaded,
@@ -811,6 +882,7 @@ function SrdImportPlanning({
   processingError,
   selectedIds,
   sourceShape,
+  onImportAll,
   onImportSelected,
   onLoadPreview,
   onJsonInputChange,
@@ -820,6 +892,8 @@ function SrdImportPlanning({
 }: {
   activePreview?: SrdImportPreview;
   existingSrdKeys: Set<string>;
+  importError: string;
+  importing: boolean;
   importMessage: string;
   jsonInput: string;
   previewLoaded: boolean;
@@ -827,6 +901,7 @@ function SrdImportPlanning({
   processingError: string;
   selectedIds: string[];
   sourceShape: string;
+  onImportAll: () => void;
   onImportSelected: () => void;
   onLoadPreview: () => void;
   onJsonInputChange: (value: string) => void;
@@ -838,7 +913,7 @@ function SrdImportPlanning({
   const readyCount = previews.filter(
     (preview) =>
       preview.status === "ready" &&
-      !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+      !existingSrdKeys.has(getSrdDuplicateKey(preview.creature)),
   ).length;
   const errorCount = previews.filter((preview) => preview.status === "error").length;
   const needsReviewCount = previews.filter(
@@ -867,6 +942,24 @@ function SrdImportPlanning({
             before adding them to your library. Non-SRD official monsters are
             not bundled.
           </p>
+          <div className="mt-4 rounded-xl border border-emerald-300/30 bg-slate-950/55 p-3">
+            <p className="text-sm font-black text-white">
+              One-click local SRD import
+            </p>
+            <p className="mt-1 text-sm leading-6 text-emerald-50/85">
+              Imports validated Creative Commons SRD monsters from the
+              configured local Tabyltop CC-SRD source. Invalid, needs-review,
+              and duplicate records are skipped.
+            </p>
+            <button
+              className="mt-3 rounded-lg border border-emerald-200 bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
+              disabled={importing}
+              type="button"
+              onClick={onImportAll}
+            >
+              {importing ? "Importing SRD monsters..." : "Import All SRD Monsters"}
+            </button>
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               className="rounded-lg border border-emerald-300/50 bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-200"
@@ -884,6 +977,11 @@ function SrdImportPlanning({
               Import All Valid ({selectedCount})
             </button>
           </div>
+          {importError ? (
+            <p className="mt-3 rounded-lg border border-red-300/25 bg-red-400/10 p-3 text-sm font-bold text-red-100">
+              {importError}
+            </p>
+          ) : null}
           {importMessage ? (
             <p className="mt-3 text-sm font-bold text-emerald-100">
               {importMessage}
@@ -966,7 +1064,7 @@ function SrdImportPlanning({
             <div className="mt-3 space-y-2">
               {previews.map((preview) => {
                 const duplicate = existingSrdKeys.has(
-                  preview.creature.name.toLowerCase(),
+                  getSrdDuplicateKey(preview.creature),
                 );
                 const disabled = duplicate || preview.status !== "ready";
 
@@ -1045,9 +1143,7 @@ function SrdBatchReport({
   existingSrdKeys: Set<string>;
   previews: SrdImportPreview[];
 }) {
-  const skippedDuplicates = previews.filter((preview) =>
-    existingSrdKeys.has(preview.creature.name.toLowerCase()),
-  );
+  const skippedDuplicates = getDuplicateSrdPreviews(previews, existingSrdKeys);
   const errors = previews.filter((preview) => preview.status === "error");
   const needsReview = previews.filter(
     (preview) => preview.status === "needs-review",
@@ -1540,20 +1636,49 @@ function buildSrdImportReport(
   importedCount: number,
   existingSrdKeys: Set<string>,
 ) {
-  const duplicateCount = previews.filter((preview) =>
-    existingSrdKeys.has(preview.creature.name.toLowerCase()),
-  ).length;
+  const duplicateCount = getDuplicateSrdPreviews(previews, existingSrdKeys).length;
   const errorCount = previews.filter((preview) => preview.status === "error").length;
   const needsReviewCount = previews.filter(
     (preview) => preview.status === "needs-review",
   ).length;
 
   return [
+    `SRD Import Complete: ${previews.length} record${previews.length === 1 ? "" : "s"} processed.`,
+    `Source: ${TABYLTOP_SRD_SOURCE.sourceName} local/static JSON.`,
     `${importedCount} Ready SRD creature${importedCount === 1 ? "" : "s"} imported.`,
     `${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped.`,
     `${errorCount} error record${errorCount === 1 ? "" : "s"} skipped.`,
     `${needsReviewCount} needs-review record${needsReviewCount === 1 ? "" : "s"} skipped.`,
   ].join(" ");
+}
+
+function getDuplicateSrdPreviews(
+  previews: SrdImportPreview[],
+  existingSrdKeys: Set<string>,
+) {
+  const seenKeys = new Set(existingSrdKeys);
+
+  return previews.filter((preview) => {
+    const duplicateKey = getSrdDuplicateKey(preview.creature);
+    const duplicate = seenKeys.has(duplicateKey);
+    seenKeys.add(duplicateKey);
+
+    return duplicate;
+  });
+}
+
+function getSrdDuplicateKey(
+  creature: Pick<
+    LibraryCreature,
+    "name" | "sourceDocumentVersion" | "sourceName" | "sourceType"
+  >,
+) {
+  return [
+    creature.sourceType,
+    creature.sourceName,
+    creature.sourceDocumentVersion ?? TABYLTOP_SRD_SOURCE.sourceDocumentVersion,
+    creature.name.trim().toLowerCase(),
+  ].join("::");
 }
 
 function hasValidAbilityScores(scores: AbilityScores) {

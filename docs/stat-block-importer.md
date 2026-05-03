@@ -25,10 +25,13 @@ The planned SRD source is:
 - License: CC-BY-4.0
 - Source type: `srd`
 
-This pass does not fetch from GitHub at runtime and does not bundle a bulk SRD
-monster dataset. The UI uses a tiny local Tabyltop-shaped sample subset so the
-review, validation, selection, duplicate prevention, and local import flow can
-be tested safely.
+This pass does not fetch from GitHub at runtime. The automated workflow loads a
+local/static Tabyltop-shaped JSON source from
+`src/data/srd/tabyltop-cc-srd-monsters.sample.json` so the app can test the full
+import pipeline without CORS, rate limits, or external availability failures.
+The current file is a tiny curated sample fixture, not the full SRD monster
+dataset. It is intentionally shaped so the same code path can later point at a
+reviewed full CC-SRD JSON file.
 
 Future SRD import work should use a local adapter script or curated import file,
 then review the output before records become Library creature templates.
@@ -37,12 +40,18 @@ then review the output before records become Library creature templates.
 
 The SRD tab now supports:
 
-1. Load Local Preview.
-2. Normalize Tabyltop-shaped SRD records into the app creature template shape.
-3. Show validation status for each record: Ready, Needs Review, Error, or
+1. Import All SRD Monsters.
+2. Load the configured local/static Tabyltop CC-SRD-shaped JSON source.
+3. Normalize Tabyltop-shaped SRD records into the app creature template shape.
+4. Show validation status for each record: Ready, Needs Review, Error, or
    Already in library.
-4. Select records for import.
-5. Import selected records into the local Creature Library session state.
+5. Import only Ready records into the local Creature Library session state.
+6. Skip Needs Review, Error, and Already in library records.
+7. Show an import report with processed, imported, duplicate, review, and error
+   counts.
+
+Manual testing tools remain available: Load Local Preview, paste SRD JSON,
+Process Import, select records, and Import All Valid/selected records.
 
 The SRD tab also supports full-dataset testing by pasting SRD monster JSON into
 the dataset textarea and clicking Process Import. Supported JSON shapes are:
@@ -61,17 +70,20 @@ Imported SRD creatures use:
 - `sourceType = srd`
 - `sourceName = Tabyltop CC-SRD`
 - `sourceUrl = https://github.com/Tabyltop/CC-SRD`
+- `sourceDocumentVersion = SRD 5.1`
 - `licenseName = CC-BY-4.0`
-- `importMethod = srd-json-review`
+- `importMethod = automated-srd-json` for the one-click path, or
+  `srd-json-review` for manual selected imports
+- `importedAt` for local session imports when available
 
-Duplicate prevention is simple for now: if a local Library creature already has
-the same normalized name from Tabyltop CC-SRD, the preview marks it as already
-in the Library and disables selection.
+Duplicate prevention checks the normalized creature name, source type, source
+name, and SRD document version. Already imported records are skipped and are not
+overwritten.
 
-Import All Valid imports Ready records only. It skips Error records, Needs
-Review records, and duplicates. The report area summarizes total processed
-records, imported count, skipped duplicates, skipped errors, and skipped
-needs-review records, with the first issue details shown in the UI.
+Import All SRD Monsters and Import All Valid import Ready records only. They
+skip Error records, Needs Review records, and duplicates. The report area
+summarizes total processed records, imported count, skipped duplicates, skipped
+errors, skipped needs-review records, source used, and the first issue details.
 
 The normalizer extracts or preserves common fields such as name, meta
 size/type/alignment, AC, HP, speed, ability scores, saving throws, skills,
@@ -192,7 +204,7 @@ This pass intentionally does not include:
 - Runtime GitHub fetching.
 - D&D Beyond scraping.
 - Official non-SRD D&D monster data.
-- Bulk SRD monster import.
+- The full curated CC-SRD monster JSON file.
 
 Use only content the user has the right to use. SRD Creative Commons imports
 should preserve attribution and license metadata. Official non-SRD content

@@ -5,6 +5,7 @@ import type {
 } from "./types";
 import type { LibraryCreature } from "./library-sample-data";
 import { normalizeStatBlockText } from "./stat-block-parser";
+import tabyltopSrdMonsterSource from "@/data/srd/tabyltop-cc-srd-monsters.sample.json";
 
 export type TabyltopSrdMonster = Record<string, unknown>;
 
@@ -32,6 +33,9 @@ export const TABYLTOP_SRD_SOURCE = {
   sourceName: "Tabyltop CC-SRD",
   sourceUrl: "https://github.com/Tabyltop/CC-SRD",
 } as const;
+
+export const tabyltopSrdAutomatedMonsterSource =
+  tabyltopSrdMonsterSource as TabyltopSrdMonster[];
 
 export const tabyltopSrdSampleMonsters: TabyltopSrdMonster[] = [
   {
@@ -244,6 +248,7 @@ export function normalizeTabyltopSrdMonster(
     size: identity.size,
     skills,
     sourceName: TABYLTOP_SRD_SOURCE.sourceName,
+    sourceDocumentVersion: TABYLTOP_SRD_SOURCE.sourceDocumentVersion,
     sourceType: "srd",
     sourceUrl: TABYLTOP_SRD_SOURCE.sourceUrl,
     speed,

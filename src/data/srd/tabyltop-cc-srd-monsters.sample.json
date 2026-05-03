@@ -1,0 +1,114 @@
+[
+  {
+    "actions": [
+      {
+        "desc": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage.",
+        "name": "Bite"
+      }
+    ],
+    "armor_class": "Armor Class 13",
+    "challenge": "Challenge 1/4 (50 XP)",
+    "hit_points": "Hit Points 11 (2d8 + 2)",
+    "languages": "Languages --",
+    "meta": "Medium beast, unaligned",
+    "name": "SRD Training Wolf",
+    "senses": "Senses passive Perception 13",
+    "speed": "Speed 40 ft.",
+    "stats": {
+      "cha": 6,
+      "con": 12,
+      "dex": 15,
+      "int": 3,
+      "str": 12,
+      "wis": 12
+    },
+    "traits": [
+      {
+        "desc": "The creature has advantage on Wisdom (Perception) checks that rely on hearing or smell.",
+        "name": "Keen Hearing and Smell"
+      }
+    ]
+  },
+  {
+    "actions": [
+      {
+        "desc": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 6 (1d8 + 2) slashing damage.",
+        "name": "Scimitar"
+      }
+    ],
+    "armor_class": "Armor Class 15 (leather armor, shield)",
+    "challenge_rating": "1/2",
+    "hit_points": "Hit Points 16 (3d8 + 3)",
+    "languages": "Languages Common, Goblin",
+    "meta": "Medium humanoid (goblinoid), neutral evil",
+    "name": "SRD Training Scout",
+    "saving_throws": "Dex +4",
+    "senses": "Senses darkvision 60 ft., passive Perception 10",
+    "skills": "Stealth +6",
+    "speed": "Speed 30 ft.",
+    "str": 10,
+    "dex": 14,
+    "con": 12,
+    "int": 10,
+    "wis": 10,
+    "cha": 8,
+    "traits": [
+      {
+        "desc": "The creature can take the Disengage or Hide action as a bonus action on each of its turns.",
+        "name": "Nimble Escape"
+      }
+    ]
+  },
+  {
+    "actions": [
+      {
+        "desc": "Ranged Spell Attack: +5 to hit, range 120 ft., one target. Hit: 10 (3d6) radiant damage.",
+        "name": "Radiant Bolt"
+      }
+    ],
+    "armor_class": "Armor Class 12",
+    "challenge": "Challenge 2 (450 XP)",
+    "condition_immunities": "charmed",
+    "hit_points": "Hit Points 45 (10d8)",
+    "languages": "Languages Celestial, Common",
+    "legendary_actions": [
+      {
+        "desc": "The creature makes a Wisdom (Perception) check.",
+        "name": "Detect"
+      }
+    ],
+    "meta": "Medium celestial, lawful good",
+    "name": "SRD Training Lantern",
+    "senses": "Senses darkvision 60 ft., passive Perception 14",
+    "speed": "Speed 30 ft., fly 30 ft.",
+    "stats": [10, 14, 10, 13, 15, 16],
+    "traits": [
+      {
+        "desc": "The creature sheds bright light in a 10-foot radius and dim light for an additional 10 feet.",
+        "name": "Guiding Light"
+      }
+    ]
+  },
+  {
+    "actions": [
+      {
+        "desc": "Melee Weapon Attack: +3 to hit, reach 5 ft., one target. Hit: 4 (1d6 + 1) bludgeoning damage.",
+        "name": "Club"
+      }
+    ],
+    "challenge": "Challenge 1/8 (25 XP)",
+    "hit_points": "Hit Points 7 (2d6)",
+    "languages": "Languages Common",
+    "meta": "Small humanoid, neutral",
+    "name": "SRD Broken Validation Test",
+    "senses": "Senses passive Perception 10",
+    "speed": "Speed 30 ft.",
+    "stats": [8, 12, 10, 9, 10, 8],
+    "traits": [
+      {
+        "desc": "This intentionally omits armor class so the importer report can show a skipped invalid record.",
+        "name": "Malformed Fixture"
+      }
+    ]
+  }
+]
