@@ -21,6 +21,7 @@ import {
   TABYLTOP_CC_SRD_RAW_URL,
   TABYLTOP_SRD_SOURCE,
   tabyltopSrdSampleMonsters,
+  type SrdImportDiagnostics,
   type SrdImportPreview,
 } from "@/lib/encounter/srd-importer";
 
@@ -87,6 +88,8 @@ export function StatBlockImporterPlaceholder({
   const [srdJsonInput, setSrdJsonInput] = useState("");
   const [srdDatasetError, setSrdDatasetError] = useState("");
   const [srdDatasetShape, setSrdDatasetShape] = useState("local-sample");
+  const [srdDiagnostics, setSrdDiagnostics] =
+    useState<SrdImportDiagnostics | null>(null);
   const [srdImporting, setSrdImporting] = useState(false);
   const [srdImportError, setSrdImportError] = useState("");
   const [srdImportStatus, setSrdImportStatus] = useState("");
@@ -201,7 +204,28 @@ export function StatBlockImporterPlaceholder({
   }
 
   function loadSrdPreview() {
+    const previews = srdPreviews;
     setSrdPreviewLoaded(true);
+    setSrdDiagnostics({
+      candidateCollections: [
+        {
+          monsterLikeCount: previews.length,
+          path: "local-sample",
+          recordCount: previews.length,
+          sampleKeys: previews
+            .slice(0, 3)
+            .map((preview) => Object.keys(preview.raw).slice(0, 20)),
+          score: previews.length,
+        },
+      ],
+      chosenPath: "local-sample",
+      rootType: "array",
+      sampleRecordKeys: previews
+        .slice(0, 3)
+        .map((preview) => Object.keys(preview.raw).slice(0, 20)),
+      topLevelKeys: [],
+      totalCandidateRecords: previews.length,
+    });
     const importableIds = srdPreviews
       .filter(
         (preview) =>
@@ -223,6 +247,7 @@ export function StatBlockImporterPlaceholder({
       setSrdDatasetError(result.error);
       setProcessedSrdPreviews([]);
       setSrdPreviewLoaded(false);
+      setSrdDiagnostics(result.diagnostics);
       setSelectedSrdIds([]);
       setSrdImportMessage("");
       setSrdImportStatus("");
@@ -231,6 +256,7 @@ export function StatBlockImporterPlaceholder({
 
     const previews = result.records.map(normalizeTabyltopSrdMonster);
     setProcessedSrdPreviews(previews);
+    setSrdDiagnostics(result.diagnostics);
     setSrdDatasetShape(result.shape);
     setSrdDatasetError("");
     setSrdImportError("");
@@ -330,6 +356,8 @@ export function StatBlockImporterPlaceholder({
         );
       }
 
+      setSrdDiagnostics(result.diagnostics);
+
       const previews = await normalizeSrdPreviews(result.records, (processed) => {
         setSrdImportStatus(
           `Processing SRD monster records... ${processed} of ${result.records.length}`,
@@ -359,6 +387,7 @@ export function StatBlockImporterPlaceholder({
       });
 
       setProcessedSrdPreviews(previews);
+      setSrdDiagnostics(result.diagnostics);
       setSrdDatasetShape(result.shape);
       setSrdPreviewLoaded(true);
       setSelectedSrdIds([]);
@@ -461,6 +490,7 @@ export function StatBlockImporterPlaceholder({
           importError={srdImportError}
           importing={srdImporting}
           importStatus={srdImportStatus}
+          diagnostics={srdDiagnostics}
           selectedIds={selectedSrdIds}
           onImportAll={importAllSrdMonsters}
           onImportSelected={importSelectedSrdCreatures}
@@ -926,6 +956,7 @@ function SrdImportPlanning({
   importing,
   importMessage,
   importStatus,
+  diagnostics,
   jsonInput,
   previewLoaded,
   previews,
@@ -946,6 +977,7 @@ function SrdImportPlanning({
   importing: boolean;
   importMessage: string;
   importStatus: string;
+  diagnostics: SrdImportDiagnostics | null;
   jsonInput: string;
   previewLoaded: boolean;
   previews: SrdImportPreview[];
@@ -1193,7 +1225,161 @@ function SrdImportPlanning({
           </p>
         </div>
       )}
+
+      <SrdDiagnosticsPanel diagnostics={diagnostics} previews={previews} />
     </section>
+  );
+}
+
+function SrdDiagnosticsPanel({
+  diagnostics,
+  previews,
+}: {
+  diagnostics: SrdImportDiagnostics | null;
+  previews: SrdImportPreview[];
+}) {
+  if (!diagnostics) {
+    return null;
+  }
+
+  const errorReasons = summarizeSrdErrorReasons(previews);
+  const failedSamples = previews
+    .filter((preview) => preview.status === "error")
+    .slice(0, 5);
+
+  return (
+    <details className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+      <summary className="cursor-pointer text-base font-black text-white">
+        Import Diagnostics
+      </summary>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+            JSON Shape
+          </p>
+          <dl className="mt-2 space-y-2 text-sm text-slate-300">
+            <DiagnosticFact label="Root" value={diagnostics.rootType} />
+            <DiagnosticFact
+              label="Chosen Path"
+              value={diagnostics.chosenPath ?? "None"}
+            />
+            <DiagnosticFact
+              label="Candidate Records"
+              value={String(diagnostics.totalCandidateRecords)}
+            />
+            <DiagnosticFact
+              label="Top-Level Keys"
+              value={
+                diagnostics.topLevelKeys.length
+                  ? diagnostics.topLevelKeys.join(", ")
+                  : "None / root array"
+              }
+            />
+          </dl>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+            Candidate Monster Collections
+          </p>
+          {diagnostics.candidateCollections.length ? (
+            <div className="mt-2 space-y-2">
+              {diagnostics.candidateCollections.slice(0, 6).map((item) => (
+                <div
+                  className="rounded-lg border border-slate-800 bg-slate-900/70 p-2 text-sm"
+                  key={`${item.path}-${item.recordCount}-${item.score}`}
+                >
+                  <p className="font-black text-slate-100">{item.path}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">
+                    {item.monsterLikeCount} monster-like / {item.recordCount} records
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-slate-400">
+              No structured monster-like arrays found.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+          Sample Record Keys
+        </p>
+        <div className="mt-2 space-y-2">
+          {diagnostics.sampleRecordKeys.length ? (
+            diagnostics.sampleRecordKeys.map((keys, index) => (
+              <p
+                className="rounded-lg border border-slate-800 bg-slate-900/70 p-2 text-xs font-semibold text-slate-300"
+                key={`${index}-${keys.join("-")}`}
+              >
+                {keys.join(", ")}
+              </p>
+            ))
+          ) : (
+            <p className="text-sm font-semibold text-slate-400">
+              No sample monster keys available.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {errorReasons.length || failedSamples.length ? (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-red-300/20 bg-red-400/10 p-3">
+            <p className="text-xs font-black uppercase tracking-wide text-red-100">
+              Top Error Reasons
+            </p>
+            {errorReasons.length ? (
+              <ul className="mt-2 space-y-1 text-sm font-semibold text-red-50/90">
+                {errorReasons.map((item) => (
+                  <li key={item.reason}>
+                    {item.reason}: {item.count}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-red-50/80">
+                No error records in the current preview.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              Sample Failed Records
+            </p>
+            {failedSamples.length ? (
+              <div className="mt-2 space-y-2">
+                {failedSamples.map((preview) => (
+                  <div
+                    className="rounded-lg border border-slate-800 bg-slate-900/70 p-2 text-sm"
+                    key={preview.creature.id}
+                  >
+                    <p className="font-black text-white">
+                      {preview.creature.name || "Unnamed record"}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      Keys: {Object.keys(preview.raw).slice(0, 12).join(", ")}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-red-100">
+                      {preview.missingRequiredFields.join(", ") ||
+                        preview.warnings.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-slate-400">
+                No failed records to sample.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </details>
   );
 }
 
@@ -1471,6 +1657,19 @@ function SourceFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+function DiagnosticFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <dt className="text-xs font-black uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="max-w-full break-words text-right text-sm font-bold text-slate-200">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 function TextInput({
   label,
   placeholder,
@@ -1712,6 +1911,29 @@ function buildSrdImportReport(
     `${errorCount} error record${errorCount === 1 ? "" : "s"} skipped.`,
     `${needsReviewCount} needs-review record${needsReviewCount === 1 ? "" : "s"} skipped.`,
   ].join(" ");
+}
+
+function summarizeSrdErrorReasons(previews: SrdImportPreview[]) {
+  const counts = new Map<string, number>();
+
+  previews
+    .filter((preview) => preview.status === "error")
+    .forEach((preview) => {
+      const reasons = preview.missingRequiredFields.length
+        ? preview.missingRequiredFields
+        : preview.warnings.length
+          ? preview.warnings
+          : ["Unknown validation error"];
+
+      reasons.forEach((reason) => {
+        counts.set(reason, (counts.get(reason) ?? 0) + 1);
+      });
+    });
+
+  return [...counts.entries()]
+    .map(([reason, count]) => ({ count, reason }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 }
 
 async function normalizeSrdPreviews(

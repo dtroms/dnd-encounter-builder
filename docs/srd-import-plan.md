@@ -32,9 +32,16 @@ The automated workflow is:
 6. Import Ready records only.
 7. Skip Needs Review, Error, and duplicate records.
 8. Show an import report.
+9. Show Import Diagnostics when testing the adapter.
 
 Manual review remains available through Load Local Preview, pasted SRD JSON,
 Process Import, selected rows, and Import All Valid.
+
+The raw Tabyltop JSON is a converted SRD document array. It contains many
+non-monster records such as headings, paragraphs, tables, spells, rules, and
+appendices. The importer now diagnoses the JSON shape and reconstructs monster
+records from the `Monsters` section rather than treating every document block as
+a creature.
 
 For full-library testing, the SRD tab also accepts pasted JSON and processes it
 on demand. Supported shapes are arrays, objects with `monsters`, `data`, or
@@ -75,6 +82,15 @@ fields into the app creature template shape:
 
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.
+
+Diagnostics include:
+
+- Root data type and top-level keys.
+- Candidate monster collection paths and counts.
+- Chosen monster path.
+- Sample record keys.
+- Top validation error reasons.
+- Sample failed records and raw keys.
 
 Import All SRD Monsters and Import All Valid import Ready records only. They
 skip Error records, Needs Review records, and duplicates. Error records include

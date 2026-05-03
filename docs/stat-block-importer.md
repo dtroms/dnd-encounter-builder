@@ -51,6 +51,9 @@ The SRD tab now supports:
 7. Skip Needs Review, Error, and Already in library records.
 8. Show an import report with processed, imported, duplicate, review, and error
    counts.
+9. Show a compact Import Diagnostics panel with root shape, chosen monster
+   path, candidate collection counts, sample record keys, top error reasons,
+   and sample failed records.
 
 Manual fallback tools remain available: Load Local Preview, paste SRD JSON,
 Process Import, select records, and Import All Valid/selected records. The
@@ -67,6 +70,12 @@ the dataset textarea and clicking Process Import. Supported JSON shapes are:
 - A keyed object such as `{ "wolf": { ...monster } }`
 - The Tabyltop full-document block array, where monster entries are rebuilt from
   heading, paragraph, and ability-score table blocks.
+
+The full Tabyltop source is a converted document array, not a clean monster
+array. The importer now has a document-block adapter that looks for the
+`Monsters` section and rebuilds individual stat blocks from monster headings,
+metadata paragraphs, AC/HP/speed/CR paragraphs, ability-score tables, traits,
+actions, reactions, legendary actions, and lair actions.
 
 If the shape is not recognized or the JSON cannot be parsed, the importer shows
 a clear error and does not import anything.
@@ -123,6 +132,11 @@ now:
 - No traits found.
 - Missing languages or senses.
 - Unusual or incomplete non-core fields.
+- Unknown type/size when the importer can safely default the field for review.
+
+The diagnostics panel is meant to make adapter tuning visible. If most records
+fail, it shows the likely cause, such as missing AC, missing HP, malformed
+action data, or unexpected raw keys.
 
 ## Paste Stat Block Workflow
 

@@ -19,9 +19,27 @@ export type SrdImportPreview = {
 };
 
 export type SrdDatasetParseResult = {
+  diagnostics: SrdImportDiagnostics;
   error?: string;
   records: TabyltopSrdMonster[];
   shape: string;
+};
+
+export type SrdCollectionDiagnostic = {
+  monsterLikeCount: number;
+  path: string;
+  recordCount: number;
+  sampleKeys: string[][];
+  score: number;
+};
+
+export type SrdImportDiagnostics = {
+  candidateCollections: SrdCollectionDiagnostic[];
+  chosenPath?: string;
+  rootType: "array" | "object" | "other";
+  sampleRecordKeys: string[][];
+  topLevelKeys: string[];
+  totalCandidateRecords: number;
 };
 
 export type TabyltopSrdFetchResult = {
@@ -284,10 +302,6 @@ export function normalizeTabyltopSrdMonster(
     criticalErrors.push("Ability scores were not detected.");
   }
 
-  if (!identity.monsterType || identity.monsterType === "Unknown / Unset") {
-    criticalErrors.push("Monster type could not be determined.");
-  }
-
   if (hasBadCoreNumber(creature)) {
     criticalErrors.push("NaN or invalid numeric value detected in core fields.");
   }
@@ -302,6 +316,16 @@ export function normalizeTabyltopSrdMonster(
 
   if (!meta) {
     warnings.push("Missing size/type/alignment metadata.");
+  }
+
+  if (!identity.monsterType || identity.monsterType === "Unknown / Unset") {
+    warnings.push("Monster type could not be determined; defaulted to Custom / Other.");
+    creature.monsterType = "Custom / Other";
+  }
+
+  if (!identity.size) {
+    warnings.push("Size could not be determined; defaulted to Medium.");
+    creature.size = "Medium";
   }
 
   if (!actions.length) {
@@ -346,9 +370,6 @@ export function validateSrdMonsterDraft(creature: LibraryCreature) {
     !Number.isFinite(creature.maxHp) || creature.maxHp <= 0 ? "hit points" : null,
     !creature.speed.trim() ? "speed" : null,
     !creature.challengeRating?.trim() ? "challenge rating" : null,
-    !creature.monsterType || creature.monsterType === "Unknown / Unset"
-      ? "creature type"
-      : null,
     !hasValidAbilityScores(creature.abilityScores) ? "ability scores" : null,
   ].filter(Boolean) as string[];
 }
@@ -384,7 +405,12 @@ export async function fetchTabyltopCcSrdJson({
 
 export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult {
   if (!jsonText.trim()) {
-    return { error: "Paste SRD monster JSON before processing.", records: [], shape: "empty" };
+    return {
+      diagnostics: createSrdDiagnostics(undefined),
+      error: "Paste SRD monster JSON before processing.",
+      records: [],
+      shape: "empty",
+    };
   }
 
   let parsed: unknown;
@@ -398,6 +424,7 @@ export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult 
           ? `JSON could not be parsed: ${error.message}`
           : "JSON could not be parsed.",
       records: [],
+      diagnostics: createSrdDiagnostics(undefined),
       shape: "invalid-json",
     };
   }
@@ -406,11 +433,19 @@ export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult 
 }
 
 export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult {
+  const diagnostics = createSrdDiagnostics(parsed);
+
   if (Array.isArray(parsed)) {
     const records = parsed.filter(isMonsterLikeRecord);
 
     if (records.length) {
       return {
+        diagnostics: {
+          ...diagnostics,
+          chosenPath: "$",
+          sampleRecordKeys: sampleRecordKeys(records),
+          totalCandidateRecords: records.length,
+        },
         records,
         shape: "array",
       };
@@ -420,6 +455,22 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
 
     if (documentRecords.length) {
       return {
+        diagnostics: {
+          ...diagnostics,
+          candidateCollections: [
+            {
+              monsterLikeCount: documentRecords.length,
+              path: "tabyltop-document-blocks",
+              recordCount: documentRecords.length,
+              sampleKeys: sampleRecordKeys(documentRecords),
+              score: documentRecords.length,
+            },
+            ...diagnostics.candidateCollections,
+          ],
+          chosenPath: "tabyltop-document-blocks",
+          sampleRecordKeys: sampleRecordKeys(documentRecords),
+          totalCandidateRecords: documentRecords.length,
+        },
         records: documentRecords,
         shape: "tabyltop-document-blocks",
       };
@@ -428,6 +479,7 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
     if (!records.length) {
       return {
         error: "Could not find monster records in this SRD JSON.",
+        diagnostics,
         records: [],
         shape: "array",
       };
@@ -437,9 +489,29 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
   if (!isPlainObject(parsed)) {
     return {
       error: "JSON shape was not recognized. Expected an array or object.",
+      diagnostics,
       records: [],
       shape: "unrecognized",
     };
+  }
+
+  const bestCollection = diagnostics.candidateCollections[0];
+
+  if (bestCollection) {
+    const records = readPath(parsed, bestCollection.path).filter(isMonsterLikeRecord);
+
+    if (records.length) {
+      return {
+        diagnostics: {
+          ...diagnostics,
+          chosenPath: bestCollection.path,
+          sampleRecordKeys: sampleRecordKeys(records),
+          totalCandidateRecords: records.length,
+        },
+        records,
+        shape: bestCollection.path,
+      };
+    }
   }
 
   for (const key of ["monsters", "Monsters", "creatures", "data", "results"]) {
@@ -453,6 +525,12 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
       }
 
       return {
+        diagnostics: {
+          ...diagnostics,
+          chosenPath: `object.${key}`,
+          sampleRecordKeys: sampleRecordKeys(records),
+          totalCandidateRecords: records.length,
+        },
         records,
         shape: `object.${key}`,
       };
@@ -463,7 +541,16 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
   const keyedRecords = values.filter(isMonsterLikeRecord);
 
   if (keyedRecords.length) {
-    return { records: keyedRecords, shape: "keyed-object" };
+    return {
+      diagnostics: {
+        ...diagnostics,
+        chosenPath: "keyed-object",
+        sampleRecordKeys: sampleRecordKeys(keyedRecords),
+        totalCandidateRecords: keyedRecords.length,
+      },
+      records: keyedRecords,
+      shape: "keyed-object",
+    };
   }
 
   const nested = findNestedMonsterRecords(parsed);
@@ -475,6 +562,7 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
   return {
     error:
       "Could not find monster records in this SRD JSON. Use an array, { monsters: [...] }, { data: [...] }, { results: [...] }, a keyed monster object, or paste only the monster section.",
+    diagnostics,
     records: [],
     shape: "unrecognized",
   };
@@ -542,9 +630,14 @@ function normalizeEntry(entry: unknown, index: number): StatBlockAction {
 
 function parseMeta(meta: string) {
   const match = meta.match(
-    /^(Tiny|Small|Medium|Large|Huge|Gargantuan)\s+([A-Za-z ]+?)(?:\s*\(([^)]+)\))?(?:,\s*(.+))?$/i,
+    /^(Tiny|Small|Medium|Large|Huge|Gargantuan)\s+(.+?)(?:,\s*(.+))?$/i,
   );
-  const typeText = match?.[2]?.trim() ?? "";
+  const rawTypeText = match?.[2]?.trim() ?? "";
+  const subtypeMatch = rawTypeText.match(/^(.+?)\s*\(([^)]+)\)$/);
+  const typeText = (subtypeMatch?.[1] ?? rawTypeText)
+    .replace(/^swarm of\s+(?:Tiny|Small|Medium|Large|Huge|Gargantuan)\s+/i, "")
+    .replace(/s$/i, "")
+    .trim();
   const monsterType =
     monsterTypes.find(
       (type) =>
@@ -554,10 +647,10 @@ function parseMeta(meta: string) {
     ) ?? "Unknown / Unset";
 
   return {
-    alignment: match?.[4]?.trim(),
+    alignment: match?.[3]?.trim(),
     monsterType,
-    size: match?.[1] ?? "Medium",
-    subtype: match?.[3]?.trim(),
+    size: match?.[1] ?? "",
+    subtype: subtypeMatch?.[2]?.trim(),
   };
 }
 
@@ -1055,6 +1148,104 @@ function extractAbilityScoresFromDocumentTable(block: unknown) {
     .slice(0, 6);
 }
 
+function createSrdDiagnostics(parsed: unknown): SrdImportDiagnostics {
+  const rootType = Array.isArray(parsed)
+    ? "array"
+    : isPlainObject(parsed)
+      ? "object"
+      : "other";
+  const candidateCollections = findMonsterCollections(parsed);
+
+  return {
+    candidateCollections,
+    chosenPath: candidateCollections[0]?.path,
+    rootType,
+    sampleRecordKeys: candidateCollections[0]?.sampleKeys ?? [],
+    topLevelKeys: isPlainObject(parsed) ? Object.keys(parsed).slice(0, 30) : [],
+    totalCandidateRecords: candidateCollections[0]?.monsterLikeCount ?? 0,
+  };
+}
+
+export function findMonsterCollections(parsed: unknown): SrdCollectionDiagnostic[] {
+  const candidates: SrdCollectionDiagnostic[] = [];
+
+  collectMonsterCollections(parsed, "$", 0, candidates);
+
+  return candidates
+    .filter((candidate) => candidate.monsterLikeCount > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+function collectMonsterCollections(
+  value: unknown,
+  path: string,
+  depth: number,
+  candidates: SrdCollectionDiagnostic[],
+) {
+  if (depth > 8) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    const plainRecords = value.filter(isPlainObject);
+    const monsterRecords = value.filter(isMonsterLikeRecord);
+    const monsterLikeCount = monsterRecords.length;
+
+    if (plainRecords.length) {
+      candidates.push({
+        monsterLikeCount,
+        path,
+        recordCount: plainRecords.length,
+        sampleKeys: sampleRecordKeys(plainRecords as TabyltopSrdMonster[]),
+        score: monsterLikeCount * 10 - Math.max(0, plainRecords.length - monsterLikeCount),
+      });
+    }
+
+    value.forEach((item, index) => {
+      if (Array.isArray(item) || isPlainObject(item)) {
+        collectMonsterCollections(item, `${path}[${index}]`, depth + 1, candidates);
+      }
+    });
+    return;
+  }
+
+  if (!isPlainObject(value)) {
+    return;
+  }
+
+  Object.entries(value).forEach(([key, child]) => {
+    if (Array.isArray(child) || isPlainObject(child)) {
+      collectMonsterCollections(child, `${path}.${key}`, depth + 1, candidates);
+    }
+  });
+}
+
+function readPath(parsed: unknown, path: string): unknown[] {
+  if (path === "$") {
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  const parts = path
+    .replace(/^\$\./, "")
+    .split(".")
+    .filter(Boolean);
+  let current: unknown = parsed;
+
+  for (const part of parts) {
+    if (!isPlainObject(current)) {
+      return [];
+    }
+
+    current = current[part];
+  }
+
+  return Array.isArray(current) ? current : [];
+}
+
+function sampleRecordKeys(records: TabyltopSrdMonster[]) {
+  return records.slice(0, 3).map((record) => Object.keys(record).slice(0, 20));
+}
+
 function readDocumentTableCellText(cell: unknown) {
   if (!isPlainObject(cell) || !Array.isArray(cell.subelements)) {
     return "";
@@ -1109,13 +1300,24 @@ function isDocumentMonsterSectionHeading(text: string) {
 }
 
 function findNestedMonsterRecords(parsed: TabyltopSrdMonster): SrdDatasetParseResult {
+  const diagnostics = createSrdDiagnostics(parsed);
   const candidates: Array<{ records: TabyltopSrdMonster[]; shape: string }> = [];
 
   collectMonsterRecordCandidates(parsed, "$", 0, candidates);
 
   const best = candidates.sort((a, b) => b.records.length - a.records.length)[0];
 
-  return best ?? { records: [], shape: "nested" };
+  return best
+    ? {
+        diagnostics: {
+          ...diagnostics,
+          chosenPath: best.shape,
+          sampleRecordKeys: sampleRecordKeys(best.records),
+          totalCandidateRecords: best.records.length,
+        },
+        ...best,
+      }
+    : { diagnostics, records: [], shape: "nested" };
 }
 
 function collectMonsterRecordCandidates(
