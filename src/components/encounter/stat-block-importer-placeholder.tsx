@@ -1532,9 +1532,37 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
 
       <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {abilityPreviewStats.map(([label, value]) => (
-          <PreviewStat key={label} label={label} value={String(value)} />
+          <PreviewStat
+            key={label}
+            label={label}
+            value={
+              preview.abilityScoreDiagnostics.detected
+                ? String(value)
+                : "Needs review"
+            }
+          />
         ))}
       </div>
+
+      <details className="mt-3 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+        <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-slate-500">
+          Ability Import Diagnostic
+        </summary>
+        <div className="mt-2 space-y-1 text-sm leading-5 text-slate-400">
+          <p>
+            Source:{" "}
+            <span className="font-bold text-slate-200">
+              {preview.abilityScoreDiagnostics.source}
+            </span>
+          </p>
+          <p>
+            Parsed:{" "}
+            <span className="font-bold text-slate-200">
+              {preview.abilityScoreDiagnostics.summary}
+            </span>
+          </p>
+        </div>
+      </details>
 
       {validationNotes.length ? (
         <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">

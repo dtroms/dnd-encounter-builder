@@ -11,11 +11,18 @@ export type TabyltopSrdMonster = Record<string, unknown>;
 export type SrdValidationStatus = "ready" | "needs-review" | "error";
 
 export type SrdImportPreview = {
+  abilityScoreDiagnostics: SrdAbilityScoreDiagnostics;
   creature: LibraryCreature;
   missingRequiredFields: string[];
   raw: TabyltopSrdMonster;
   status: SrdValidationStatus;
   warnings: string[];
+};
+
+export type SrdAbilityScoreDiagnostics = {
+  detected: boolean;
+  source: string;
+  summary: string;
 };
 
 export type SrdDatasetParseResult = {
@@ -163,6 +170,11 @@ export function normalizeTabyltopSrdMonster(
     const creature = buildInvalidCreature("Malformed SRD Record", raw);
 
     return {
+      abilityScoreDiagnostics: {
+        detected: false,
+        source: "not detected",
+        summary: "STR Needs review, DEX Needs review, CON Needs review, INT Needs review, WIS Needs review, CHA Needs review",
+      },
       creature,
       missingRequiredFields: ["malformed record object"],
       raw,
@@ -172,7 +184,12 @@ export function normalizeTabyltopSrdMonster(
   }
 
   const name = readString(raw, ["name", "Name"]);
-  const meta = readString(raw, ["meta", "Meta", "size_type_alignment"]);
+  const explicitSize = readString(raw, ["size", "Size"]);
+  const explicitType = readString(raw, ["type", "Type", "creature_type", "creatureType"]);
+  const explicitAlignment = readString(raw, ["alignment", "Alignment"]);
+  const meta =
+    readString(raw, ["meta", "Meta", "size_type_alignment"]) ||
+    buildMetaLine(explicitSize, explicitType, explicitAlignment);
   const identity = parseMeta(meta);
   const armor = parseNumberAndNote(
     readString(raw, ["armor_class", "armorClass", "Armor Class", "ac", "AC"]),
@@ -361,6 +378,11 @@ export function normalizeTabyltopSrdMonster(
       : "ready";
 
   return {
+    abilityScoreDiagnostics: {
+      detected: abilityResult.detected,
+      source: abilityResult.source,
+      summary: formatAbilityScores(abilityScores),
+    },
     creature,
     missingRequiredFields: allMissingFields,
     raw,
@@ -662,6 +684,16 @@ function parseMeta(meta: string) {
   };
 }
 
+function buildMetaLine(size: string, type: string, alignment: string) {
+  const identity = [size, type].filter(Boolean).join(" ").trim();
+
+  if (!identity) {
+    return "";
+  }
+
+  return alignment ? `${identity}, ${alignment}` : identity;
+}
+
 function parseNumberAndNote(value: string) {
   const stripped = value.replace(/^(Armor Class|AC|Hit Points|HP)\s*:?/i, "").trim();
   const match = stripped.match(/^(\d+)(?:\s*\(([^)]*)\))?/);
@@ -687,6 +719,7 @@ function parseChallenge(value: string) {
 function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
   detected: boolean;
   scores: AbilityScores;
+  source: string;
 } {
   const stats =
     readValue(raw, "stats") ??
@@ -707,6 +740,7 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
     return {
       detected: hasValidAbilityScores(scores),
       scores,
+      source: "stats array",
     };
   }
 
@@ -732,6 +766,7 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
     return {
       detected: hasValidAbilityScores(scores),
       scores,
+      source: "stats object",
     };
   }
 
@@ -758,6 +793,7 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
   return {
     detected,
     scores,
+    source: detected ? "root ability fields" : "not detected",
   };
 }
 
@@ -1231,7 +1267,7 @@ function extractAbilityScoresFromDocumentTable(block: unknown) {
     return [];
   }
 
-  const rows = block.rows as unknown[][];
+  const rows = normalizeDocumentTableRows(block.rows);
   const scoreRow = rows.find((row) => {
     const values = row.map(readDocumentTableCellText);
     return values.filter((value) => /^\d+\s*\(/.test(value)).length >= 6;
@@ -1246,6 +1282,22 @@ function extractAbilityScoresFromDocumentTable(block: unknown) {
     .map((value) => safeNumber(value.match(/\d+/)?.[0]))
     .filter((score): score is number => score !== null)
     .slice(0, 6);
+}
+
+function normalizeDocumentTableRows(rows: unknown[]) {
+  return rows
+    .map((row) => {
+      if (Array.isArray(row)) {
+        return row;
+      }
+
+      if (isPlainObject(row) && Array.isArray(row.value)) {
+        return row.value;
+      }
+
+      return [];
+    })
+    .filter((row) => row.length);
 }
 
 function createSrdDiagnostics(parsed: unknown): SrdImportDiagnostics {
@@ -1502,6 +1554,17 @@ function hasBadCoreNumber(creature: LibraryCreature) {
 
 function hasValidAbilityScores(scores: AbilityScores) {
   return Object.values(scores).every((score) => Number.isFinite(score) && score > 0);
+}
+
+function formatAbilityScores(scores: AbilityScores) {
+  return [
+    `STR ${scores.str}`,
+    `DEX ${scores.dex}`,
+    `CON ${scores.con}`,
+    `INT ${scores.int}`,
+    `WIS ${scores.wis}`,
+    `CHA ${scores.cha}`,
+  ].join(", ");
 }
 
 function isPlainObject(value: unknown): value is TabyltopSrdMonster {

@@ -114,6 +114,9 @@ Validation checks this same `str` / `dex` / `con` / `int` / `wis` / `cha`
 shape, so an Aboleth-style Tabyltop record with the `stats` object above should
 not produce a missing ability scores warning. The SRD review panel also displays
 the parsed scores as STR, DEX, CON, INT, WIS, and CHA for quick visual checking.
+When the full raw GitHub file is imported, some monsters are rebuilt from
+document table blocks instead of neat monster objects; those table rows are also
+normalized into the same ability score shape before validation.
 
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.
