@@ -27,6 +27,13 @@ const statusRank: Record<EncounterStatus, number> = {
   archived: 3,
 };
 
+const statusLabels: Record<EncounterStatus, string> = {
+  archived: "Archived",
+  completed: "Completed",
+  draft: "Draft",
+  running: "Running",
+};
+
 const accentStyles: Record<
   SavedEncounterSummary["accent_color"],
   { border: string; bg: string; text: string; dot: string; ring: string }
@@ -100,16 +107,16 @@ const groupColorStyles: Record<
     bg: "bg-blue-500/10",
   },
   Green: {
-    dot: "bg-emerald-400",
-    border: "border-emerald-400/25",
-    text: "text-emerald-100",
-    bg: "bg-emerald-500/10",
+    dot: "bg-green-500",
+    border: "border-green-400/20",
+    text: "text-green-100",
+    bg: "bg-green-500/8",
   },
   Red: {
-    dot: "bg-rose-400",
-    border: "border-rose-400/25",
-    text: "text-rose-100",
-    bg: "bg-rose-500/10",
+    dot: "bg-red-500",
+    border: "border-red-400/20",
+    text: "text-red-100",
+    bg: "bg-red-500/8",
   },
   Gold: {
     dot: "bg-amber-300",
@@ -362,6 +369,7 @@ function EncounterListItem({
           ? `${accent.border} ${accent.bg} ring-2 ${accent.ring}`
           : "border-slate-800 bg-slate-900/70 hover:border-slate-600"
       }`}
+      aria-pressed={isSelected}
       type="button"
       onClick={onSelect}
     >
@@ -387,7 +395,7 @@ function EncounterListItem({
           {encounter.description}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold text-slate-500">
-          <span className="line-clamp-1">{encounter.location}</span>
+          <span className="truncate">{encounter.location}</span>
           <span>
             {encounter.last_played_at
               ? `Last ${formatCompactDate(encounter.last_played_at)}`
@@ -413,120 +421,134 @@ function EncounterDetailPanel({
 
   return (
     <section
-      className={`rounded-xl border bg-slate-950/80 p-4 shadow-2xl shadow-black/20 ${
+      className={`overflow-hidden rounded-xl border bg-slate-950/80 shadow-2xl shadow-black/20 ${
         isRunning ? accent.border : "border-slate-800"
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusChip encounter={encounter} />
-            {encounter.has_lair_actions_snapshot ? (
-              <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
-                Lair actions
+      <div className={`h-1.5 ${accent.dot}`} />
+      <div className="p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusChip encounter={encounter} />
+              <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-300">
+                {encounter.combatant_count_snapshot} combatants
               </span>
-            ) : null}
-            {encounter.boss_count_snapshot > 0 ? (
-              <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
-                Boss present
-              </span>
-            ) : null}
+              {encounter.has_lair_actions_snapshot ? (
+                <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
+                  Lair actions
+                </span>
+              ) : null}
+              {encounter.boss_count_snapshot > 0 ? (
+                <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
+                  Boss
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-3 text-xs font-bold text-slate-500">
+              {encounter.location}
+            </p>
+            <h3 className="mt-2 text-3xl font-black leading-tight text-white">
+              {encounter.name}
+            </h3>
           </div>
-          <p className="mt-3 text-xs font-bold text-slate-500">
-            {encounter.location}
+
+          {isRunning ? (
+            <div className={`${accent.bg} ${accent.border} rounded-xl border px-3 py-2 text-right`}>
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                Current round
+              </p>
+              <p className="text-2xl font-black text-white">
+                {encounter.current_round}
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+            Dossier notes
           </p>
-          <h3 className="mt-2 text-3xl font-black leading-tight text-white">
-            {encounter.name}
-          </h3>
-          <p className="mt-3 max-w-4xl text-[15px] font-semibold leading-7 text-slate-300">
+          <p className="mt-2 text-[15px] font-semibold leading-7 text-slate-200">
             {encounter.description}
           </p>
         </div>
-      </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <DetailStat
-          label={isRunning ? "Current Round" : "Status Date"}
-          value={
-            isRunning
-              ? String(encounter.current_round)
-              : formatCompactDate(encounter.updated_at)
-          }
-        />
-        <DetailStat label="Party Level" value={String(encounter.party_level)} />
-        <DetailStat label="Party Size" value={String(encounter.party_size)} />
-        <DetailStat label="Difficulty" value={encounter.difficulty_label} />
-        <DetailStat
-          label="Last Played"
-          value={
-            encounter.last_played_at
-              ? formatLongDate(encounter.last_played_at)
-              : "Not played yet"
-          }
-        />
-        <DetailStat label="Updated" value={formatLongDate(encounter.updated_at)} />
-        <DetailStat
-          label="Bosses"
-          value={
-            encounter.boss_count_snapshot > 0
-              ? String(encounter.boss_count_snapshot)
-              : "None"
-          }
-        />
-        <DetailStat
-          label="Lair Actions"
-          value={encounter.has_lair_actions_snapshot ? "Ready" : "None"}
-        />
-      </div>
-
-      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h4 className="text-sm font-black text-white">Combatants</h4>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">
-              Names-only preview from local mock data
-            </p>
-          </div>
-          <span className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-black text-slate-300">
-            {encounter.combatant_count_snapshot} total
-          </span>
+        <div className="mt-4 grid gap-x-5 gap-y-2 border-b border-slate-800 pb-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
+          <DossierFact label="Party" value={`Level ${encounter.party_level}, ${encounter.party_size} PCs`} />
+          <DossierFact label="Difficulty" value={encounter.difficulty_label} />
+          <DossierFact
+            label="Last played"
+            value={
+              encounter.last_played_at
+                ? formatLongDate(encounter.last_played_at)
+                : "Not played yet"
+            }
+          />
+          <DossierFact label="Updated" value={formatLongDate(encounter.updated_at)} />
+          <DossierFact
+            label="Boss indicator"
+            value={
+              encounter.boss_count_snapshot > 0
+                ? `${encounter.boss_count_snapshot} boss`
+                : "None"
+            }
+          />
+          <DossierFact
+            label="Lair actions"
+            value={encounter.has_lair_actions_snapshot ? "Present" : "None"}
+          />
         </div>
-        <CombatantPreviewList combatants={encounter.combatants_preview} />
-      </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
-          type="button"
-          onClick={onOpenBuilder}
-        >
-          Open Builder
-        </button>
-        <button
-          className={`rounded-lg px-3 py-2 text-xs font-black transition ${
-            isRunning
-              ? "bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-              : "border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-300/60 hover:text-white"
-          }`}
-          type="button"
-          onClick={onOpenRunner}
-        >
-          Open Runner
-        </button>
-        <button
-          className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
-          disabled
-          type="button"
-        >
-          Duplicate later
-        </button>
-        <button
-          className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
-          disabled
-          type="button"
-        >
-          Archive later
-        </button>
+        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-black text-white">Combatants</h4>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                Names-only preview from local mock data
+              </p>
+            </div>
+            <span className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-black text-slate-300">
+              {encounter.combatant_count_snapshot} total
+            </span>
+          </div>
+          <CombatantPreviewList combatants={encounter.combatants_preview} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+              isRunning
+                ? "bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+                : "border border-cyan-300/45 bg-cyan-300/10 text-cyan-100 hover:border-cyan-200 hover:text-white"
+            }`}
+            type="button"
+            onClick={isRunning ? onOpenRunner : onOpenBuilder}
+          >
+            {isRunning ? "Open Runner" : "Open Builder"}
+          </button>
+          <button
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+            type="button"
+            onClick={isRunning ? onOpenBuilder : onOpenRunner}
+          >
+            {isRunning ? "Open Builder" : "Open Runner"}
+          </button>
+          <button
+            className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
+            disabled
+            type="button"
+          >
+            Duplicate later
+          </button>
+          <button
+            className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
+            disabled
+            type="button"
+          >
+            Archive later
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -541,12 +563,12 @@ function CombatantPreviewList({
   const remainingCount = Math.max(0, combatants.length - visibleCombatants.length);
 
   return (
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+    <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
       {visibleCombatants.map((combatant) => (
         <CombatantPreviewItem combatant={combatant} key={combatant.id} />
       ))}
       {remainingCount > 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-bold text-slate-400">
+        <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-black text-slate-400">
           + {remainingCount} more
         </div>
       ) : null}
@@ -563,16 +585,18 @@ function CombatantPreviewItem({
 
   return (
     <div
-      className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${groupStyle.border} ${groupStyle.bg}`}
+      className={`flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 ${groupStyle.border} ${groupStyle.bg}`}
     >
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${groupStyle.dot}`} />
+      <span className={`h-7 w-1 shrink-0 rounded-full ${groupStyle.dot}`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{combatant.name}</p>
-        <p className={`truncate text-[11px] font-bold ${groupStyle.text}`}>
-          {combatant.group_name}
-        </p>
+        {combatant.group_name !== "Ungrouped" ? (
+          <p className={`truncate text-[11px] font-bold ${groupStyle.text}`}>
+            {combatant.group_name}
+          </p>
+        ) : null}
       </div>
-      <span className="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-400">
+      <span className="shrink-0 rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-400">
         {typeLabels[combatant.combatant_type]}
       </span>
     </div>
@@ -599,18 +623,18 @@ function StatusChip({
           : "border-slate-700 bg-slate-900 text-slate-300"
       }`}
     >
-      {encounter.status}
+      {statusLabels[encounter.status]}
     </span>
   );
 }
 
-function DetailStat({ label, value }: { label: string; value: string }) {
+function DossierFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">
+    <div className="min-w-0">
       <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 truncate text-sm font-black text-white">{value}</p>
+      <p className="mt-1 truncate text-sm font-black text-slate-100">{value}</p>
     </div>
   );
 }

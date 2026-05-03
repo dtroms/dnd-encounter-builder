@@ -34,7 +34,7 @@ export type SavedEncounterSummary = {
 export const savedEncounterSamples: SavedEncounterSummary[] = [
   {
     id: "10000000-0000-4000-8000-000000000001",
-    name: "Goblin Ambush at the Lantern Alley",
+    name: "Lantern Alley Ambush",
     description:
       "A table-ready alley fight with a commander boss, mixed warband, neutral guide, and a visible lair action row.",
     location: "Lantern Alley market cut-through",
