@@ -1,6 +1,10 @@
 # Sample Seed Plan
 
-The app should keep using local sample data for now. This document describes how the current original/custom samples can later become database seed data for development or testing.
+The app still uses local React state for the UI. The seed file added in this pass is only for local Supabase development and schema validation.
+
+Executable seed file:
+
+- `supabase/seed.sql`
 
 ## Seed Data Rules
 
@@ -9,116 +13,105 @@ The app should keep using local sample data for now. This document describes how
 - Do not scrape or import seed data from D&D Beyond or any external source.
 - Mark local sample creatures with `source_type = 'sample'`.
 - Keep seed scripts separate from destructive migrations.
-- Seed data should be easy to recreate in local development later, but this pass does not insert rows.
+- Seed data is local/dev sample content only.
+- Do not connect this seed file to a remote Supabase project unless the data and deployment workflow are reviewed first.
+- Do not wire the UI to these tables in this seed-only pass.
 
 ## Creature Template Seeds
 
-Seed `creature_templates` from current local sample data.
+`supabase/seed.sql` seeds `creature_templates` from the current original/custom app sample data in `src/lib/encounter/sample-data.ts`.
 
-Include:
+Seeded player characters:
 
-- player characters
-- original goblin-style enemies
-- shadow-hound-style monster
-- neutral NPC
-- boss with Legendary Actions
-- boss/monster with Lair Actions
+- Aria Vale
+- Mira Quill
+- Tovin Bramble
 
-Each creature template should include:
+Seeded original enemies and NPCs:
 
-- name
-- combatant type
-- size
-- AC
-- HP
-- speed
-- initiative bonus
-- ability scores
-- saving throws and skills where present
-- senses and languages
-- traits
-- actions
-- bonus actions where relevant
-- reactions where relevant
-- legendary actions where relevant
-- lair actions where relevant
-- notes
-- tags
-- source metadata set to sample/manual
+- Cindercap Sneak
+- Rattlebone Slinger
+- Murkpot Hexer
+- Bristlejaw Guard
+- Duskmaw Hound
+- Velkora, Lantern Tyrant
+- Sable Market Guide
+
+The seeded template rows include name, creature type, size, role, AC, HP, speed, initiative bonus, challenge rating, ability scores, saving throws, skills, senses, languages, traits, actions, bonus actions, reactions, Legendary Actions, Lair Actions, notes, tags, and source metadata.
+
+Challenge ratings are local sample/testing values only:
+
+- Player characters use `challenge_rating = null`.
+- Cindercap Sneak and Rattlebone Slinger preserve the current sample value `1/4`.
+- Murkpot Hexer and Bristlejaw Guard preserve the current sample value `1/2`.
+- Duskmaw Hound preserves the current sample value `2`.
+- Velkora, Lantern Tyrant preserves the current sample value `6`.
+- Sable Market Guide uses placeholder `0` because the current sample data does not define a CR for this neutral NPC.
+
+These CR values are present so later difficulty tools can test encounter math against saved sample data. They should be treated as simple custom sample values, not official monster balance data. Future difficulty calculations can read `creature_templates.challenge_rating` for reusable library creatures and pair that with `encounter_combatants` counts when estimating a saved encounter.
+
+Velkora is the sample boss and includes both Legendary Actions and Lair Actions. This avoids adding an extra non-sample boss just to test lair action behavior.
 
 ## Saved Encounter Seed
 
-A useful development encounter should include:
+The seed creates one saved encounter:
 
-- `encounters` row with `status = 'running'`
-- Party combat group
-- Red Warband combat group
-- Blue Warband combat group
-- Gold Warband combat group
-- several `encounter_combatants` created as snapshots from templates
-- a boss with Legendary Actions
-- at least one combatant with Lair Actions
-- an `initiative_entries` synthetic Lair Action row
-- one planned wave/reinforcement
+- Name: `Goblin Ambush at the Lantern Alley`
+- Status: `running`
+- Current round: `1`
+- Current turn index: `0`
+- Location: `Lantern Alley market cut-through`
+- Party level: `4`
+- Party size: `3`
+- Difficulty label: `Hard`
+- Accent color: `Gold`
 
 ## Runtime State Seed
 
-The saved encounter seed can demonstrate:
+The saved encounter demonstrates:
 
-- current round
-- current turn index
-- active entry id
-- selected entry id
-- initiative values
-- one manually entered PC initiative
-- one auto-rolled enemy initiative
-- one shared group initiative example
-- current HP below max for one combatant
-- one or two active conditions
-- active combatant state
+- current round and current turn index
+- active and selected initiative entry IDs
+- manually entered PC initiative values
+- non-PC initiative values
+- current HP below max for Mira Quill and Bristlejaw Guard
+- JSONB condition examples
 - combat group assignments
-- dashboard snapshots such as combatant count, boss count, and whether lair actions are present
+- dashboard snapshots for combatant count, boss count, and lair action presence
 
 ## Combat Group Seed
 
-Seed groups should be encounter-specific:
+The seed creates encounter-specific combat groups:
 
 - Party
 - Red Warband
-- Blue Warband
-- Gold Warband
-- Skullfang Pack, if useful for a second example
+- Gold Vanguard
 
-Each group should have:
+Each group has a deterministic UUID, a color key, and a sort order. Ungrouped or neutral combatants use `combat_group_id = null`.
 
-- name
-- color key
-- sort order
-
-Counts should be derived from `encounter_combatants`, not stored directly.
+Counts should still be derived from `encounter_combatants`, not stored directly.
 
 ## Wave Seed
 
-Seed one reinforcement wave with:
+The seed creates one planned reinforcement wave:
 
-- wave name
-- description
-- sort order
-- `deployed = false`
-- planned `encounter_wave_members`
-- default combat group assignment where useful
+- Wave name: `Wave 2: Reinforcements`
+- Deployed: `false`
+- Members: two Cindercap Sneaks and one Duskmaw Hound
+- Default combat group: Red Warband
 
 When deployed later, these wave members should become live `encounter_combatants`.
 
 ## Synthetic Lair Action Seed
 
-The sample encounter should include one synthetic Lair Action initiative row:
+The sample encounter includes one synthetic Lair Action initiative row:
 
 - `entry_type = 'lair_action'`
 - `is_synthetic = true`
 - `initiative_value = 20`
-- `source_combatant_id` pointing to the boss/monster with lair actions
-- display name such as `Lair Actions`
+- `combatant_id = null`
+- `source_combatant_id` points to Velkora's encounter combatant snapshot
+- display name: `Lantern Alley Lair Actions`
 
 This demonstrates that Lair Actions are timing rows, not normal creature rows.
 
@@ -138,4 +131,48 @@ No official monster text should be used in import seed data.
 
 ## Not In This Pass
 
-This pass does not create executable seed scripts or insert sample rows into a database. It only defines how current local sample data should be represented when database seeding is added later.
+This pass does not:
+
+- wire Builder, Runner, or Library UI to Supabase
+- add auth
+- add RLS
+- add importer UI
+- connect to a remote Supabase project
+- add external monster data
+
+## How To Apply Locally
+
+From the project root, after local Supabase is available:
+
+```bash
+npx supabase db reset
+```
+
+`db reset` reapplies local migrations and then runs `supabase/seed.sql`.
+
+After reset, validate the schema has no unexpected drift:
+
+```bash
+npx supabase db diff --local
+```
+
+Expected result after a clean local reset is:
+
+```text
+No schema changes found
+```
+
+Optional local row checks can be run in Supabase Studio or with a local SQL client:
+
+```sql
+select count(*) from public.creature_templates where source_type = 'sample';
+select count(*) from public.encounters where name = 'Goblin Ambush at the Lantern Alley';
+select entry_type, display_name, is_synthetic
+from public.initiative_entries
+where encounter_id = '10000000-0000-4000-8000-000000000001'
+order by sort_order;
+```
+
+## Seed Safety
+
+The seed uses deterministic UUIDs. Before inserting, it clears only the known deterministic sample encounter and sample creature template rows. It does not truncate whole tables and does not assume production data.

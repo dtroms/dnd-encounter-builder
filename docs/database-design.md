@@ -4,7 +4,7 @@
 
 This database foundation is for the D&D Encounter Builder and Initiative Tracker. It is meant to support saved encounters, reusable creature records, custom monsters, pasted stat block imports, planned waves, combat groups, initiative state, HP/runtime state, and synthetic initiative rows.
 
-This pass only creates planning, schema, TypeScript record types, mapper scaffolding, and seed notes. The current app still uses local React state and local sample data.
+This database foundation includes planning, schema, TypeScript record types, mapper scaffolding, and local sample seed data. The current app still uses local React state and local sample data.
 
 The main design rule is:
 
@@ -344,6 +344,7 @@ Reusable creature data:
 - HP
 - speed
 - initiative bonus
+- challenge rating for monsters, bosses, NPCs, and neutral creatures where useful
 - ability scores
 - senses/languages
 - traits/actions/reactions/legendary actions/lair actions
@@ -416,7 +417,7 @@ MVP foundation in this pass:
 - migration file
 - TypeScript DB record types
 - mapper scaffolding
-- sample seed plan
+- local sample seed plan and seed SQL
 
 Later features:
 
@@ -474,7 +475,6 @@ Intentionally deferred:
 - No group template/default party model yet.
 - No RLS/auth policies yet.
 - No Supabase client setup.
-- No seed inserts or executable seed scripts yet.
 - No UI database wiring yet.
 
 Before connecting Supabase, the next pass should apply this migration to a local development database, generate or verify database types against the actual schema, and decide the first read/write boundary, likely Creature Library or Saved Encounters Dashboard before the live Runner.
