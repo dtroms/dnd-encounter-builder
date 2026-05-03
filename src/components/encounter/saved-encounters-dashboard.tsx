@@ -217,22 +217,16 @@ export function SavedEncountersDashboard({
   const selectedEncounter =
     visibleEncounters.find((encounter) => encounter.id === selectedEncounterId) ??
     visibleEncounters[0] ??
-    savedEncounterSamples[0];
+    null;
 
   return (
-    <section className="space-y-3">
-      <div className="rounded-xl border border-slate-800 bg-slate-950/75 p-4 shadow-2xl shadow-black/20">
+    <section className="space-y-4">
+      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 shadow-2xl shadow-black/20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-cyan-300">
-              Encounter archive
-            </p>
-            <h2 className="mt-1 text-2xl font-black text-white">
-              Saved Encounters
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Local master-detail shell for saved encounters. Pick an encounter
-              on the left to inspect its table-ready dossier.
+            <h2 className="text-2xl font-black text-white">Saved Encounters</h2>
+            <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-400">
+              Choose an encounter to edit, run, or review.
             </p>
           </div>
           <button
@@ -245,23 +239,39 @@ export function SavedEncountersDashboard({
         </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(320px,0.38fr)_minmax(0,0.62fr)]">
-        <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-3">
-          <DashboardFilters
-            query={query}
-            sortMode={sortMode}
-            statusFilter={statusFilter}
-            onQueryChange={setQuery}
-            onSortModeChange={setSortMode}
-            onStatusFilterChange={setStatusFilter}
-          />
+      <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.37fr)_minmax(0,0.63fr)]">
+        <aside className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+          <div className="flex items-end justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h3 className="text-base font-black text-white">Your Encounters</h3>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                Pick one to inspect on the right.
+              </p>
+            </div>
+            <span className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-black text-slate-400">
+              {savedEncounterSamples.length} saved
+            </span>
+          </div>
+
+          <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
+            <DashboardFilters
+              query={query}
+              sortMode={sortMode}
+              statusFilter={statusFilter}
+              onQueryChange={setQuery}
+              onSortModeChange={setSortMode}
+              onStatusFilterChange={setStatusFilter}
+            />
+          </div>
 
           <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
             <span>{visibleEncounters.length} shown</span>
-            <span>{savedEncounterSamples.length} saved</span>
+            <span>
+              {statusFilter === "all" ? "All statuses" : statusLabels[statusFilter]}
+            </span>
           </div>
 
-          <div className="mt-3 grid gap-2">
+          <div className="mt-2 grid gap-2">
             {visibleEncounters.map((encounter) => (
               <EncounterListItem
                 encounter={encounter}
@@ -273,19 +283,26 @@ export function SavedEncountersDashboard({
           </div>
 
           {visibleEncounters.length === 0 ? (
-            <div className="mt-3 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center">
-              <p className="text-sm font-bold text-slate-300">
-                No saved encounters match this view.
+            <div className="mt-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
+              <p className="text-sm font-black text-slate-200">
+                No encounters found
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                Clear the search, switch back to All, or create a new encounter.
               </p>
             </div>
           ) : null}
         </aside>
 
-        <EncounterDetailPanel
-          encounter={selectedEncounter}
-          onOpenBuilder={onOpenBuilder}
-          onOpenRunner={onOpenRunner}
-        />
+        {selectedEncounter ? (
+          <EncounterDetailPanel
+            encounter={selectedEncounter}
+            onOpenBuilder={onOpenBuilder}
+            onOpenRunner={onOpenRunner}
+          />
+        ) : (
+          <EmptyDetailPanel />
+        )}
       </div>
     </section>
   );
@@ -364,29 +381,42 @@ function EncounterListItem({
 
   return (
     <button
-      className={`relative overflow-hidden rounded-xl border p-3 text-left transition ${
+      className={`group relative overflow-hidden rounded-lg border p-3 text-left transition ${
         isSelected
-          ? `${accent.border} ${accent.bg} ring-2 ${accent.ring}`
-          : "border-slate-800 bg-slate-900/70 hover:border-slate-600"
+          ? `${accent.border} ${accent.bg} shadow-[0_0_0_1px_rgba(255,255,255,0.05)] ring-2 ${accent.ring}`
+          : "border-slate-800 bg-slate-900/55 hover:border-slate-600 hover:bg-slate-900/80"
       }`}
       aria-pressed={isSelected}
       type="button"
       onClick={onSelect}
     >
-      <span className={`absolute inset-y-0 left-0 w-1 ${accent.dot}`} />
-      <div className="pl-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusChip encounter={encounter} compact />
-          {encounter.has_lair_actions_snapshot ? (
-            <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100">
-              Lair
+      <span
+        className={`absolute inset-y-0 left-0 ${isSelected ? "w-1.5" : "w-1"} ${accent.dot}`}
+      />
+      <div className="pl-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <StatusChip encounter={encounter} compact />
+            {encounter.has_lair_actions_snapshot ? (
+              <span className="rounded-md border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-100">
+                Lair
+              </span>
+            ) : null}
+            {isRunning ? (
+              <span className="text-[11px] font-black text-cyan-200">
+                Round {encounter.current_round}
+              </span>
+            ) : null}
+          </div>
+          {isSelected ? (
+            <span className="shrink-0 rounded-md bg-white px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-950">
+              Selected
             </span>
-          ) : null}
-          {isRunning ? (
-            <span className="text-[11px] font-black text-cyan-200">
-              Round {encounter.current_round}
+          ) : (
+            <span className="shrink-0 text-sm font-black text-slate-600 transition group-hover:text-slate-300">
+              &gt;
             </span>
-          ) : null}
+          )}
         </div>
         <h3 className="mt-2 line-clamp-1 text-base font-black text-white">
           {encounter.name}
@@ -421,137 +451,224 @@ function EncounterDetailPanel({
 
   return (
     <section
-      className={`overflow-hidden rounded-xl border bg-slate-950/80 shadow-2xl shadow-black/20 ${
+      className={`overflow-hidden rounded-xl border bg-slate-900/70 shadow-2xl shadow-black/20 ${
         isRunning ? accent.border : "border-slate-800"
       }`}
     >
-      <div className={`h-1.5 ${accent.dot}`} />
-      <div className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusChip encounter={encounter} />
-              <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-300">
-                {encounter.combatant_count_snapshot} combatants
-              </span>
-              {encounter.has_lair_actions_snapshot ? (
-                <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
-                  Lair actions
-                </span>
-              ) : null}
-              {encounter.boss_count_snapshot > 0 ? (
-                <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
-                  Boss
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-3 text-xs font-bold text-slate-500">
-              {encounter.location}
+      <div className={`h-2 ${accent.dot}`} />
+      <div className="p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-300">
+              Selected Encounter
             </p>
-            <h3 className="mt-2 text-3xl font-black leading-tight text-white">
-              {encounter.name}
+            <h3 className="mt-1 text-lg font-black text-white">
+              Encounter Details
             </h3>
           </div>
-
-          {isRunning ? (
-            <div className={`${accent.bg} ${accent.border} rounded-xl border px-3 py-2 text-right`}>
-              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                Current round
-              </p>
-              <p className="text-2xl font-black text-white">
-                {encounter.current_round}
-              </p>
-            </div>
-          ) : null}
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-            Dossier notes
-          </p>
-          <p className="mt-2 text-[15px] font-semibold leading-7 text-slate-200">
-            {encounter.description}
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-x-5 gap-y-2 border-b border-slate-800 pb-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
-          <DossierFact label="Party" value={`Level ${encounter.party_level}, ${encounter.party_size} PCs`} />
-          <DossierFact label="Difficulty" value={encounter.difficulty_label} />
-          <DossierFact
-            label="Last played"
-            value={
-              encounter.last_played_at
-                ? formatLongDate(encounter.last_played_at)
-                : "Not played yet"
-            }
-          />
-          <DossierFact label="Updated" value={formatLongDate(encounter.updated_at)} />
-          <DossierFact
-            label="Boss indicator"
-            value={
-              encounter.boss_count_snapshot > 0
-                ? `${encounter.boss_count_snapshot} boss`
-                : "None"
-            }
-          />
-          <DossierFact
-            label="Lair actions"
-            value={encounter.has_lair_actions_snapshot ? "Present" : "None"}
-          />
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h4 className="text-sm font-black text-white">Combatants</h4>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                Names-only preview from local mock data
+        <div className="rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusChip encounter={encounter} />
+                <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-300">
+                  {encounter.combatant_count_snapshot} combatants
+                </span>
+                {encounter.has_lair_actions_snapshot ? (
+                  <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
+                    Lair actions
+                  </span>
+                ) : null}
+                {encounter.boss_count_snapshot > 0 ? (
+                  <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
+                    Boss
+                  </span>
+                ) : null}
+              </div>
+              <h4 className="mt-3 text-3xl font-black leading-tight text-white">
+                {encounter.name}
+              </h4>
+              <p className="mt-2 text-sm font-bold text-slate-400">
+                {encounter.location}
               </p>
             </div>
-            <span className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-black text-slate-300">
-              {encounter.combatant_count_snapshot} total
-            </span>
+
+            <ActionButtons
+              isRunning={isRunning}
+              onOpenBuilder={onOpenBuilder}
+              onOpenRunner={onOpenRunner}
+            />
           </div>
+
+          <div
+            className={`mt-4 rounded-lg border ${accent.border} ${accent.bg} p-3`}
+          >
+            <p className="text-sm font-semibold leading-6 text-slate-100">
+              {encounter.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <SectionHeader eyebrow="Overview" title="At a glance" />
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <OverviewStat label="Status" value={statusLabels[encounter.status]} />
+            <OverviewStat label="Difficulty" value={encounter.difficulty_label} />
+            <OverviewStat
+              label="Party"
+              value={`Level ${encounter.party_level}, ${encounter.party_size} PCs`}
+            />
+            <OverviewStat
+              label={isRunning ? "Current Round" : "Updated"}
+              value={
+                isRunning
+                  ? String(encounter.current_round)
+                  : formatLongDate(encounter.updated_at)
+              }
+            />
+            <OverviewStat
+              label="Last Played"
+              value={
+                encounter.last_played_at
+                  ? formatLongDate(encounter.last_played_at)
+                  : "Not played yet"
+              }
+            />
+            <OverviewStat label="Special" value={getSpecialSummary(encounter)} />
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-slate-800 pt-5">
+          <SectionHeader
+            eyebrow="Combatants"
+            title="Encounter Roster Preview"
+            detail={`${encounter.combatant_count_snapshot} total`}
+          />
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Names only. Open Runner for full HP, initiative, and conditions.
+          </p>
           <CombatantPreviewList combatants={encounter.combatants_preview} />
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className={`rounded-lg px-3 py-2 text-xs font-black transition ${
-              isRunning
-                ? "bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-                : "border border-cyan-300/45 bg-cyan-300/10 text-cyan-100 hover:border-cyan-200 hover:text-white"
-            }`}
-            type="button"
-            onClick={isRunning ? onOpenRunner : onOpenBuilder}
-          >
-            {isRunning ? "Open Runner" : "Open Builder"}
-          </button>
-          <button
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
-            type="button"
-            onClick={isRunning ? onOpenBuilder : onOpenRunner}
-          >
-            {isRunning ? "Open Builder" : "Open Runner"}
-          </button>
-          <button
-            className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
-            type="button"
-          >
-            Duplicate later
-          </button>
-          <button
-            className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
-            type="button"
-          >
-            Archive later
-          </button>
+        <div className="mt-5 border-t border-slate-800 pt-5">
+          <SectionHeader eyebrow="Actions" title="Open or manage" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-500"
+              disabled
+              type="button"
+            >
+              Duplicate later
+            </button>
+            <button
+              className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-500"
+              disabled
+              type="button"
+            >
+              Archive later
+            </button>
+          </div>
         </div>
       </div>
     </section>
   );
+}
+
+function EmptyDetailPanel() {
+  return (
+    <section className="rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-8 text-center">
+      <p className="text-lg font-black text-white">Select an encounter</p>
+      <p className="mt-2 text-sm font-semibold text-slate-500">
+        Select an encounter to view details.
+      </p>
+    </section>
+  );
+}
+
+function ActionButtons({
+  isRunning,
+  onOpenBuilder,
+  onOpenRunner,
+}: {
+  isRunning: boolean;
+  onOpenBuilder: () => void;
+  onOpenRunner: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <button
+        className={`rounded-lg px-3 py-2 text-xs font-black transition ${
+          isRunning
+            ? "bg-cyan-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.16)] hover:bg-cyan-200"
+            : "border border-cyan-300/45 bg-cyan-300/10 text-cyan-100 hover:border-cyan-200 hover:text-white"
+        }`}
+        type="button"
+        onClick={isRunning ? onOpenRunner : onOpenBuilder}
+      >
+        {isRunning ? "Open Runner" : "Open Builder"}
+      </button>
+      <button
+        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+        type="button"
+        onClick={isRunning ? onOpenBuilder : onOpenRunner}
+      >
+        {isRunning ? "Open Builder" : "Open Runner"}
+      </button>
+    </div>
+  );
+}
+
+function SectionHeader({
+  detail,
+  eyebrow,
+  title,
+}: {
+  detail?: string;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+          {eyebrow}
+        </p>
+        <h4 className="mt-1 text-base font-black text-white">{title}</h4>
+      </div>
+      {detail ? (
+        <span className="rounded-lg border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-xs font-black text-slate-300">
+          {detail}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function OverviewStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950/55 px-3 py-2.5">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-black text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function getSpecialSummary(encounter: SavedEncounterSummary) {
+  const notes: string[] = [];
+
+  if (encounter.boss_count_snapshot > 0) {
+    notes.push(`${encounter.boss_count_snapshot} boss`);
+  }
+
+  if (encounter.has_lair_actions_snapshot) {
+    notes.push("Lair actions");
+  }
+
+  return notes.length > 0 ? notes.join(", ") : "None";
 }
 
 function CombatantPreviewList({
@@ -559,7 +676,7 @@ function CombatantPreviewList({
 }: {
   combatants: DashboardCombatantPreview[];
 }) {
-  const visibleCombatants = combatants.slice(0, 10);
+  const visibleCombatants = combatants.slice(0, 8);
   const remainingCount = Math.max(0, combatants.length - visibleCombatants.length);
 
   return (
@@ -569,7 +686,7 @@ function CombatantPreviewList({
       ))}
       {remainingCount > 0 ? (
         <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-black text-slate-400">
-          + {remainingCount} more
+          + {remainingCount} more in encounter
         </div>
       ) : null}
     </div>
@@ -625,17 +742,6 @@ function StatusChip({
     >
       {statusLabels[encounter.status]}
     </span>
-  );
-}
-
-function DossierFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-sm font-black text-slate-100">{value}</p>
-    </div>
   );
 }
 
