@@ -29,6 +29,8 @@ export type SavedEncounterSummary = {
   has_lair_actions_snapshot: boolean;
   group_count: number;
   combatants_preview: DashboardCombatantPreview[];
+  notes?: string;
+  reminders?: string[];
 };
 
 export const savedEncounterSamples: SavedEncounterSummary[] = [
@@ -64,6 +66,13 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
       { id: "lantern-velkora", name: "Velkora, Lantern Tyrant", combatant_type: "boss", group_name: "Gold Vanguard", group_color_key: "Gold" },
       { id: "lantern-sable", name: "Sable Market Guide", combatant_type: "neutral", group_name: "Ungrouped", group_color_key: "None" },
     ],
+    notes:
+      "Start with the market stalls as cover. Keep the neutral guide close to the party unless the boss calls for a retreat.",
+    reminders: [
+      "Lair action occurs on initiative 20.",
+      "A second alarm bell rings if the boss survives past round 3.",
+      "The boss tries to flee once badly wounded.",
+    ],
   },
   {
     id: "10000000-0000-4000-8000-000000000002",
@@ -92,6 +101,12 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
       { id: "moonwell-sable", name: "Sable Market Guide", combatant_type: "neutral", group_name: "Roadside", group_color_key: "Gray" },
       { id: "moonwell-cinder", name: "Cindercap Lookout", combatant_type: "enemy", group_name: "Thicket Crew", group_color_key: "Green" },
       { id: "moonwell-rattle", name: "Rattlebone Pebbler", combatant_type: "enemy", group_name: "Thicket Crew", group_color_key: "Green" },
+    ],
+    notes:
+      "Use this as a flexible draft. The shrine can become either a tense negotiation or a quick roadside fight.",
+    reminders: [
+      "Add one more patrol if the party arrives loudly.",
+      "The nervous ally should warn the party before blades come out.",
     ],
   },
   {
@@ -128,6 +143,12 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
       { id: "glass-murk", name: "Murkpot Smoke Hexer", combatant_type: "enemy", group_name: "Shadow Lane", group_color_key: "Purple" },
       { id: "glass-rattle-2", name: "Rattlebone Bottle Tosser", combatant_type: "enemy", group_name: "Roof Crew", group_color_key: "Red" },
     ],
+    notes:
+      "Finished encounter record. Keep this around as a reference for future rooftop hazards and chase pacing.",
+    reminders: [
+      "Fragile walkways break after a heavy hit.",
+      "Furnace vents create cover but punish anyone who stays too long.",
+    ],
   },
   {
     id: "10000000-0000-4000-8000-000000000004",
@@ -158,6 +179,12 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
       { id: "ash-rattle", name: "Rattlebone Bell Ringer", combatant_type: "enemy", group_name: "Signal Crew", group_color_key: "Gold" },
       { id: "ash-cinder", name: "Cindercap Fuse Sneak", combatant_type: "enemy", group_name: "Signal Crew", group_color_key: "Gold" },
       { id: "ash-sable", name: "Sable Market Guide", combatant_type: "neutral", group_name: "Ungrouped", group_color_key: "None" },
+    ],
+    notes:
+      "Archived checkpoint fight with a possible surrender route. Useful template for guarded roadblocks.",
+    reminders: [
+      "Signal crew can call reinforcements after round 2.",
+      "Gate crew may surrender if both guards are bloodied.",
     ],
   },
   {
@@ -190,6 +217,13 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
       { id: "violet-hound", name: "Duskmaw Cellar Hound", combatant_type: "enemy", group_name: "Shadow Spill", group_color_key: "Red" },
       { id: "violet-velkora", name: "Velkora's Lantern Shade", combatant_type: "boss", group_name: "Shadow Spill", group_color_key: "Gold" },
       { id: "violet-sable", name: "Sable Market Guide", combatant_type: "neutral", group_name: "Ungrouped", group_color_key: "None" },
+    ],
+    notes:
+      "Cramped cellar fight. Keep movement tight and make the ritual hazard feel unstable without turning it into bookkeeping.",
+    reminders: [
+      "Lair action occurs on initiative 20.",
+      "Ritual flare-up at the end of round 2.",
+      "Summoned help should enter near the back stairs.",
     ],
   },
 ];

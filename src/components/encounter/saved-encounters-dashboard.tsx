@@ -11,6 +11,13 @@ import type { CombatantType } from "@/lib/encounter/types";
 
 type StatusFilter = EncounterStatus | "all";
 type SortMode = "recent" | "name" | "status";
+type DetailTab = "overview" | "roster" | "notes";
+
+const detailTabs: Array<{ key: DetailTab; label: string }> = [
+  { key: "overview", label: "Overview" },
+  { key: "roster", label: "Roster" },
+  { key: "notes", label: "Notes" },
+];
 
 const statusFilters: Array<{ key: StatusFilter; label: string }> = [
   { key: "all", label: "All" },
@@ -177,6 +184,7 @@ export function SavedEncountersDashboard({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
+  const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
   const [selectedEncounterId, setSelectedEncounterId] = useState(
     savedEncounterSamples[0]?.id ?? "",
   );
@@ -226,7 +234,7 @@ export function SavedEncountersDashboard({
           <div>
             <h2 className="text-2xl font-black text-white">Saved Encounters</h2>
             <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-400">
-              Choose an encounter to edit, run, or review.
+              Choose an encounter to run, edit, or review.
             </p>
           </div>
           <button
@@ -245,7 +253,7 @@ export function SavedEncountersDashboard({
             <div>
               <h3 className="text-base font-black text-white">Your Encounters</h3>
               <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                Pick one to inspect on the right.
+                Pick one to inspect or open.
               </p>
             </div>
             <span className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-black text-slate-400">
@@ -277,7 +285,10 @@ export function SavedEncountersDashboard({
                 encounter={encounter}
                 isSelected={encounter.id === selectedEncounter?.id}
                 key={encounter.id}
-                onSelect={() => setSelectedEncounterId(encounter.id)}
+                onSelect={() => {
+                  setSelectedEncounterId(encounter.id);
+                  setActiveDetailTab("overview");
+                }}
               />
             ))}
           </div>
@@ -290,6 +301,16 @@ export function SavedEncountersDashboard({
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
                 Clear the search, switch back to All, or create a new encounter.
               </p>
+              <button
+                className="mt-3 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setStatusFilter("all");
+                }}
+              >
+                Clear Filters
+              </button>
             </div>
           ) : null}
         </aside>
@@ -297,6 +318,8 @@ export function SavedEncountersDashboard({
         {selectedEncounter ? (
           <EncounterDetailPanel
             encounter={selectedEncounter}
+            activeTab={activeDetailTab}
+            onActiveTabChange={setActiveDetailTab}
             onOpenBuilder={onOpenBuilder}
             onOpenRunner={onOpenRunner}
           />
@@ -438,11 +461,15 @@ function EncounterListItem({
 }
 
 function EncounterDetailPanel({
+  activeTab,
   encounter,
+  onActiveTabChange,
   onOpenBuilder,
   onOpenRunner,
 }: {
+  activeTab: DetailTab;
   encounter: SavedEncounterSummary;
+  onActiveTabChange: (tab: DetailTab) => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
@@ -451,125 +478,57 @@ function EncounterDetailPanel({
 
   return (
     <section
-      className={`overflow-hidden rounded-xl border bg-slate-900/70 shadow-2xl shadow-black/20 ${
+      className={`overflow-hidden rounded-xl border bg-slate-900/65 shadow-2xl shadow-black/20 ${
         isRunning ? accent.border : "border-slate-800"
       }`}
     >
       <div className={`h-2 ${accent.dot}`} />
       <div className="p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-300">
-              Selected Encounter
-            </p>
-            <h3 className="mt-1 text-lg font-black text-white">
-              Encounter Details
-            </h3>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-slate-950/75 p-4">
+        <div className="rounded-xl bg-slate-950/80 p-4 shadow-inner shadow-black/15">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusChip encounter={encounter} />
-                <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-300">
-                  {encounter.combatant_count_snapshot} combatants
-                </span>
-                {encounter.has_lair_actions_snapshot ? (
-                  <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
-                    Lair actions
-                  </span>
-                ) : null}
                 {encounter.boss_count_snapshot > 0 ? (
                   <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
                     Boss
                   </span>
                 ) : null}
+                {encounter.has_lair_actions_snapshot ? (
+                  <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-100">
+                    Lair actions
+                  </span>
+                ) : null}
               </div>
-              <h4 className="mt-3 text-3xl font-black leading-tight text-white">
+
+              <h3 className="mt-3 text-3xl font-black leading-tight text-white">
                 {encounter.name}
-              </h4>
+              </h3>
               <p className="mt-2 text-sm font-bold text-slate-400">
                 {encounter.location}
+              </p>
+              <p className="mt-4 max-w-4xl text-[15px] font-semibold leading-7 text-slate-200">
+                {encounter.description}
               </p>
             </div>
 
             <ActionButtons
+              encounter={encounter}
               isRunning={isRunning}
               onOpenBuilder={onOpenBuilder}
               onOpenRunner={onOpenRunner}
             />
           </div>
-
-          <div
-            className={`mt-4 rounded-lg border ${accent.border} ${accent.bg} p-3`}
-          >
-            <p className="text-sm font-semibold leading-6 text-slate-100">
-              {encounter.description}
-            </p>
-          </div>
         </div>
 
-        <div className="mt-5">
-          <SectionHeader eyebrow="Overview" title="At a glance" />
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            <OverviewStat label="Status" value={statusLabels[encounter.status]} />
-            <OverviewStat label="Difficulty" value={encounter.difficulty_label} />
-            <OverviewStat
-              label="Party"
-              value={`Level ${encounter.party_level}, ${encounter.party_size} PCs`}
-            />
-            <OverviewStat
-              label={isRunning ? "Current Round" : "Updated"}
-              value={
-                isRunning
-                  ? String(encounter.current_round)
-                  : formatLongDate(encounter.updated_at)
-              }
-            />
-            <OverviewStat
-              label="Last Played"
-              value={
-                encounter.last_played_at
-                  ? formatLongDate(encounter.last_played_at)
-                  : "Not played yet"
-              }
-            />
-            <OverviewStat label="Special" value={getSpecialSummary(encounter)} />
-          </div>
-        </div>
+        <DetailTabs activeTab={activeTab} onActiveTabChange={onActiveTabChange} />
 
-        <div className="mt-5 border-t border-slate-800 pt-5">
-          <SectionHeader
-            eyebrow="Combatants"
-            title="Encounter Roster Preview"
-            detail={`${encounter.combatant_count_snapshot} total`}
-          />
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            Names only. Open Runner for full HP, initiative, and conditions.
-          </p>
-          <CombatantPreviewList combatants={encounter.combatants_preview} />
-        </div>
-
-        <div className="mt-5 border-t border-slate-800 pt-5">
-          <SectionHeader eyebrow="Actions" title="Open or manage" />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
-              type="button"
-            >
-              Duplicate later
-            </button>
-            <button
-              className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
-              type="button"
-            >
-              Archive later
-            </button>
-          </div>
+        <div className="mt-4">
+          {activeTab === "overview" ? (
+            <OverviewTab encounter={encounter} isRunning={isRunning} />
+          ) : null}
+          {activeTab === "roster" ? <RosterTab encounter={encounter} /> : null}
+          {activeTab === "notes" ? <NotesTab encounter={encounter} /> : null}
         </div>
       </div>
     </section>
@@ -581,41 +540,179 @@ function EmptyDetailPanel() {
     <section className="rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-8 text-center">
       <p className="text-lg font-black text-white">Select an encounter</p>
       <p className="mt-2 text-sm font-semibold text-slate-500">
-        Select an encounter to view details.
+        Choose an encounter on the left to view details, open the Builder, or
+        start the Runner.
       </p>
     </section>
   );
 }
 
 function ActionButtons({
+  encounter,
   isRunning,
   onOpenBuilder,
   onOpenRunner,
 }: {
+  encounter: SavedEncounterSummary;
   isRunning: boolean;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
+  const primaryAction =
+    encounter.status === "draft" ? "Open Builder" : "Open Runner";
+  const secondaryAction =
+    encounter.status === "draft" ? "Open Runner" : "Open Builder";
+  const primaryHandler =
+    encounter.status === "draft" ? onOpenBuilder : onOpenRunner;
+  const secondaryHandler =
+    encounter.status === "draft" ? onOpenRunner : onOpenBuilder;
+
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="flex max-w-full flex-wrap justify-end gap-2">
       <button
         className={`rounded-lg px-3 py-2 text-xs font-black transition ${
-          isRunning
+          isRunning || encounter.status === "draft"
             ? "bg-cyan-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.16)] hover:bg-cyan-200"
             : "border border-cyan-300/45 bg-cyan-300/10 text-cyan-100 hover:border-cyan-200 hover:text-white"
         }`}
         type="button"
-        onClick={isRunning ? onOpenRunner : onOpenBuilder}
+        onClick={primaryHandler}
       >
-        {isRunning ? "Open Runner" : "Open Builder"}
+        {primaryAction}
       </button>
       <button
         className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
         type="button"
-        onClick={isRunning ? onOpenBuilder : onOpenRunner}
+        onClick={secondaryHandler}
       >
-        {isRunning ? "Open Builder" : "Open Runner"}
+        {secondaryAction}
       </button>
+      <button
+        className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-black text-slate-500"
+        disabled
+        type="button"
+      >
+        Duplicate later
+      </button>
+      <button
+        className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-black text-slate-500"
+        disabled
+        type="button"
+      >
+        Archive later
+      </button>
+    </div>
+  );
+}
+
+function DetailTabs({
+  activeTab,
+  onActiveTabChange,
+}: {
+  activeTab: DetailTab;
+  onActiveTabChange: (tab: DetailTab) => void;
+}) {
+  return (
+    <div className="mt-4 flex gap-1 rounded-lg border border-slate-800 bg-slate-950/55 p-1">
+      {detailTabs.map((tab) => (
+        <button
+          className={`flex-1 rounded-md px-3 py-2 text-xs font-black transition ${
+            activeTab === tab.key
+              ? "bg-cyan-300 text-slate-950"
+              : "text-slate-400 hover:bg-slate-900 hover:text-white"
+          }`}
+          key={tab.key}
+          type="button"
+          onClick={() => onActiveTabChange(tab.key)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function OverviewTab({
+  encounter,
+  isRunning,
+}: {
+  encounter: SavedEncounterSummary;
+  isRunning: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-950/45 p-4">
+      <SectionHeader eyebrow="Overview" title="What kind of encounter is this?" />
+      <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+        <OverviewFact label="Difficulty" value={encounter.difficulty_label} />
+        <OverviewFact
+          label="Party"
+          value={`Level ${encounter.party_level}, ${encounter.party_size} PCs`}
+        />
+        <OverviewFact
+          label={isRunning ? "Current Round" : "Updated"}
+          value={
+            isRunning
+              ? String(encounter.current_round)
+              : formatLongDate(encounter.updated_at)
+          }
+        />
+        <OverviewFact
+          label="Last Played"
+          value={
+            encounter.last_played_at
+              ? formatLongDate(encounter.last_played_at)
+              : "Not played yet"
+          }
+        />
+        <OverviewFact label="Special" value={getSpecialSummary(encounter)} />
+        <OverviewFact label="Location" value={encounter.location} />
+      </div>
+    </div>
+  );
+}
+
+function RosterTab({ encounter }: { encounter: SavedEncounterSummary }) {
+  return (
+    <div className="rounded-xl bg-slate-950/45 p-4">
+      <SectionHeader
+        detail={`${encounter.combatant_count_snapshot} total`}
+        eyebrow="Roster"
+        title="Who is in this encounter?"
+      />
+      <p className="mt-1 text-xs font-semibold text-slate-500">
+        Names only. Open Runner for full HP, initiative, and conditions.
+      </p>
+      <CombatantPreviewList combatants={encounter.combatants_preview} />
+    </div>
+  );
+}
+
+function NotesTab({ encounter }: { encounter: SavedEncounterSummary }) {
+  return (
+    <div className="rounded-xl bg-slate-950/45 p-4">
+      <SectionHeader eyebrow="Notes" title="What should I remember?" />
+      <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">
+        {encounter.notes ??
+          encounter.description ??
+          "No notes saved for this encounter yet."}
+      </p>
+      {encounter.reminders && encounter.reminders.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+            Reminders
+          </p>
+          <ul className="mt-2 space-y-2">
+            {encounter.reminders.map((reminder) => (
+              <li
+                className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm font-semibold leading-6 text-slate-300"
+                key={reminder}
+              >
+                {reminder}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -646,9 +743,9 @@ function SectionHeader({
   );
 }
 
-function OverviewStat({ label, value }: { label: string; value: string }) {
+function OverviewFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950/55 px-3 py-2.5">
+    <div className="min-w-0">
       <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
         {label}
       </p>
@@ -676,13 +773,29 @@ function CombatantPreviewList({
 }: {
   combatants: DashboardCombatantPreview[];
 }) {
-  const visibleCombatants = combatants.slice(0, 8);
+  const visibleCombatants = combatants.slice(0, 12);
   const remainingCount = Math.max(0, combatants.length - visibleCombatants.length);
+  const groupedCombatants = groupCombatantsByGroup(visibleCombatants);
 
   return (
-    <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
-      {visibleCombatants.map((combatant) => (
-        <CombatantPreviewItem combatant={combatant} key={combatant.id} />
+    <div className="mt-3 space-y-3">
+      {groupedCombatants.map((group) => (
+        <div key={group.name}>
+          <div className="mb-1.5 flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${groupColorStyles[group.colorKey].dot}`}
+            />
+            <p className="text-xs font-black text-slate-300">{group.name}</p>
+            <span className="text-[11px] font-bold text-slate-600">
+              {group.combatants.length}
+            </span>
+          </div>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {group.combatants.map((combatant) => (
+              <CombatantPreviewItem combatant={combatant} key={combatant.id} />
+            ))}
+          </div>
+        </div>
       ))}
       {remainingCount > 0 ? (
         <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/70 px-3 py-2 text-xs font-black text-slate-400">
@@ -691,6 +804,35 @@ function CombatantPreviewList({
       ) : null}
     </div>
   );
+}
+
+function groupCombatantsByGroup(combatants: DashboardCombatantPreview[]) {
+  const groups = new Map<
+    string,
+    {
+      colorKey: DashboardCombatantPreview["group_color_key"];
+      combatants: DashboardCombatantPreview[];
+      name: string;
+    }
+  >();
+
+  combatants.forEach((combatant) => {
+    const groupName = combatant.group_name || "Ungrouped";
+    const existing = groups.get(groupName);
+
+    if (existing) {
+      existing.combatants.push(combatant);
+      return;
+    }
+
+    groups.set(groupName, {
+      colorKey: combatant.group_color_key,
+      combatants: [combatant],
+      name: groupName,
+    });
+  });
+
+  return [...groups.values()];
 }
 
 function CombatantPreviewItem({
@@ -707,11 +849,6 @@ function CombatantPreviewItem({
       <span className={`h-7 w-1 shrink-0 rounded-full ${groupStyle.dot}`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{combatant.name}</p>
-        {combatant.group_name !== "Ungrouped" ? (
-          <p className={`truncate text-[11px] font-bold ${groupStyle.text}`}>
-            {combatant.group_name}
-          </p>
-        ) : null}
       </div>
       <span className="shrink-0 rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-400">
         {typeLabels[combatant.combatant_type]}

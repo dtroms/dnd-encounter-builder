@@ -6,22 +6,22 @@ This pass adds a UI shell only. It uses local mock data shaped like the `encount
 
 ## Current Master-Detail Dashboard
 
-The dashboard uses a master-detail layout with a clear user-facing purpose: choose an encounter to edit, run, or review.
+The dashboard uses a master-detail layout with a clear user-facing purpose: choose an encounter to run, edit, or review.
 
-- Left column: choose an encounter.
-- Right column: inspect and act on the selected encounter.
+- Left column: saved encounter picker.
+- Right column: selected encounter briefing.
 
 On desktop, the left column is the chooser and the right column is the selected encounter dossier. On smaller screens, the layout stacks so the selected details appear below the list.
 
 The top header is intentionally plain:
 
 - Saved Encounters
-- Choose an encounter to edit, run, or review.
+- Choose an encounter to run, edit, or review.
 - Create New Encounter
 
 ## Left Encounter List
 
-The left column is labeled `Your Encounters` and groups the search, status filter, and sort controls above the saved encounter list.
+The left column is labeled `Your Encounters` and groups the search, status filter, and sort controls above the saved encounter list. Its helper text is `Pick one to inspect or open.`
 
 Each encounter row is compact and clickable. It shows:
 
@@ -31,50 +31,78 @@ Each encounter row is compact and clickable. It shows:
 - location
 - last played or updated date
 - accent strip
+- optional important chips such as Lair or Round number
 
 The selected encounter has a stronger accent strip, brighter border/background treatment, and a `Selected` label so it is easier to distinguish from the rest of the list.
 
-If search or filters return no results, the list shows `No encounters found` with a hint to clear filters or create a new encounter.
+If search or filters return no results, the list shows `No encounters found` with a hint to clear filters or create a new encounter, plus a simple Clear Filters button.
 
-## Right Detail Panel
+## Right Encounter Briefing
 
-The right detail panel shows:
+The right column starts with a selected encounter hero/header section. It shows:
 
-- selected encounter name, status, location, and description
-- primary Open Runner/Open Builder actions near the selected encounter title
-- an Overview section with status, difficulty, party, current round or updated date, last played, and special boss/lair indicators
-- a Combatant Preview section
-- quieter future management placeholders for Duplicate and Archive
+- status chip
+- optional Boss chip
+- optional Lair actions chip
+- selected encounter name
+- location
+- readable description
+- Open Runner and Open Builder actions
+- quieter future Duplicate and Archive placeholders
 
-The selected encounter description is shown in a highlighted block so the encounter premise is easier to read. The overview details use a compact grid with secondary labels and stronger values.
+Open Runner is primary for running encounters. Open Builder is primary for drafts. Duplicate and Archive remain disabled placeholders.
 
-## Combatant Preview
+If no encounter is selected, the right panel shows a clear empty state: choose an encounter on the left to view details, open the Builder, or start the Runner.
 
-The Combatant Preview is names-only. It shows:
+## Detail Tabs
+
+Below the hero, the right panel uses tabs so the dashboard does not show every detail at once:
+
+- Overview
+- Roster
+- Notes
+
+Only one tab is visible at a time. Tab state is local React state only.
+
+## Overview Tab
+
+Overview answers: `What kind of encounter is this?`
+
+It uses a compact fact layout with secondary labels and readable values:
+
+- Difficulty
+- Party
+- Current Round or Updated
+- Last Played
+- Special boss/lair indicators
+- Location
+
+Combatant count, boss count, and group count are not shown as prominent stat cards.
+
+## Roster Tab
+
+Roster answers: `Who is in this encounter?`
+
+The roster is names-only. It shows:
 
 - combatant name
 - small role badge
 - colored group marker that matches Encounter Runner group colors
-- group name when helpful
+- combatants grouped by combat group when practical
 
-The preview shows the first 8 combatants and then a `+ X more in encounter` row when the encounter has more. It does not show HP, initiative, conditions, stat blocks, or combat controls.
+The roster shows the first 12 combatants and then a `+ X more in encounter` row when the encounter has more. It does not show HP, initiative, AC, conditions, stat blocks, or combat controls.
+
+## Notes Tab
+
+Notes answers: `What should I remember about this encounter?`
+
+It shows the encounter note text and local mock reminders such as lair timing, reinforcements, or boss behavior. These notes are original/custom sample content only.
 
 ## Local Data Only
 
-Search, status filtering, sorting, selected encounter state, and combatant previews are local React/mock-data behavior only.
+Search, status filtering, sorting, selected encounter state, tabs, notes, reminders, and combatant previews are local React/mock-data behavior only.
 
 The dashboard still uses local mock data only. It does not read from Supabase, write to Supabase, add auth, add RLS, or connect saved encounters to persistent storage yet.
-
-## Previous Detail Fields
-
-The dashboard still keeps the useful encounter summary information available in the selected detail panel:
-
-- current round when running
-- party level and party size
-- difficulty label
-- lair action and boss indicators
-- action buttons for opening Builder or Runner
-- disabled placeholders for future Duplicate and Archive actions
 
 ## Future Database Wiring
 
