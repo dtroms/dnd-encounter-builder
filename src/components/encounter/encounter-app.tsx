@@ -23,12 +23,12 @@ import {
 } from "@/lib/encounter/initiative";
 import { applyDamage, applyHealing } from "@/lib/encounter/hp";
 import { AppShell, type EncounterView } from "./app-shell";
+import { CreatureLibrary } from "./creature-library";
 import { EncounterBuilder } from "./encounter-builder";
 import { EncounterRunner } from "./encounter-runner";
 import type { RunnerFilter } from "./initiative-list";
 import { SavedEncountersDashboard } from "./saved-encounters-dashboard";
 import { StatBlockImporterPlaceholder } from "./stat-block-importer-placeholder";
-import { TypeBadge } from "./type-badge";
 
 const starterCombatants = [
   createCombatant(sampleCreatureTemplates[0]),
@@ -526,76 +526,13 @@ export function EncounterApp() {
       ) : null}
 
       {activeView === "library" ? (
-        <LibraryPreview templates={sampleCreatureTemplates} />
+        <CreatureLibrary
+          onOpenBuilder={openBuilder}
+          onOpenImporter={() => setActiveView("importer")}
+        />
       ) : null}
 
       {activeView === "importer" ? <StatBlockImporterPlaceholder /> : null}
     </AppShell>
-  );
-}
-
-function LibraryPreview({ templates }: { templates: CreatureTemplate[] }) {
-  return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-black text-white">Library</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Placeholder view for the future creature repository. For now this
-            uses the local custom sample set.
-          </p>
-        </div>
-        <span className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-bold text-slate-300">
-          {templates.length} templates
-        </span>
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {templates.map((template) => (
-          <article
-            className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
-            key={template.id}
-          >
-            <TypeBadge type={template.type} />
-            <h3 className="mt-3 text-xl font-black text-white">{template.name}</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {template.size} - {template.speed}
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <LibraryStat label="AC" value={String(template.armorClass)} />
-              <LibraryStat label="HP" value={String(template.maxHp)} />
-              <LibraryStat
-                label="Init"
-                value={`${template.initiativeBonus >= 0 ? "+" : ""}${template.initiativeBonus}`}
-              />
-            </div>
-            <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-400">
-              {template.notes}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {template.tags.map((tag) => (
-                <span
-                  className="rounded-full bg-slate-950 px-2 py-1 text-xs font-semibold text-slate-400"
-                  key={tag}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LibraryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-slate-950 p-2 text-center">
-      <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-lg font-black text-white">{value}</p>
-    </div>
   );
 }
