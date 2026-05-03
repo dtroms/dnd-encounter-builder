@@ -1380,15 +1380,19 @@ function cloneEntries<T extends StatBlockAction | StatBlockTrait>(
 }
 
 function normalizeCreature(creature: LibraryCreature): LibraryCreature {
+  const characterSheetUrl = normalizeExternalSheetUrl(creature.characterSheetUrl);
+  const characterSheetTitle = creature.characterSheetTitle?.trim();
+  const externalSheetNotes = creature.externalSheetNotes?.trim();
+
   return {
     ...creature,
     actions: cleanEntries(creature.actions),
     armorClass: clampNumber(creature.armorClass, 0),
     bonusActions: cleanEntries(creature.bonusActions),
     challengeRating: creature.challengeRating?.trim() || "0",
-    characterSheetTitle: creature.characterSheetTitle?.trim(),
-    characterSheetUrl: normalizeExternalSheetUrl(creature.characterSheetUrl),
-    externalSheetNotes: creature.externalSheetNotes?.trim(),
+    characterSheetTitle: characterSheetTitle || undefined,
+    characterSheetUrl,
+    externalSheetNotes: externalSheetNotes || undefined,
     initiativeBonus: Number.isFinite(creature.initiativeBonus)
       ? creature.initiativeBonus
       : 0,
@@ -1431,7 +1435,9 @@ function clampNumber(value: number, minimum: number) {
 function normalizeExternalSheetUrl(value?: string) {
   const trimmed = value?.trim() ?? "";
 
-  return trimmed && !validateExternalSheetUrl(trimmed) ? trimmed : undefined;
+  return trimmed && validateExternalSheetUrl(trimmed) === ""
+    ? trimmed
+    : undefined;
 }
 
 function validateExternalSheetUrl(value: string) {

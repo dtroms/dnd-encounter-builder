@@ -132,6 +132,11 @@ New Tab remains available as the safe fallback.
 External character sheet links are user-provided links. The app does not scrape,
 import, or read data from those pages.
 
+User-created and user-edited creatures use the same `characterSheetUrl`,
+`characterSheetTitle`, and `externalSheetNotes` fields as sample creatures, so a
+saved custom link displays with the same Library detail treatment as the sample
+linked-sheet example.
+
 When a Library creature with a linked sheet is added to an encounter, the local
 combatant snapshot keeps the character sheet URL and display title. In the
 Encounter Runner, combatants with linked sheets show a small sheet icon next to
