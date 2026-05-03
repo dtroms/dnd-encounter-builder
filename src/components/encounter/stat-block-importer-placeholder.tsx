@@ -1492,6 +1492,11 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
     return null;
   }
 
+  const missingLabel =
+    preview.missingRequiredFields.length === 1
+      ? "Missing required field"
+      : "Missing required fields";
+
   const creature = preview.creature;
 
   return (
@@ -1532,8 +1537,7 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
             ))}
             {preview.missingRequiredFields.length ? (
               <li>
-                Missing required fields:{" "}
-                {preview.missingRequiredFields.join(", ")}.
+                {missingLabel}: {preview.missingRequiredFields.join(", ")}.
               </li>
             ) : null}
           </ul>

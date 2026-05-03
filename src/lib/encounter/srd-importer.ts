@@ -299,7 +299,7 @@ export function normalizeTabyltopSrdMonster(
   }
 
   if (!abilityResult.detected) {
-    criticalErrors.push("Ability scores were not detected.");
+    criticalErrors.push("Missing required field: ability scores.");
   }
 
   if (hasBadCoreNumber(creature)) {
@@ -344,7 +344,11 @@ export function normalizeTabyltopSrdMonster(
     warnings.push("Hit Points could not be parsed from source text.");
   }
 
-  const allMissingFields = [...new Set([...missingRequiredFields, ...criticalErrors])];
+  const allMissingFields = [
+    ...new Set(
+      [...missingRequiredFields, ...criticalErrors].map(normalizeValidationMessage),
+    ),
+  ];
 
   const status: SrdValidationStatus = criticalErrors.length
     ? "error"
@@ -680,50 +684,68 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
   detected: boolean;
   scores: AbilityScores;
 } {
-  const stats = raw.stats;
+  const stats = readValue(raw, "stats") ?? readValue(raw, "ability_scores") ?? readValue(raw, "abilityScores");
 
   if (Array.isArray(stats) && stats.length >= 6) {
+    const values = stats.map(parseAbilityScoreValue);
     return {
-      detected: true,
+      detected: values.every((value) => value !== null),
       scores: {
-      cha: safeNumber(stats[5]) ?? 10,
-      con: safeNumber(stats[2]) ?? 10,
-      dex: safeNumber(stats[1]) ?? 10,
-      int: safeNumber(stats[3]) ?? 10,
-      str: safeNumber(stats[0]) ?? 10,
-      wis: safeNumber(stats[4]) ?? 10,
+      cha: values[5] ?? 10,
+      con: values[2] ?? 10,
+      dex: values[1] ?? 10,
+      int: values[3] ?? 10,
+      str: values[0] ?? 10,
+      wis: values[4] ?? 10,
       },
     };
   }
 
-  if (stats && typeof stats === "object") {
-    const record = stats as Record<string, unknown>;
+  if (isPlainObject(stats)) {
+    const record = stats;
+    const parsed = {
+      cha: parseAbilityScoreValue(readAbilityValue(record, "cha")),
+      con: parseAbilityScoreValue(readAbilityValue(record, "con")),
+      dex: parseAbilityScoreValue(readAbilityValue(record, "dex")),
+      int: parseAbilityScoreValue(readAbilityValue(record, "int")),
+      str: parseAbilityScoreValue(readAbilityValue(record, "str")),
+      wis: parseAbilityScoreValue(readAbilityValue(record, "wis")),
+    };
+
     return {
-      detected: hasAbilityKeys(record),
+      detected: Object.values(parsed).every((value) => value !== null),
       scores: {
-        cha: safeNumber(record.cha ?? record.CHA ?? record.charisma) ?? 10,
-        con: safeNumber(record.con ?? record.CON ?? record.constitution) ?? 10,
-        dex: safeNumber(record.dex ?? record.DEX ?? record.dexterity) ?? 10,
-        int: safeNumber(record.int ?? record.INT ?? record.intelligence) ?? 10,
-        str: safeNumber(record.str ?? record.STR ?? record.strength) ?? 10,
-        wis: safeNumber(record.wis ?? record.WIS ?? record.wisdom) ?? 10,
+        cha: parsed.cha ?? 10,
+        con: parsed.con ?? 10,
+        dex: parsed.dex ?? 10,
+        int: parsed.int ?? 10,
+        str: parsed.str ?? 10,
+        wis: parsed.wis ?? 10,
       },
     };
   }
 
-  const detected = ["str", "dex", "con", "int", "wis", "cha"].every(
-    (key) => raw[key] !== undefined || raw[key.toUpperCase()] !== undefined,
+  const abilityKeys: Array<keyof AbilityScores> = [
+    "str",
+    "dex",
+    "con",
+    "int",
+    "wis",
+    "cha",
+  ];
+  const detected = abilityKeys.every(
+    (key) => readAbilityValue(raw, key) !== undefined,
   );
 
   return {
     detected,
     scores: {
-      cha: safeNumber(raw.cha ?? raw.CHA ?? raw.charisma) ?? 10,
-      con: safeNumber(raw.con ?? raw.CON ?? raw.constitution) ?? 10,
-      dex: safeNumber(raw.dex ?? raw.DEX ?? raw.dexterity) ?? 10,
-      int: safeNumber(raw.int ?? raw.INT ?? raw.intelligence) ?? 10,
-      str: safeNumber(raw.str ?? raw.STR ?? raw.strength) ?? 10,
-      wis: safeNumber(raw.wis ?? raw.WIS ?? raw.wisdom) ?? 10,
+      cha: parseAbilityScoreValue(readAbilityValue(raw, "cha")) ?? 10,
+      con: parseAbilityScoreValue(readAbilityValue(raw, "con")) ?? 10,
+      dex: parseAbilityScoreValue(readAbilityValue(raw, "dex")) ?? 10,
+      int: parseAbilityScoreValue(readAbilityValue(raw, "int")) ?? 10,
+      str: parseAbilityScoreValue(readAbilityValue(raw, "str")) ?? 10,
+      wis: parseAbilityScoreValue(readAbilityValue(raw, "wis")) ?? 10,
     },
   };
 }
@@ -751,6 +773,16 @@ function abilityModifier(score: number) {
 function safeNumber(value: unknown) {
   const parsed = Number(String(value).replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseAbilityScoreValue(value: unknown) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const match = String(value).match(/\d+/);
+
+  return match ? safeNumber(match[0]) : null;
 }
 
 function buildInvalidCreature(
@@ -800,6 +832,24 @@ function entriesMalformed(raw: TabyltopSrdMonster, keys: string[]) {
   });
 }
 
+function readAbilityValue(raw: TabyltopSrdMonster, key: keyof AbilityScores) {
+  const fullNames: Record<keyof AbilityScores, string> = {
+    cha: "charisma",
+    con: "constitution",
+    dex: "dexterity",
+    int: "intelligence",
+    str: "strength",
+    wis: "wisdom",
+  };
+
+  return (
+    readValue(raw, key) ??
+    readValue(raw, key.toUpperCase()) ??
+    readValue(raw, fullNames[key]) ??
+    readValue(raw, titleCase(fullNames[key]))
+  );
+}
+
 function readValue(raw: TabyltopSrdMonster, key: string) {
   if (raw[key] !== undefined) {
     return raw[key];
@@ -815,6 +865,20 @@ function readValue(raw: TabyltopSrdMonster, key: string) {
 
 function normalizeKey(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function normalizeValidationMessage(value: string) {
+  const normalized = value.trim().replace(/\.+$/g, "").toLowerCase();
+  const labels: Record<string, string> = {
+    "ability scores": "ability scores",
+    "missing required field: ability scores": "ability scores",
+  };
+
+  return labels[normalized] ?? value.trim().replace(/\.+$/g, "");
 }
 
 function stringifySrdValue(value: unknown): string {
@@ -844,12 +908,6 @@ function stringifySrdValue(value: unknown): string {
   }
 
   return "";
-}
-
-function hasAbilityKeys(record: Record<string, unknown>) {
-  return ["str", "dex", "con", "int", "wis", "cha"].every(
-    (key) => record[key] !== undefined || record[key.toUpperCase()] !== undefined,
-  );
 }
 
 function extractTabyltopDocumentMonsterRecords(

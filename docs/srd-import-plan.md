@@ -80,6 +80,37 @@ fields into the app creature template shape:
 - Condition immunities
 - Source/license/attribution metadata
 
+Tabyltop ability scores are explicitly supported when they appear as a `stats`
+object with lowercase, uppercase, or full-name keys. For example:
+
+```json
+{
+  "stats": {
+    "str": "21",
+    "dex": "9",
+    "con": "15",
+    "int": "18",
+    "wis": "15",
+    "cha": "18"
+  }
+}
+```
+
+This normalizes into the app ability score shape:
+
+```json
+{
+  "str": 21,
+  "dex": 9,
+  "con": 15,
+  "int": 18,
+  "wis": 15,
+  "cha": 18
+}
+```
+
+String values such as `"21 (+5)"` are also reduced to the score number.
+
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.
 

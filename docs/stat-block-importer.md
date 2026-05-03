@@ -113,6 +113,11 @@ size/type/alignment, AC, HP, speed, ability scores, saving throws, skills,
 senses, languages, CR, traits, actions, reactions, legendary actions, lair
 actions, defenses, license metadata, and raw source JSON.
 
+Tabyltop `stats` objects are supported directly. Lowercase keys such as
+`str`, `dex`, `con`, `int`, `wis`, and `cha` are mapped into the app's canonical
+ability score shape, and string values like `"21"` or `"21 (+5)"` are parsed as
+numbers without producing `NaN`.
+
 Critical validation failures become Error and are skipped:
 
 - Missing name.
