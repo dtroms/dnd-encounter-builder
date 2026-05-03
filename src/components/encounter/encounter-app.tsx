@@ -174,6 +174,31 @@ export function EncounterApp() {
     );
   }
 
+  function updateCreatureTemplate(updatedCreature: LibraryCreature) {
+    setCreatureTemplates((current) =>
+      current.map((creature) =>
+        creature.id === updatedCreature.id ? updatedCreature : creature,
+      ),
+    );
+    syncCombatantExternalSheetFields(updatedCreature);
+  }
+
+  function syncCombatantExternalSheetFields(updatedCreature: LibraryCreature) {
+    setEncounter((current) => ({
+      ...current,
+      combatants: current.combatants.map((combatant) =>
+        combatant.templateId === updatedCreature.id
+          ? {
+              ...combatant,
+              characterSheetTitle: updatedCreature.characterSheetTitle,
+              characterSheetUrl: updatedCreature.characterSheetUrl,
+              externalSheetNotes: updatedCreature.externalSheetNotes,
+            }
+          : combatant,
+      ),
+    }));
+  }
+
   function duplicateCombatant(combatant: EncounterCombatant) {
     const copy: EncounterCombatant = {
       ...combatant,
@@ -745,13 +770,7 @@ export function EncounterApp() {
           onDuplicateCreature={(creature) =>
             setCreatureTemplates((current) => [creature, ...current])
           }
-          onUpdateCreature={(updatedCreature) =>
-            setCreatureTemplates((current) =>
-              current.map((creature) =>
-                creature.id === updatedCreature.id ? updatedCreature : creature,
-              ),
-            )
-          }
+          onUpdateCreature={updateCreatureTemplate}
         />
       ) : null}
 

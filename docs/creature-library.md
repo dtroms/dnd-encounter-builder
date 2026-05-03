@@ -145,6 +145,12 @@ when the host website allows iframes, and Open in New Tab remains available as
 the fallback. The selected combatant stat panel also shows a small external
 sheet action.
 
+For the current local prototype, editing a Library creature also syncs the
+external sheet URL, title, and notes onto matching current encounter combatants
+with the same template id. This lets a player character such as Aria Vale show
+the Runner sheet icon immediately after the Library edit is saved, without
+changing that combatant's HP, initiative, conditions, or custom display name.
+
 ## Actions
 
 The detail panel includes placeholder actions:
