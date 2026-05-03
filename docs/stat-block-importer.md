@@ -47,20 +47,30 @@ They are treated as user-provided content.
 
 ## Parser Scope
 
-The parser is intentionally heuristic. It attempts to detect:
+The parser is intentionally heuristic, but it now normalizes pasted text before
+parsing. Normalization handles common copy/paste issues such as smart quotes,
+unicode dashes, unicode fractions, repeated spaces, tabs, odd line endings,
+bullets, and repeated blank lines without destroying meaningful section breaks.
+
+It attempts to detect:
 
 - Name
-- Size and creature type line
+- Size, creature type, subtype, and alignment line
 - Armor Class
+- Armor Class notes such as natural armor or shield text
 - Hit Points
+- Hit Point formula
 - Speed
 - Ability scores
 - Initiative bonus
 - Saving throws
 - Skills
+- Damage vulnerabilities, resistances, and immunities
+- Condition immunities
 - Senses
 - Languages
 - Challenge rating
+- Challenge XP text
 - Traits
 - Actions
 - Bonus actions
@@ -68,8 +78,14 @@ The parser is intentionally heuristic. It attempts to detect:
 - Legendary actions
 - Lair actions
 
-The parser can be wrong or incomplete. It returns confidence, warnings, and
-missing required fields so the user can review the result before saving.
+The parser supports common SRD/homebrew variations such as `AC 12`,
+`Armor Class 16 (natural armor)`, `Hit Points 13 (3d8)`, `CR 1/2`, abbreviated
+or fully spelled-out ability score tables, unheaded traits before `ACTIONS`,
+bullet lair actions, and legendary action intro text.
+
+The parser can still be wrong or incomplete. It returns confidence, warnings,
+low-confidence fields, extra preserved sections, and missing required fields so
+the user can review the result before saving.
 
 ## Review Before Saving
 
@@ -83,9 +99,13 @@ Required fields are:
 - Creature type
 - Armor Class
 - Hit Points
+- Speed
 - Challenge Rating
+- Ability scores
 
 The Save to Library button remains disabled until required fields are present.
+The UI also guards against bad numeric values so `NaN`, `undefined`, `null`, and
+object output are not shown as review values.
 
 ## Local Save Behavior
 
@@ -110,3 +130,7 @@ This pass intentionally does not include:
 Use only content the user has the right to use. SRD Creative Commons imports
 should preserve attribution and license metadata. Official non-SRD content
 should not be bundled with the app.
+
+The future Tabyltop CC-SRD workflow is separate from the paste parser. Paste
+imports are messy user-provided content; SRD imports should use structured,
+reviewed Creative Commons source data with explicit attribution.

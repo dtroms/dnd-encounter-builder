@@ -78,12 +78,14 @@ export function StatBlockImporterPlaceholder({
 
     return [
       !draft.name.trim() ? "name" : null,
-      draft.armorClass <= 0 ? "armor class" : null,
-      draft.maxHp <= 0 ? "hit points" : null,
+      !isValidPositiveNumber(draft.armorClass) ? "armor class" : null,
+      !isValidPositiveNumber(draft.maxHp) ? "hit points" : null,
+      !draft.speed.trim() ? "speed" : null,
       !draft.challengeRating?.trim() ? "challenge rating" : null,
       !draft.monsterType || draft.monsterType === "Unknown / Unset"
         ? "creature type"
         : null,
+      !hasValidAbilityScores(draft.abilityScores) ? "ability scores" : null,
     ].filter(Boolean) as string[];
   }, [draft]);
 
@@ -125,11 +127,20 @@ export function StatBlockImporterPlaceholder({
       ...draft,
       id: `imported-${slugify(draft.name)}-${Date.now()}`,
       actions: cleanEntries(draft.actions),
+      armorClass: cleanNumber(draft.armorClass, 10),
       bonusActions: cleanEntries(draft.bonusActions),
+      conditionImmunities: cleanTextList(draft.conditionImmunities),
+      damageImmunities: cleanTextList(draft.damageImmunities),
+      damageResistances: cleanTextList(draft.damageResistances),
+      damageVulnerabilities: cleanTextList(draft.damageVulnerabilities),
+      initiativeBonus: cleanNumber(draft.initiativeBonus, 0),
       lairActions: cleanEntries(draft.lairActions),
       legendaryActions: cleanEntries(draft.legendaryActions),
+      maxHp: cleanNumber(draft.maxHp, 1),
       notes: draft.notes?.trim(),
       reactions: cleanEntries(draft.reactions),
+      savingThrows: cleanTextList(draft.savingThrows),
+      skills: cleanTextList(draft.skills),
       sourceName: draft.sourceName.trim() || "User Provided Paste",
       sourceType: "imported",
       sourceUrl: draft.sourceUrl?.trim() || undefined,
@@ -358,6 +369,7 @@ function ReviewPanel({
   onSave: () => void;
 }) {
   const warnings = parseResult?.warnings ?? [];
+  const lowConfidenceFields = parseResult?.lowConfidenceFields ?? [];
 
   if (!draft) {
     return (
@@ -392,7 +404,7 @@ function ReviewPanel({
         ) : null}
       </div>
 
-      {warnings.length || missingFields.length ? (
+      {warnings.length || missingFields.length || lowConfidenceFields.length ? (
         <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">
           <p className="text-xs font-black uppercase tracking-wide text-amber-100">
             Review Needed
@@ -403,6 +415,9 @@ function ReviewPanel({
             ))}
             {missingFields.length ? (
               <li>Required fields missing: {missingFields.join(", ")}.</li>
+            ) : null}
+            {lowConfidenceFields.length ? (
+              <li>Needs review: {lowConfidenceFields.join(", ")}.</li>
             ) : null}
           </ul>
         </div>
@@ -491,6 +506,67 @@ function ReviewPanel({
         />
       </div>
 
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <TextInput
+          label="Armor Note"
+          value={draft.armorClassNote ?? ""}
+          onChange={(armorClassNote) => onPatchDraft({ armorClassNote })}
+        />
+        <TextInput
+          label="HP Formula"
+          value={draft.hitPointFormula ?? ""}
+          onChange={(hitPointFormula) => onPatchDraft({ hitPointFormula })}
+        />
+        <TextInput
+          label="Alignment"
+          value={draft.alignment ?? ""}
+          onChange={(alignment) => onPatchDraft({ alignment })}
+        />
+        <TextInput
+          label="Subtype"
+          value={draft.monsterSubtype ?? ""}
+          onChange={(monsterSubtype) => onPatchDraft({ monsterSubtype })}
+        />
+        <TextInput
+          label="Saving Throws"
+          value={(draft.savingThrows ?? []).join(", ")}
+          onChange={(value) => onPatchDraft({ savingThrows: splitTags(value) })}
+        />
+        <TextInput
+          label="Skills"
+          value={(draft.skills ?? []).join(", ")}
+          onChange={(value) => onPatchDraft({ skills: splitTags(value) })}
+        />
+        <TextInput
+          label="Damage Vulnerabilities"
+          value={(draft.damageVulnerabilities ?? []).join(", ")}
+          onChange={(value) =>
+            onPatchDraft({ damageVulnerabilities: splitTags(value) })
+          }
+        />
+        <TextInput
+          label="Damage Resistances"
+          value={(draft.damageResistances ?? []).join(", ")}
+          onChange={(value) =>
+            onPatchDraft({ damageResistances: splitTags(value) })
+          }
+        />
+        <TextInput
+          label="Damage Immunities"
+          value={(draft.damageImmunities ?? []).join(", ")}
+          onChange={(value) =>
+            onPatchDraft({ damageImmunities: splitTags(value) })
+          }
+        />
+        <TextInput
+          label="Condition Immunities"
+          value={(draft.conditionImmunities ?? []).join(", ")}
+          onChange={(value) =>
+            onPatchDraft({ conditionImmunities: splitTags(value) })
+          }
+        />
+      </div>
+
       <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {Object.entries(draft.abilityScores).map(([key, value]) => (
           <NumberInput
@@ -558,6 +634,16 @@ function ReviewPanel({
             <p className="mt-1 break-all text-sm font-semibold text-slate-400">
               URL: {draft.sourceUrl}
             </p>
+          ) : null}
+          {parseResult?.normalizedRawText ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-cyan-200">
+                Normalized Raw Text
+              </summary>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs leading-5 text-slate-400">
+                {parseResult.normalizedRawText}
+              </pre>
+            </details>
           ) : null}
         </div>
       </div>
@@ -770,6 +856,8 @@ function NumberInput({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const safeValue = Number.isFinite(value) ? value : "";
+
   return (
     <label className="block">
       <span className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -778,8 +866,11 @@ function NumberInput({
       <input
         className="mt-1 h-10 w-full rounded-lg border border-slate-800 bg-slate-950 px-3 text-sm font-semibold text-white outline-none transition focus:border-cyan-300"
         type="number"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        value={safeValue}
+        onChange={(event) => {
+          const parsed = Number(event.target.value);
+          onChange(Number.isFinite(parsed) ? parsed : 0);
+        }}
       />
     </label>
   );
@@ -870,12 +961,20 @@ function buildLibraryCreatureFromDraft(
     actions: draft.actions.length
       ? draft.actions
       : [{ name: "Imported Action", description: "" }],
+    alignment: draft.alignment,
     armorClass: draft.armorClass ?? 10,
+    armorClassNote: draft.armorClassNote,
     attribution: undefined,
     autoRollEligible: draft.type !== "pc",
     bonusActions: draft.bonusActions,
     challengeRating: draft.challengeRating || "0",
+    challengeXp: draft.challengeXp,
+    conditionImmunities: draft.conditionImmunities,
+    damageImmunities: draft.damageImmunities,
+    damageResistances: draft.damageResistances,
+    damageVulnerabilities: draft.damageVulnerabilities,
     abilityScores: draft.abilityScores,
+    hitPointFormula: draft.hitPointFormula,
     id: `import-draft-${Date.now()}`,
     importMethod: "paste",
     initiativeBonus: draft.initiativeBonus ?? 0,
@@ -884,11 +983,14 @@ function buildLibraryCreatureFromDraft(
     legendaryActions: draft.legendaryActions,
     licenseName: "user-provided/private",
     maxHp: draft.maxHp ?? 1,
+    monsterSubtype: draft.monsterSubtype,
     monsterType: draft.monsterType,
     name: draft.name,
+    normalizedRawImportText: draft.normalizedRawText,
     notes: rawText
       ? `${draft.notes}\n\nRaw pasted text is held only in this local review draft.`
       : draft.notes,
+    rawImportText: draft.rawImportText,
     reactions: draft.reactions,
     savingThrows: draft.savingThrows,
     senses: draft.senses || "passive Perception 10",
@@ -930,6 +1032,22 @@ function cleanEntries(entries?: StatBlockAction[]) {
   return (entries ?? []).filter(
     (entry) => entry.name.trim() || entry.description.trim(),
   );
+}
+
+function cleanNumber(value: number, fallback: number) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function cleanTextList(values?: string[]) {
+  return (values ?? []).map((value) => value.trim()).filter(Boolean);
+}
+
+function hasValidAbilityScores(scores: AbilityScores) {
+  return Object.values(scores).every((score) => Number.isFinite(score) && score > 0);
+}
+
+function isValidPositiveNumber(value: number) {
+  return Number.isFinite(value) && value > 0;
 }
 
 function splitTags(value: string) {

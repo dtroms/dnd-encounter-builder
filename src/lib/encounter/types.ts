@@ -71,19 +71,28 @@ export type StatBlockAction = {
 export type CreatureTemplate = {
   id: string;
   name: string;
+  alignment?: string;
+  armorClassNote?: string;
   monsterType?: MonsterType;
+  monsterSubtype?: string;
   type: CombatantType;
   size: string;
   armorClass: number;
   maxHp: number;
+  hitPointFormula?: string;
   speed: string;
   initiativeBonus: number;
   abilityScores: AbilityScores;
   savingThrows?: string[];
   skills?: string[];
+  damageVulnerabilities?: string[];
+  damageResistances?: string[];
+  damageImmunities?: string[];
+  conditionImmunities?: string[];
   senses: string;
   languages: string;
   challengeRating?: string;
+  challengeXp?: string;
   traits: StatBlockTrait[];
   actions: StatBlockAction[];
   bonusActions?: StatBlockAction[];
@@ -96,6 +105,8 @@ export type CreatureTemplate = {
   groupLabel?: string;
   combatGroupLabel?: string;
   combatGroupColor?: string;
+  normalizedRawImportText?: string;
+  rawImportText?: string;
   autoRollEligible: boolean;
 };
 
