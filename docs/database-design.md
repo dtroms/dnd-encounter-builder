@@ -54,6 +54,8 @@ Initial schema tables:
 
 The dashboard should start from `encounters`.
 
+The current UI includes a local mock Saved Encounters Dashboard shell as the app's starting view. It is not wired to Supabase yet.
+
 Dashboard-friendly fields include:
 
 - `name`
@@ -396,18 +398,60 @@ Future link import must:
 
 Source URLs can be stored as metadata even before the app knows how to parse them.
 
-## Future Auth/User/Campaign Considerations
+## Future Auth, User Accounts, and Support/Subscription Model
 
-Most user-owned tables include nullable `owner_user_id`. That makes the database future-ready without adding auth now.
+The app should eventually support sign-up/sign-in, but auth is intentionally not implemented yet.
+
+Future user accounts should unlock:
+
+- saved encounters
+- private creature libraries
+- stat block imports
+- cloud sync
+- user settings
+- support/subscription status
+
+Most user-owned tables already include nullable `owner_user_id` fields. These fields prepare the schema for future auth without requiring Supabase Auth or RLS in the current local-state app. When auth is added later, `owner_user_id` can point to the authenticated user who owns each encounter, creature template, import, combat group, wave, or runtime record.
+
+Future account-related tables could include:
+
+- `profiles`: public or app-facing user profile data linked to the auth user id. Possible fields include `id`, `display_name`, `avatar_url`, `created_at`, and `updated_at`.
+- `user_settings`: per-user app preferences. Possible fields include `user_id`, `default_runner_view`, `manual_pc_initiative_default`, `compact_mode`, `theme_preference`, `dice_roll_preference`, and `updated_at`.
+- `user_support_status` or `billing_status`: future support, donation, or subscription state. Possible fields include `user_id`, `support_tier`, `support_status`, `provider_customer_id`, `provider_subscription_id`, `current_period_end`, and `updated_at`.
+
+If subscriptions are added later, the support/billing table can store subscription provider customer ID fields such as `provider_customer_id`, `provider_subscription_id`, `provider_price_id`, and `provider_status`. These fields should identify the billing provider records without making the database depend on one provider before payments are actually implemented.
+
+If donations or voluntary support are used instead, the same table can track non-subscription support state with fields such as `support_status`, `support_tier`, `last_supported_at`, `lifetime_support_amount_cents`, and `support_provider_customer_id`.
 
 Later:
 
-- RLS should ensure users only access their own creatures, imports, and encounters.
+- RLS should ensure users only access their own creatures, imports, settings, support status, and encounters.
 - Imported content should belong to the importing user unless intentionally shared.
 - Campaign sharing could use `campaigns` and `campaign_members`.
 - Public encounter or creature templates could be added separately.
 
 RLS policies are not included in this pass because auth is not set up yet.
+
+### Monetization And Licensing Caution
+
+Donations or voluntary support are likely safer than gating Wizards-related fan content. Monthly subscriptions should only be considered if they charge for tool features, storage, cloud sync, convenience, or other app functionality.
+
+See `docs/product-boundaries.md` for the broader product/legal boundary plan before implementing auth, imports, donations, subscriptions, or paid plans.
+
+The project should not:
+
+- charge for access to official D&D/Wizards content
+- bundle official monster stat blocks
+- treat official non-SRD material as app-owned content
+- add donation links, Stripe, subscriptions, or payment logic before a dedicated implementation pass
+
+Imported stat blocks should be treated as user-provided content. The app can store user-provided imports for that user's own library later, but it should not package, redistribute, or sell official monster data.
+
+D&D Beyond link import should remain future-only and must be legally and technically reviewed before any implementation. It should not scrape D&D Beyond or any other website, bypass access controls, or copy protected content.
+
+SRD/Creative Commons content may be usable commercially with proper attribution, depending on the exact source and license terms. That should be handled carefully and separately from official non-SRD content.
+
+Before launching subscriptions publicly, the project should get legal review or at least a dedicated licensing review focused on Wizards/D&D content, SRD/Creative Commons attribution, user-provided imports, and what paid features are actually being sold.
 
 ## MVP Database Scope vs. Later Features
 

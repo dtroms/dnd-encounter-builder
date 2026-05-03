@@ -26,6 +26,8 @@ import { AppShell, type EncounterView } from "./app-shell";
 import { EncounterBuilder } from "./encounter-builder";
 import { EncounterRunner } from "./encounter-runner";
 import type { RunnerFilter } from "./initiative-list";
+import { SavedEncountersDashboard } from "./saved-encounters-dashboard";
+import { StatBlockImporterPlaceholder } from "./stat-block-importer-placeholder";
 import { TypeBadge } from "./type-badge";
 
 const starterCombatants = [
@@ -65,7 +67,7 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 }
 
 export function EncounterApp() {
-  const [activeView, setActiveView] = useState<EncounterView>("builder");
+  const [activeView, setActiveView] = useState<EncounterView>("encounters");
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
@@ -314,6 +316,10 @@ export function EncounterApp() {
     setActiveView("runner");
   }
 
+  function openBuilder() {
+    setActiveView("builder");
+  }
+
   function selectInitiativeEntry(entryId: string, sourceCombatantId: string | null) {
     setSelectedEntryId(entryId);
     setSelectedCombatantId(sourceCombatantId);
@@ -425,6 +431,14 @@ export function EncounterApp() {
       round={encounter.round}
       onViewChange={(view) => (view === "runner" ? launchRunner() : setActiveView(view))}
     >
+      {activeView === "encounters" ? (
+        <SavedEncountersDashboard
+          onCreateNew={openBuilder}
+          onOpenBuilder={openBuilder}
+          onOpenRunner={launchRunner}
+        />
+      ) : null}
+
       {activeView === "builder" ? (
         <EncounterBuilder
           combatants={encounter.combatants}
@@ -507,6 +521,8 @@ export function EncounterApp() {
       {activeView === "library" ? (
         <LibraryPreview templates={sampleCreatureTemplates} />
       ) : null}
+
+      {activeView === "importer" ? <StatBlockImporterPlaceholder /> : null}
     </AppShell>
   );
 }
@@ -516,10 +532,10 @@ function LibraryPreview({ templates }: { templates: CreatureTemplate[] }) {
     <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-white">Library Preview</h2>
+          <h2 className="text-2xl font-black text-white">Library</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Placeholder view for the future creature repository. For now this is
-            just the local custom sample set.
+            Placeholder view for the future creature repository. For now this
+            uses the local custom sample set.
           </p>
         </div>
         <span className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-bold text-slate-300">

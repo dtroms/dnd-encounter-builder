@@ -3,7 +3,12 @@
 import { TopBar } from "./top-bar";
 import { ViewTabs } from "./view-tabs";
 
-export type EncounterView = "builder" | "runner" | "library";
+export type EncounterView =
+  | "encounters"
+  | "builder"
+  | "runner"
+  | "library"
+  | "importer";
 
 type AppShellProps = {
   activeView: EncounterView;
@@ -30,6 +35,7 @@ export function AppShell({
       <div className="relative">
         <TopBar
           activeName={activeName}
+          activeView={activeView}
           combatantCount={combatantCount}
           encounterName={encounterName}
           round={round}

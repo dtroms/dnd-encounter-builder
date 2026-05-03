@@ -1,9 +1,11 @@
 import type { EncounterView } from "./app-shell";
 
 const tabs: Array<{ key: EncounterView; label: string; detail: string }> = [
-  { key: "builder", label: "Encounter Builder", detail: "Prep and roster" },
-  { key: "runner", label: "Encounter Runner", detail: "Live combat" },
-  { key: "library", label: "Library Preview", detail: "Sample creatures" },
+  { key: "encounters", label: "Encounters", detail: "Saved games" },
+  { key: "builder", label: "Builder", detail: "Prep roster" },
+  { key: "runner", label: "Runner", detail: "Live combat" },
+  { key: "library", label: "Library", detail: "Creatures" },
+  { key: "importer", label: "Importer", detail: "Future parser" },
 ];
 
 export function ViewTabs({
@@ -14,7 +16,7 @@ export function ViewTabs({
   onViewChange: (view: EncounterView) => void;
 }) {
   return (
-    <nav className="grid gap-1.5 rounded-xl border border-slate-800 bg-slate-950/70 p-1.5 md:inline-grid md:grid-cols-3">
+    <nav className="grid gap-1.5 rounded-xl border border-slate-800 bg-slate-950/70 p-1.5 md:inline-grid md:grid-cols-5">
       {tabs.map((tab) => (
         <button
           className={`rounded-lg px-3 py-2 text-left transition ${
