@@ -4,6 +4,7 @@ import type {
   StatBlockAction,
   StatBlockTrait,
 } from "@/lib/encounter/types";
+import { getSpellEffectLabel } from "@/lib/encounter/spell-effects";
 import { EmptyState } from "./empty-state";
 import { getSafeExternalSheetUrl } from "./external-character-sheet-viewer";
 import { TypeBadge } from "./type-badge";
@@ -26,6 +27,7 @@ export function StatBlockPanel({ combatant, onViewSheet }: StatBlockPanelProps) 
   const safeSheetUrl = combatant.characterSheetUrl
     ? getSafeExternalSheetUrl(combatant.characterSheetUrl)
     : "";
+  const activeSpellEffects = combatant.spellEffects ?? [];
 
   return (
     <aside className="max-h-none rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto">
@@ -91,6 +93,24 @@ export function StatBlockPanel({ combatant, onViewSheet }: StatBlockPanelProps) 
                 New Tab
               </a>
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {activeSpellEffects.length > 0 ? (
+        <section className="mt-3 rounded-lg border border-violet-300/25 bg-violet-300/10 p-2">
+          <h3 className="text-xs font-black uppercase tracking-wide text-violet-100">
+            Active Spell Effects
+          </h3>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {activeSpellEffects.map((effect) => (
+              <span
+                className="rounded-full bg-slate-950 px-2 py-0.5 text-[11px] font-black text-violet-100"
+                key={effect}
+              >
+                {getSpellEffectLabel(effect)}
+              </span>
+            ))}
           </div>
         </section>
       ) : null}

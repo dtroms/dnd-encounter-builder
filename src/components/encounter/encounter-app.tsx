@@ -8,6 +8,7 @@ import type {
   Encounter,
   EncounterCombatant,
   EncounterWave,
+  SpellEffect,
 } from "@/lib/encounter/types";
 import {
   createCombatant,
@@ -210,6 +211,7 @@ export function EncounterApp() {
       initiative: null,
       manualInitiative: combatant.type === "pc",
       conditions: [],
+      spellEffects: [],
     };
 
     setEncounter((current) => ({
@@ -472,6 +474,20 @@ export function EncounterApp() {
         conditions: hasCondition
           ? combatant.conditions.filter((item) => item !== condition)
           : [...combatant.conditions, condition],
+      };
+    });
+  }
+
+  function toggleSpellEffect(combatantId: string, effect: SpellEffect) {
+    updateCombatant(combatantId, (combatant) => {
+      const activeSpellEffects = combatant.spellEffects ?? [];
+      const hasEffect = activeSpellEffects.includes(effect);
+
+      return {
+        ...combatant,
+        spellEffects: hasEffect
+          ? activeSpellEffects.filter((item) => item !== effect)
+          : [...activeSpellEffects, effect],
       };
     });
   }
@@ -749,6 +765,7 @@ export function EncounterApp() {
           onRollGroupInitiative={rollCombatGroupInitiative}
           onRollSharedGroupInitiative={rollSharedCombatGroupInitiative}
           onToggleCondition={toggleCondition}
+          onToggleSpellEffect={toggleSpellEffect}
           onNextTurn={() => moveTurn("next")}
           onPreviousTurn={() => moveTurn("previous")}
           onRemove={removeCombatant}

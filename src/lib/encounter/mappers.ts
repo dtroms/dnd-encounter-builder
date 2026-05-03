@@ -142,6 +142,7 @@ export function encounterCombatantRecordToEncounterCombatant(
     combatGroupColor: undefined,
     autoRollEligible: record.combatant_type !== "pc",
     conditions: record.conditions,
+    spellEffects: [],
     waveId: record.wave_id ?? undefined,
   };
 }

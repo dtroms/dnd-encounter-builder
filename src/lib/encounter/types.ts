@@ -43,6 +43,19 @@ export type CombatantCondition =
   | "concentrating"
   | "hidden";
 
+export type SpellEffect =
+  | "bless"
+  | "bane"
+  | "hunters_mark"
+  | "faerie_fire"
+  | "hex"
+  | "shield_of_faith"
+  | "haste"
+  | "slow"
+  | "guiding_bolt"
+  | "sanctuary"
+  | "protection";
+
 export type CombatGroup = {
   id: string;
   name: string;
@@ -122,6 +135,7 @@ export type EncounterCombatant = CreatureTemplate & {
   initiative: number | null;
   manualInitiative: boolean;
   conditions: CombatantCondition[];
+  spellEffects: SpellEffect[];
   waveId?: string;
   waveLabel?: string;
 };

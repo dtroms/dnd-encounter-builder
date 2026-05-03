@@ -456,6 +456,7 @@ export function createCombatant(
     initiative: null,
     manualInitiative: template.type === "pc",
     conditions: [],
+    spellEffects: [],
     waveLabel: template.groupLabel,
     combatGroupLabel: template.combatGroupLabel ?? template.groupLabel,
     combatGroupColor: template.combatGroupColor ?? template.accentColor,

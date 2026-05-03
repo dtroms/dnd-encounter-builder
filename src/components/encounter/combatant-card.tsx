@@ -9,6 +9,7 @@ import {
   typeStyles,
 } from "@/lib/encounter/colors";
 import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
+import { getSpellEffectLabel } from "@/lib/encounter/spell-effects";
 import { CombatGroupPicker } from "./combat-group-picker";
 import { getSafeExternalSheetUrl } from "./external-character-sheet-viewer";
 import { HpControls } from "./hp-controls";
@@ -55,6 +56,7 @@ export function CombatantCard({
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
+  const activeSpellEffects = combatant.spellEffects ?? [];
   const hasSafeSheetUrl = Boolean(
     combatant.characterSheetUrl &&
       getSafeExternalSheetUrl(combatant.characterSheetUrl),
@@ -174,6 +176,24 @@ export function CombatantCard({
               </button>
             </div>
           </div>
+
+          {activeSpellEffects.length > 0 ? (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {activeSpellEffects.slice(0, 2).map((effect) => (
+                <span
+                  className="rounded-full border border-violet-300/25 bg-violet-300/10 px-2 py-0.5 text-[10px] font-black text-violet-100"
+                  key={effect}
+                >
+                  {getSpellEffectLabel(effect)}
+                </span>
+              ))}
+              {activeSpellEffects.length > 2 ? (
+                <span className="rounded-full border border-slate-700 bg-slate-950 px-2 py-0.5 text-[10px] font-black text-slate-400">
+                  +{activeSpellEffects.length - 2} effects
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

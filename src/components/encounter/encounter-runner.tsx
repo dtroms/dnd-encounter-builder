@@ -7,6 +7,7 @@ import type {
   CreatureTemplate,
   EncounterCombatant,
   EncounterWave,
+  SpellEffect,
 } from "@/lib/encounter/types";
 import type { SyntheticInitiativeOverrides } from "@/lib/encounter/initiative";
 import { AddCombatantPanel } from "./add-combatant-panel";
@@ -65,6 +66,7 @@ type EncounterRunnerProps = {
     combatantId: string,
     condition: CombatantCondition,
   ) => void;
+  onToggleSpellEffect: (combatantId: string, effect: SpellEffect) => void;
   onRollEligible: () => void;
   onSort: () => void;
   onNextTurn: () => void;
@@ -103,6 +105,7 @@ export function EncounterRunner({
   onClearGroup,
   onCreateGroup,
   onToggleCondition,
+  onToggleSpellEffect,
   onRollGroupInitiative,
   onRollSharedGroupInitiative,
   onRollEligible,
@@ -150,6 +153,11 @@ export function EncounterRunner({
               onToggleCondition={(condition) => {
                 if (selectedCombatant) {
                   onToggleCondition(selectedCombatant.combatantId, condition);
+                }
+              }}
+              onToggleSpellEffect={(effect) => {
+                if (selectedCombatant) {
+                  onToggleSpellEffect(selectedCombatant.combatantId, effect);
                 }
               }}
             />
