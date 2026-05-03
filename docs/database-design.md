@@ -381,6 +381,40 @@ The importer should save raw input first:
 
 This makes failed or messy imports recoverable without polluting the Creature Library.
 
+## Creative Commons SRD Monster Library Imports
+
+SRD monster imports should be planned as a separate Creature Library workflow from pasted stat block imports.
+
+Pasted stat block import is for messy, individual, user-provided content. Creative Commons SRD import is for a structured bulk source that can populate reusable `creature_templates` with source, license, and attribution metadata.
+
+Imported SRD creatures should remain distinguishable from original/custom sample creatures and user-provided pasted imports. Useful metadata on imported `creature_templates` should include:
+
+- `source_type = 'srd'`
+- `source_name`
+- `source_document_version`
+- `license_name`
+- `source_url`
+- attribution text or attribution metadata
+- import batch metadata where useful
+
+### Planned Source: Tabyltop CC-SRD
+
+Planned source metadata:
+
+- `source_name`: `Tabyltop CC-SRD`
+- `source_type`: `srd`
+- `source_document_version`: `SRD 5.1`
+- `license_name`: `CC-BY-4.0`
+- `source_url`: `https://github.com/Tabyltop/CC-SRD`
+
+Creature templates imported from this source should preserve attribution/source metadata so the app can display or export proper SRD/Creative Commons attribution later.
+
+The Tabyltop CC-SRD repository contains SRD 5.1 Creative Commons content converted into machine-friendly formats. Because it is converted from PDF/data formats, it may contain formatting or JSON conversion errors. The import workflow should include validation and normalization, and the app should not blindly trust imported JSON.
+
+SRD import review should happen before records become official `creature_templates`. The future workflow should validate required creature fields, normalize data shape, surface warnings, and let the user review the import preview before saving all or selected SRD monsters into the Creature Library.
+
+Runtime fetching from GitHub should be avoided for early beta unless caching, version pinning, outage handling, and error handling are designed. The preferred beta path is a local adapter script or curated import file, reviewed output, and then a deliberate database import.
+
 ## Future D&D Beyond/Homebrew Link Import Considerations
 
 The schema includes `source_url` and `import_method` values such as `url` and `dndbeyond_homebrew` so future link-based workflows have a place to store metadata.

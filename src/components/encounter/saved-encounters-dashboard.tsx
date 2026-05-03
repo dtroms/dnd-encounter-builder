@@ -12,6 +12,7 @@ import type { CombatantType } from "@/lib/encounter/types";
 type StatusFilter = EncounterStatus | "all";
 type SortMode = "recent" | "name" | "status";
 type DetailTab = "overview" | "roster" | "notes";
+type CampaignFilter = "all" | string;
 
 const detailTabs: Array<{ key: DetailTab; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -40,6 +41,14 @@ const statusLabels: Record<EncounterStatus, string> = {
   draft: "Draft",
   running: "Running",
 };
+
+const campaignTabs: Array<{ id: CampaignFilter; label: string }> = [
+  { id: "all", label: "All Campaigns" },
+  { id: "lantern-road", label: "The Lantern Road" },
+  { id: "moonwell-vale", label: "Moonwell Vale" },
+  { id: "ash-gate", label: "Ash Gate" },
+  { id: "violet-keg-cellars", label: "Violet Keg Cellars" },
+];
 
 const accentStyles: Record<
   SavedEncounterSummary["accent_color"],
@@ -182,6 +191,7 @@ export function SavedEncountersDashboard({
   onOpenRunner: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
@@ -194,17 +204,24 @@ export function SavedEncountersDashboard({
 
     return savedEncounterSamples
       .filter((encounter) => {
+        const matchesCampaign =
+          campaignFilter === "all" || encounter.campaign_id === campaignFilter;
         const matchesStatus =
           statusFilter === "all" || encounter.status === statusFilter;
         const searchable = [
           encounter.name,
           encounter.location,
           encounter.description,
+          encounter.campaign_name,
         ]
           .join(" ")
           .toLowerCase();
 
-        return matchesStatus && searchable.includes(normalizedQuery);
+        return (
+          matchesCampaign &&
+          matchesStatus &&
+          searchable.includes(normalizedQuery)
+        );
       })
       .sort((left, right) => {
         if (sortMode === "name") {
@@ -220,7 +237,7 @@ export function SavedEncountersDashboard({
 
         return getSortTime(right) - getSortTime(left);
       });
-  }, [query, sortMode, statusFilter]);
+  }, [campaignFilter, query, sortMode, statusFilter]);
 
   const selectedEncounter =
     visibleEncounters.find((encounter) => encounter.id === selectedEncounterId) ??
@@ -247,33 +264,38 @@ export function SavedEncountersDashboard({
         </div>
       </div>
 
+      <CampaignTabs
+        activeCampaign={campaignFilter}
+        onCampaignChange={(campaign) => {
+          setCampaignFilter(campaign);
+          setActiveDetailTab("overview");
+        }}
+      />
+
+      <DashboardFilters
+        query={query}
+        sortMode={sortMode}
+        statusFilter={statusFilter}
+        onClearFilters={() => {
+          setQuery("");
+          setStatusFilter("all");
+        }}
+        onQueryChange={setQuery}
+        onSortModeChange={setSortMode}
+        onStatusFilterChange={setStatusFilter}
+      />
+
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.37fr)_minmax(0,0.63fr)]">
         <aside className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-          <div className="flex items-end justify-between gap-3 border-b border-slate-800 pb-3">
-            <div>
-              <h3 className="text-base font-black text-white">Your Encounters</h3>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                Pick one to inspect or open.
-              </p>
-            </div>
+          <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <h3 className="text-base font-black text-white">Your Encounters</h3>
             <span className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-black text-slate-400">
-              {savedEncounterSamples.length} saved
+              {visibleEncounters.length} shown
             </span>
           </div>
 
-          <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
-            <DashboardFilters
-              query={query}
-              sortMode={sortMode}
-              statusFilter={statusFilter}
-              onQueryChange={setQuery}
-              onSortModeChange={setSortMode}
-              onStatusFilterChange={setStatusFilter}
-            />
-          </div>
-
-          <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>{visibleEncounters.length} shown</span>
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-500">
+            <span className="truncate">{getCampaignLabel(campaignFilter)}</span>
             <span>
               {statusFilter === "all" ? "All statuses" : statusLabels[statusFilter]}
             </span>
@@ -332,6 +354,7 @@ export function SavedEncountersDashboard({
 }
 
 function DashboardFilters({
+  onClearFilters,
   query,
   sortMode,
   statusFilter,
@@ -339,6 +362,7 @@ function DashboardFilters({
   onSortModeChange,
   onStatusFilterChange,
 }: {
+  onClearFilters: () => void;
   query: string;
   sortMode: SortMode;
   statusFilter: StatusFilter;
@@ -347,7 +371,7 @@ function DashboardFilters({
   onStatusFilterChange: (statusFilter: StatusFilter) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
       <input
         aria-label="Search saved encounters"
         className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/70"
@@ -357,35 +381,77 @@ function DashboardFilters({
         onChange={(event) => onQueryChange(event.target.value)}
       />
 
-      <div className="flex flex-wrap gap-1.5">
-        {statusFilters.map((filter) => (
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {statusFilters.map((filter) => (
+            <button
+              className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-black transition ${
+                statusFilter === filter.key
+                  ? "border-cyan-300 bg-cyan-300 text-slate-950"
+                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500 hover:text-white"
+              }`}
+              key={filter.key}
+              type="button"
+              onClick={() => onStatusFilterChange(filter.key)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+            Sort
+            <select
+              className="h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-bold normal-case tracking-normal text-white outline-none focus:border-cyan-300/70"
+              value={sortMode}
+              onChange={(event) =>
+                onSortModeChange(event.target.value as SortMode)
+              }
+            >
+              <option value="recent">Recent</option>
+              <option value="name">Name</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
           <button
-            className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-black transition ${
-              statusFilter === filter.key
-                ? "border-cyan-300 bg-cyan-300 text-slate-950"
-                : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500 hover:text-white"
-            }`}
-            key={filter.key}
+            className="h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs font-black text-slate-400 transition hover:border-cyan-300/60 hover:text-white"
             type="button"
-            onClick={() => onStatusFilterChange(filter.key)}
+            onClick={onClearFilters}
           >
-            {filter.label}
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CampaignTabs({
+  activeCampaign,
+  onCampaignChange,
+}: {
+  activeCampaign: CampaignFilter;
+  onCampaignChange: (campaign: CampaignFilter) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2">
+      <div className="flex gap-1 overflow-x-auto">
+        {campaignTabs.map((campaign) => (
+          <button
+            className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition ${
+              activeCampaign === campaign.id
+                ? "bg-cyan-300 text-slate-950"
+                : "border border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:text-white"
+            }`}
+            key={campaign.id}
+            type="button"
+            onClick={() => onCampaignChange(campaign.id)}
+          >
+            {campaign.label}
           </button>
         ))}
       </div>
-
-      <label className="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
-        Sort
-        <select
-          className="h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-bold normal-case tracking-normal text-white outline-none focus:border-cyan-300/70"
-          value={sortMode}
-          onChange={(event) => onSortModeChange(event.target.value as SortMode)}
-        >
-          <option value="recent">Recent</option>
-          <option value="name">Name</option>
-          <option value="status">Status</option>
-        </select>
-      </label>
     </div>
   );
 }
@@ -666,6 +732,7 @@ function OverviewTab({
         />
         <OverviewFact label="Special" value={getSpecialSummary(encounter)} />
         <OverviewFact label="Location" value={encounter.location} />
+        <OverviewFact label="Campaign" value={encounter.campaign_name} />
       </div>
     </div>
   );
@@ -766,6 +833,13 @@ function getSpecialSummary(encounter: SavedEncounterSummary) {
   }
 
   return notes.length > 0 ? notes.join(", ") : "None";
+}
+
+function getCampaignLabel(campaignId: CampaignFilter) {
+  return (
+    campaignTabs.find((campaign) => campaign.id === campaignId)?.label ??
+    "All Campaigns"
+  );
 }
 
 function CombatantPreviewList({

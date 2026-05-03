@@ -19,9 +19,23 @@ The top header is intentionally plain:
 - Choose an encounter to run, edit, or review.
 - Create New Encounter
 
+## Campaign Tabs
+
+The dashboard now has local campaign tabs above the two-column layout:
+
+- All Campaigns
+- The Lantern Road
+- Moonwell Vale
+- Ash Gate
+- Violet Keg Cellars
+
+Campaign tabs filter the saved encounters first. Search, status filters, and sort then apply inside the selected campaign result. `All Campaigns` shows every local mock encounter.
+
+This is local mock data only. The app does not have campaign database records yet.
+
 ## Left Encounter List
 
-The left column is labeled `Your Encounters` and groups the search, status filter, and sort controls above the saved encounter list. Its helper text is `Pick one to inspect or open.`
+The left column is labeled `Your Encounters`. Search, status filter, and sort controls sit in a shared dashboard control row above the two columns so the left encounter list and right selected encounter hero start at a more intentional height.
 
 Each encounter row is compact and clickable. It shows:
 
@@ -121,6 +135,8 @@ When database wiring is added later, the dashboard should read from `encounters`
 - `has_lair_actions_snapshot`
 
 Group count can be derived from `combat_groups` for each encounter or stored as a future summary field if needed.
+
+Future campaign support may need either campaign fields on `encounters` or a separate `campaigns` table with encounter records linked by `campaign_id`. That database decision is only noted here; no schema changes are made in this dashboard UI pass.
 
 ## Future Actions
 

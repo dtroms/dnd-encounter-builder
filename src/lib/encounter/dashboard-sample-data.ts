@@ -10,6 +10,8 @@ export type DashboardCombatantPreview = {
 };
 
 export type SavedEncounterSummary = {
+  campaign_id: string;
+  campaign_name: string;
   id: string;
   name: string;
   description: string;
@@ -35,6 +37,8 @@ export type SavedEncounterSummary = {
 
 export const savedEncounterSamples: SavedEncounterSummary[] = [
   {
+    campaign_id: "lantern-road",
+    campaign_name: "The Lantern Road",
     id: "10000000-0000-4000-8000-000000000001",
     name: "Lantern Alley Ambush",
     description:
@@ -75,6 +79,8 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
     ],
   },
   {
+    campaign_id: "moonwell-vale",
+    campaign_name: "Moonwell Vale",
     id: "10000000-0000-4000-8000-000000000002",
     name: "Moonwell Watch Draft",
     description:
@@ -110,6 +116,8 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
     ],
   },
   {
+    campaign_id: "lantern-road",
+    campaign_name: "The Lantern Road",
     id: "10000000-0000-4000-8000-000000000003",
     name: "Glassworks Rooftop Chase",
     description:
@@ -151,6 +159,8 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
     ],
   },
   {
+    campaign_id: "ash-gate",
+    campaign_name: "Ash Gate",
     id: "10000000-0000-4000-8000-000000000004",
     name: "Ash Gate Tollhouse",
     description:
@@ -188,6 +198,8 @@ export const savedEncounterSamples: SavedEncounterSummary[] = [
     ],
   },
   {
+    campaign_id: "violet-keg-cellars",
+    campaign_name: "Violet Keg Cellars",
     id: "10000000-0000-4000-8000-000000000005",
     name: "Violet Cellar Breakout",
     description:
