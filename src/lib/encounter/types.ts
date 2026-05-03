@@ -43,18 +43,7 @@ export type CombatantCondition =
   | "concentrating"
   | "hidden";
 
-export type SpellEffect =
-  | "bless"
-  | "bane"
-  | "hunters_mark"
-  | "faerie_fire"
-  | "hex"
-  | "shield_of_faith"
-  | "haste"
-  | "slow"
-  | "guiding_bolt"
-  | "sanctuary"
-  | "protection";
+export type SpellEffect = string;
 
 export type CombatGroup = {
   id: string;

@@ -38,6 +38,13 @@ Active spell effects can appear as compact chips in the initiative row and in
 the selected combatant detail panel. The row display stays intentionally small:
 it shows the first one or two effects, then a compact additional count.
 
+Spell effect buttons use the same compact button treatment as standard
+conditions. Users can also type a custom spell or effect name into the custom
+effect input and press Enter or the plus button to add it to the selected
+combatant. Empty custom effects are ignored, and exact duplicates are blocked
+for that combatant. Custom effects are local/session-only and can be removed by
+clicking their active chip.
+
 Future database persistence should keep standard conditions and spell effects as
 separate fields or records. Future custom spell effects can build on the current
 local `spellEffects` structure.

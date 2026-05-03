@@ -3,6 +3,7 @@ import type {
   EncounterCombatant,
   SpellEffect,
 } from "@/lib/encounter/types";
+import { useState } from "react";
 import { getHpStatus } from "@/lib/encounter/hp";
 import { spellEffectOptions } from "@/lib/encounter/spell-effects";
 import { EmptyState } from "./empty-state";
@@ -39,6 +40,8 @@ export function ConditionTrackerPanel({
   onToggleCondition,
   onToggleSpellEffect,
 }: ConditionTrackerPanelProps) {
+  const [customEffectDraft, setCustomEffectDraft] = useState("");
+
   if (!combatant) {
     return (
       <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-3">
@@ -52,6 +55,21 @@ export function ConditionTrackerPanel({
 
   const hpStatus = getHpStatus(combatant.currentHp, combatant.maxHp);
   const activeSpellEffects = combatant.spellEffects ?? [];
+  const presetEffectIds = new Set(spellEffectOptions.map((effect) => effect.id));
+  const activeCustomEffects = activeSpellEffects.filter(
+    (effect) => !presetEffectIds.has(effect),
+  );
+
+  function addCustomEffect() {
+    const effect = customEffectDraft.trim();
+
+    if (!effect || activeSpellEffects.includes(effect)) {
+      return;
+    }
+
+    onToggleSpellEffect(effect);
+    setCustomEffectDraft("");
+  }
 
   return (
     <aside className="rounded-xl border border-slate-800 bg-slate-950/75 p-2.5">
@@ -120,7 +138,7 @@ export function ConditionTrackerPanel({
 
             return (
               <button
-                className={`min-h-7 rounded-md border px-1.5 py-1 text-left text-[11px] font-bold transition ${
+                className={`h-7 rounded-md border px-1.5 text-left text-[11px] font-bold transition ${
                   active
                     ? "border-violet-200 bg-violet-300 text-slate-950"
                     : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-500 hover:text-white"
@@ -134,13 +152,53 @@ export function ConditionTrackerPanel({
             );
           })}
         </div>
-        <button
-          className="mt-1.5 h-7 w-full rounded-md border border-dashed border-slate-700 bg-slate-950 text-[11px] font-bold text-slate-500"
-          disabled
-          type="button"
-        >
-          Custom Effect later
-        </button>
+        {activeCustomEffects.length > 0 ? (
+          <div className="mt-1.5 grid grid-cols-2 gap-1">
+            {activeCustomEffects.map((effect) => (
+              <button
+                className="h-7 rounded-md border border-violet-200 bg-violet-300 px-1.5 text-left text-[11px] font-bold text-slate-950 transition hover:bg-violet-200"
+                key={effect}
+                type="button"
+                onClick={() => onToggleSpellEffect(effect)}
+              >
+                {effect}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_2rem] gap-1">
+          <input
+            aria-label="Add custom spell effect"
+            className="h-8 min-w-0 rounded-md border border-slate-700 bg-slate-950 px-2 text-[11px] font-bold text-white outline-none placeholder:text-slate-600 focus:border-violet-300"
+            placeholder="Add custom effect..."
+            type="text"
+            value={customEffectDraft}
+            onChange={(event) => setCustomEffectDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addCustomEffect();
+              }
+
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setCustomEffectDraft("");
+              }
+            }}
+          />
+          <button
+            aria-label="Add custom spell effect"
+            className="h-8 rounded-md bg-violet-300 text-base font-black leading-none text-slate-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={
+              !customEffectDraft.trim() ||
+              activeSpellEffects.includes(customEffectDraft.trim())
+            }
+            type="button"
+            onClick={addCustomEffect}
+          >
+            +
+          </button>
+        </div>
       </section>
     </aside>
   );
