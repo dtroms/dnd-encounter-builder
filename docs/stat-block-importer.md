@@ -25,13 +25,13 @@ The planned SRD source is:
 - License: CC-BY-4.0
 - Source type: `srd`
 
-This pass does not fetch from GitHub at runtime. The automated workflow loads a
-local/static Tabyltop-shaped JSON source from
-`src/data/srd/tabyltop-cc-srd-monsters.sample.json` so the app can test the full
-import pipeline without CORS, rate limits, or external availability failures.
-The current file is a tiny curated sample fixture, not the full SRD monster
-dataset. It is intentionally shaped so the same code path can later point at a
-reviewed full CC-SRD JSON file.
+The automated workflow fetches the direct raw JSON file from GitHub only after
+the user clicks Import All SRD Monsters. The app does not fetch the file on page
+load and does not scrape GitHub HTML pages.
+
+Raw JSON URL:
+
+`https://raw.githubusercontent.com/Tabyltop/CC-SRD/main/SRD5.1-CCBY4.0License-TT.json`
 
 Future SRD import work should use a local adapter script or curated import file,
 then review the output before records become Library creature templates.
@@ -41,17 +41,21 @@ then review the output before records become Library creature templates.
 The SRD tab now supports:
 
 1. Import All SRD Monsters.
-2. Load the configured local/static Tabyltop CC-SRD-shaped JSON source.
-3. Normalize Tabyltop-shaped SRD records into the app creature template shape.
-4. Show validation status for each record: Ready, Needs Review, Error, or
+2. Fetch the raw Tabyltop CC-SRD JSON from GitHub.
+3. Extract monster stat blocks from either structured monster arrays or the
+   Tabyltop full-document block format.
+4. Normalize Tabyltop-shaped SRD records into the app creature template shape.
+5. Show validation status for each record: Ready, Needs Review, Error, or
    Already in library.
-5. Import only Ready records into the local Creature Library session state.
-6. Skip Needs Review, Error, and Already in library records.
-7. Show an import report with processed, imported, duplicate, review, and error
+6. Import only Ready records into the local Creature Library session state.
+7. Skip Needs Review, Error, and Already in library records.
+8. Show an import report with processed, imported, duplicate, review, and error
    counts.
 
-Manual testing tools remain available: Load Local Preview, paste SRD JSON,
-Process Import, select records, and Import All Valid/selected records.
+Manual fallback tools remain available: Load Local Preview, paste SRD JSON,
+Process Import, select records, and Import All Valid/selected records. The
+pasted JSON fallback uses the same normalization, validation, duplicate
+prevention, and local import pipeline.
 
 The SRD tab also supports full-dataset testing by pasting SRD monster JSON into
 the dataset textarea and clicking Process Import. Supported JSON shapes are:
@@ -61,6 +65,8 @@ the dataset textarea and clicking Process Import. Supported JSON shapes are:
 - `{ "data": [...] }`
 - `{ "results": [...] }`
 - A keyed object such as `{ "wolf": { ...monster } }`
+- The Tabyltop full-document block array, where monster entries are rebuilt from
+  heading, paragraph, and ability-score table blocks.
 
 If the shape is not recognized or the JSON cannot be parsed, the importer shows
 a clear error and does not import anything.
@@ -70,6 +76,7 @@ Imported SRD creatures use:
 - `sourceType = srd`
 - `sourceName = Tabyltop CC-SRD`
 - `sourceUrl = https://github.com/Tabyltop/CC-SRD`
+- `sourceRawUrl = https://raw.githubusercontent.com/Tabyltop/CC-SRD/main/SRD5.1-CCBY4.0License-TT.json`
 - `sourceDocumentVersion = SRD 5.1`
 - `licenseName = CC-BY-4.0`
 - `importMethod = automated-srd-json` for the one-click path, or
@@ -80,10 +87,17 @@ Duplicate prevention checks the normalized creature name, source type, source
 name, and SRD document version. Already imported records are skipped and are not
 overwritten.
 
-Import All SRD Monsters and Import All Valid import Ready records only. They
-skip Error records, Needs Review records, and duplicates. The report area
-summarizes total processed records, imported count, skipped duplicates, skipped
-errors, skipped needs-review records, source used, and the first issue details.
+Import All SRD Monsters fetches, extracts, normalizes, validates, and imports in
+one user-triggered action. Import All SRD Monsters and Import All Valid import
+Ready records only. They skip Error records, Needs Review records, and
+duplicates. The report area summarizes total processed records, imported count,
+skipped duplicates, skipped errors, skipped needs-review records, source used,
+and the first issue details.
+
+Fetch failures are handled without crashing. Network failures, CORS failures,
+non-200 responses, invalid JSON, unrecognized dataset shapes, and timeouts show
+a friendly error and leave existing Library data untouched. The UI suggests
+trying again later or using the pasted SRD JSON fallback.
 
 The normalizer extracts or preserves common fields such as name, meta
 size/type/alignment, AC, HP, speed, ability scores, saving throws, skills,
@@ -201,10 +215,10 @@ This pass intentionally does not include:
 
 - Supabase reads or writes.
 - Auth or RLS.
-- Runtime GitHub fetching.
 - D&D Beyond scraping.
 - Official non-SRD D&D monster data.
-- The full curated CC-SRD monster JSON file.
+- Automatic fetches on app load.
+- Supabase persistence of imported SRD creatures.
 
 Use only content the user has the right to use. SRD Creative Commons imports
 should preserve attribution and license metadata. Official non-SRD content

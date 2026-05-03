@@ -5,7 +5,6 @@ import type {
 } from "./types";
 import type { LibraryCreature } from "./library-sample-data";
 import { normalizeStatBlockText } from "./stat-block-parser";
-import tabyltopSrdMonsterSource from "@/data/srd/tabyltop-cc-srd-monsters.sample.json";
 
 export type TabyltopSrdMonster = Record<string, unknown>;
 
@@ -25,6 +24,14 @@ export type SrdDatasetParseResult = {
   shape: string;
 };
 
+export type TabyltopSrdFetchResult = {
+  byteLength: number;
+  jsonText: string;
+};
+
+export const TABYLTOP_CC_SRD_RAW_URL =
+  "https://raw.githubusercontent.com/Tabyltop/CC-SRD/main/SRD5.1-CCBY4.0License-TT.json";
+
 export const TABYLTOP_SRD_SOURCE = {
   attribution:
     "Contains content from the SRD 5.1 made available under CC-BY-4.0. Verify final attribution before public release.",
@@ -33,9 +40,6 @@ export const TABYLTOP_SRD_SOURCE = {
   sourceName: "Tabyltop CC-SRD",
   sourceUrl: "https://github.com/Tabyltop/CC-SRD",
 } as const;
-
-export const tabyltopSrdAutomatedMonsterSource =
-  tabyltopSrdMonsterSource as TabyltopSrdMonster[];
 
 export const tabyltopSrdSampleMonsters: TabyltopSrdMonster[] = [
   {
@@ -250,6 +254,7 @@ export function normalizeTabyltopSrdMonster(
     sourceName: TABYLTOP_SRD_SOURCE.sourceName,
     sourceDocumentVersion: TABYLTOP_SRD_SOURCE.sourceDocumentVersion,
     sourceType: "srd",
+    sourceRawUrl: TABYLTOP_CC_SRD_RAW_URL,
     sourceUrl: TABYLTOP_SRD_SOURCE.sourceUrl,
     speed,
     tags: ["srd", "cc-by-4.0", "tabyltop-import"],
@@ -352,6 +357,31 @@ export function tabyltopMonsterToCreatureTemplate(raw: TabyltopSrdMonster) {
   return normalizeTabyltopSrdMonster(raw).creature;
 }
 
+export async function fetchTabyltopCcSrdJson({
+  signal,
+}: {
+  signal?: AbortSignal;
+} = {}): Promise<TabyltopSrdFetchResult> {
+  const response = await fetch(TABYLTOP_CC_SRD_RAW_URL, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `GitHub returned ${response.status} ${response.statusText || "for the SRD JSON request"}.`,
+    );
+  }
+
+  const jsonText = await response.text();
+
+  return {
+    byteLength: new Blob([jsonText]).size,
+    jsonText,
+  };
+}
+
 export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult {
   if (!jsonText.trim()) {
     return { error: "Paste SRD monster JSON before processing.", records: [], shape: "empty" };
@@ -377,10 +407,31 @@ export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult 
 
 export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult {
   if (Array.isArray(parsed)) {
-    return {
-      records: parsed.filter(isPlainObject) as TabyltopSrdMonster[],
-      shape: "array",
-    };
+    const records = parsed.filter(isMonsterLikeRecord);
+
+    if (records.length) {
+      return {
+        records,
+        shape: "array",
+      };
+    }
+
+    const documentRecords = extractTabyltopDocumentMonsterRecords(parsed);
+
+    if (documentRecords.length) {
+      return {
+        records: documentRecords,
+        shape: "tabyltop-document-blocks",
+      };
+    }
+
+    if (!records.length) {
+      return {
+        error: "Could not find monster records in this SRD JSON.",
+        records: [],
+        shape: "array",
+      };
+    }
   }
 
   if (!isPlainObject(parsed)) {
@@ -391,27 +442,39 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
     };
   }
 
-  for (const key of ["monsters", "data", "results"]) {
+  for (const key of ["monsters", "Monsters", "creatures", "data", "results"]) {
     const value = parsed[key];
 
     if (Array.isArray(value)) {
+      const records = value.filter(isMonsterLikeRecord);
+
+      if (!records.length) {
+        continue;
+      }
+
       return {
-        records: value.filter(isPlainObject) as TabyltopSrdMonster[],
+        records,
         shape: `object.${key}`,
       };
     }
   }
 
   const values = Object.values(parsed);
-  const keyedRecords = values.filter(isPlainObject) as TabyltopSrdMonster[];
+  const keyedRecords = values.filter(isMonsterLikeRecord);
 
   if (keyedRecords.length) {
     return { records: keyedRecords, shape: "keyed-object" };
   }
 
+  const nested = findNestedMonsterRecords(parsed);
+
+  if (nested.records.length) {
+    return nested;
+  }
+
   return {
     error:
-      "JSON shape was not recognized. Use an array, { monsters: [...] }, { data: [...] }, { results: [...] }, or a keyed object.",
+      "Could not find monster records in this SRD JSON. Use an array, { monsters: [...] }, { data: [...] }, { results: [...] }, a keyed monster object, or paste only the monster section.",
     records: [],
     shape: "unrecognized",
   };
@@ -419,10 +482,18 @@ export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult
 
 function readString(raw: TabyltopSrdMonster, keys: string[]) {
   for (const key of keys) {
-    const value = raw[key];
+    const value = readValue(raw, key);
 
     if (typeof value === "string" || typeof value === "number") {
       return String(value).trim();
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(stringifySrdValue).filter(Boolean).join(", ").trim();
+    }
+
+    if (isPlainObject(value)) {
+      return stringifySrdValue(value).trim();
     }
   }
 
@@ -431,7 +502,7 @@ function readString(raw: TabyltopSrdMonster, keys: string[]) {
 
 function readEntries(raw: TabyltopSrdMonster, keys: string[]): StatBlockAction[] {
   for (const key of keys) {
-    const value = raw[key];
+    const value = readValue(raw, key);
 
     if (Array.isArray(value)) {
       return value
@@ -614,6 +685,8 @@ function buildInvalidCreature(
     senses: "passive Perception 10",
     size: "Medium",
     sourceName: TABYLTOP_SRD_SOURCE.sourceName,
+    sourceDocumentVersion: TABYLTOP_SRD_SOURCE.sourceDocumentVersion,
+    sourceRawUrl: TABYLTOP_CC_SRD_RAW_URL,
     sourceType: "srd",
     sourceUrl: TABYLTOP_SRD_SOURCE.sourceUrl,
     speed: "",
@@ -625,7 +698,7 @@ function buildInvalidCreature(
 
 function entriesMalformed(raw: TabyltopSrdMonster, keys: string[]) {
   return keys.some((key) => {
-    const value = raw[key];
+    const value = readValue(raw, key);
     return (
       value !== undefined &&
       typeof value !== "string" &&
@@ -634,9 +707,488 @@ function entriesMalformed(raw: TabyltopSrdMonster, keys: string[]) {
   });
 }
 
+function readValue(raw: TabyltopSrdMonster, key: string) {
+  if (raw[key] !== undefined) {
+    return raw[key];
+  }
+
+  const normalizedKey = normalizeKey(key);
+  const matchingKey = Object.keys(raw).find(
+    (candidate) => normalizeKey(candidate) === normalizedKey,
+  );
+
+  return matchingKey ? raw[matchingKey] : undefined;
+}
+
+function normalizeKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function stringifySrdValue(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(stringifySrdValue).filter(Boolean).join(", ");
+  }
+
+  if (isPlainObject(value)) {
+    const record = value as Record<string, unknown>;
+    const preferred =
+      record.name ??
+      record.desc ??
+      record.description ??
+      record.text ??
+      record.value ??
+      record.type;
+
+    if (preferred !== undefined) {
+      return stringifySrdValue(preferred);
+    }
+
+    return Object.values(record).map(stringifySrdValue).filter(Boolean).join(" ");
+  }
+
+  return "";
+}
+
 function hasAbilityKeys(record: Record<string, unknown>) {
   return ["str", "dex", "con", "int", "wis", "cha"].every(
     (key) => record[key] !== undefined || record[key.toUpperCase()] !== undefined,
+  );
+}
+
+function extractTabyltopDocumentMonsterRecords(
+  blocks: unknown[],
+): TabyltopSrdMonster[] {
+  const records: TabyltopSrdMonster[] = [];
+  const monsterSectionStart = blocks.findIndex(
+    (block) =>
+      readDocumentBlockType(block) === "h1" &&
+      /^Monsters$/i.test(readDocumentBlockText(block)),
+  );
+
+  if (monsterSectionStart === -1) {
+    return records;
+  }
+
+  for (let index = monsterSectionStart + 1; index < blocks.length; index += 1) {
+    const block = blocks[index];
+
+    if (!isDocumentMonsterHeading(block, blocks, index)) {
+      continue;
+    }
+
+    const nextIndex = findNextDocumentMonsterBoundary(blocks, index + 1);
+    const record = buildMonsterRecordFromDocumentBlocks(
+      readDocumentBlockText(block),
+      blocks.slice(index + 1, nextIndex),
+    );
+
+    if (record) {
+      records.push(record);
+    }
+
+    index = Math.max(index, nextIndex - 1);
+  }
+
+  return records;
+}
+
+function isDocumentMonsterHeading(
+  block: unknown,
+  blocks: unknown[],
+  index: number,
+) {
+  const type = readDocumentBlockType(block);
+  const text = readDocumentBlockText(block);
+
+  if (type !== "h4" || !text || isDocumentMonsterSectionHeading(text)) {
+    return false;
+  }
+
+  const lookAhead = blocks
+    .slice(index + 1, index + 12)
+    .map(readDocumentBlockText)
+    .join("\n");
+
+  return /Armor Class/i.test(lookAhead) && /Hit Points/i.test(lookAhead);
+}
+
+function findNextDocumentMonsterBoundary(blocks: unknown[], startIndex: number) {
+  for (let index = startIndex; index < blocks.length; index += 1) {
+    const type = readDocumentBlockType(blocks[index]);
+
+    if (type === "h1" || type === "h2" || type === "h3") {
+      return index;
+    }
+
+    if (isDocumentMonsterHeading(blocks[index], blocks, index)) {
+      return index;
+    }
+  }
+
+  return blocks.length;
+}
+
+function buildMonsterRecordFromDocumentBlocks(
+  name: string,
+  blocks: unknown[],
+): TabyltopSrdMonster | null {
+  const record: TabyltopSrdMonster = { name };
+  const traits: StatBlockAction[] = [];
+  const actions: StatBlockAction[] = [];
+  const bonusActions: StatBlockAction[] = [];
+  const reactions: StatBlockAction[] = [];
+  const legendaryActions: StatBlockAction[] = [];
+  const lairActions: StatBlockAction[] = [];
+  const notes: string[] = [];
+  let section:
+    | "traits"
+    | "actions"
+    | "bonusActions"
+    | "reactions"
+    | "legendaryActions"
+    | "lairActions" = "traits";
+  let challengeFound = false;
+  let metaFound = false;
+
+  blocks.forEach((block) => {
+    const type = readDocumentBlockType(block);
+    const text = readDocumentBlockText(block);
+
+    if (!text) {
+      return;
+    }
+
+    if (type === "table") {
+      const scores = extractAbilityScoresFromDocumentTable(block);
+
+      if (scores.length === 6) {
+        record.stats = scores;
+      }
+
+      return;
+    }
+
+    if (type === "h4") {
+      const normalized = text.toLowerCase();
+      if (normalized === "actions") section = "actions";
+      if (normalized === "bonus actions") section = "bonusActions";
+      if (normalized === "reactions") section = "reactions";
+      if (normalized === "legendary actions") section = "legendaryActions";
+      if (normalized === "lair actions") section = "lairActions";
+      return;
+    }
+
+    if (!metaFound && /^[A-Z][a-z]+ [a-z]+/.test(text) && !/^Armor Class/i.test(text)) {
+      record.meta = text;
+      metaFound = true;
+      return;
+    }
+
+    if (/^Armor Class/i.test(text)) {
+      record.armor_class = text;
+      return;
+    }
+
+    if (/^Hit Points/i.test(text)) {
+      record.hit_points = text;
+      return;
+    }
+
+    if (/^Speed/i.test(text)) {
+      record.speed = text;
+      return;
+    }
+
+    if (/^Saving Throws/i.test(text)) {
+      record.saving_throws = text;
+      return;
+    }
+
+    if (/^Skills/i.test(text)) {
+      record.skills = text;
+      return;
+    }
+
+    if (/^Damage Vulnerabilities/i.test(text)) {
+      record.damage_vulnerabilities = text;
+      return;
+    }
+
+    if (/^Damage Resistances/i.test(text)) {
+      record.damage_resistances = text;
+      return;
+    }
+
+    if (/^Damage Immunities/i.test(text)) {
+      record.damage_immunities = text;
+      return;
+    }
+
+    if (/^Condition Immunities/i.test(text)) {
+      record.condition_immunities = text;
+      return;
+    }
+
+    if (/^Senses/i.test(text)) {
+      record.senses = text;
+      return;
+    }
+
+    if (/^Languages/i.test(text)) {
+      record.languages = text;
+      return;
+    }
+
+    if (/^Challenge/i.test(text)) {
+      record.challenge = text;
+      challengeFound = true;
+      return;
+    }
+
+    if (!challengeFound) {
+      return;
+    }
+
+    if (
+      section === "legendaryActions" &&
+      /^The .+ can take \d+ legendary actions/i.test(text)
+    ) {
+      notes.push(text);
+      return;
+    }
+
+    addDocumentEntryToSection(text, {
+      actions,
+      bonusActions,
+      lairActions,
+      legendaryActions,
+      reactions,
+      section,
+      traits,
+    });
+  });
+
+  if (!record.armor_class || !record.hit_points || !record.challenge) {
+    return null;
+  }
+
+  record.traits = traits;
+  record.actions = actions;
+  record.bonus_actions = bonusActions;
+  record.reactions = reactions;
+  record.legendary_actions = legendaryActions;
+  record.lair_actions = lairActions;
+  record.notes = notes.join("\n");
+
+  return record;
+}
+
+function addDocumentEntryToSection(
+  text: string,
+  context: {
+    actions: StatBlockAction[];
+    bonusActions: StatBlockAction[];
+    lairActions: StatBlockAction[];
+    legendaryActions: StatBlockAction[];
+    reactions: StatBlockAction[];
+    section:
+      | "traits"
+      | "actions"
+      | "bonusActions"
+      | "reactions"
+      | "legendaryActions"
+      | "lairActions";
+    traits: StatBlockAction[];
+  },
+) {
+  const targets = {
+    actions: context.actions,
+    bonusActions: context.bonusActions,
+    lairActions: context.lairActions,
+    legendaryActions: context.legendaryActions,
+    reactions: context.reactions,
+    traits: context.traits,
+  };
+  const target = targets[context.section];
+  const match = text.match(/^(.{2,90}?)(?:\.|:)\s+(.+)$/);
+
+  if (match) {
+    target.push({
+      description: match[2].trim(),
+      name: match[1].trim(),
+    });
+    return;
+  }
+
+  const last = target[target.length - 1];
+
+  if (last) {
+    last.description = `${last.description} ${text}`.trim();
+  } else {
+    target.push({ description: text, name: "Imported Entry" });
+  }
+}
+
+function extractAbilityScoresFromDocumentTable(block: unknown) {
+  if (!isPlainObject(block) || !Array.isArray(block.rows)) {
+    return [];
+  }
+
+  const rows = block.rows as unknown[][];
+  const scoreRow = rows.find((row) => {
+    const values = row.map(readDocumentTableCellText);
+    return values.filter((value) => /^\d+\s*\(/.test(value)).length >= 6;
+  });
+
+  if (!scoreRow) {
+    return [];
+  }
+
+  return scoreRow
+    .map(readDocumentTableCellText)
+    .map((value) => safeNumber(value.match(/\d+/)?.[0]))
+    .filter((score): score is number => score !== null)
+    .slice(0, 6);
+}
+
+function readDocumentTableCellText(cell: unknown) {
+  if (!isPlainObject(cell) || !Array.isArray(cell.subelements)) {
+    return "";
+  }
+
+  return cell.subelements
+    .map((subelement) =>
+      isPlainObject(subelement) && typeof subelement.text === "string"
+        ? subelement.text
+        : "",
+    )
+    .join(" ")
+    .trim();
+}
+
+function readDocumentBlockType(block: unknown) {
+  return isPlainObject(block) && typeof block.type === "string" ? block.type : "";
+}
+
+function readDocumentBlockText(block: unknown) {
+  if (!isPlainObject(block)) {
+    return "";
+  }
+
+  if (typeof block.text === "string") {
+    return block.text.trim();
+  }
+
+  if (typeof block.Description === "string") {
+    return block.Description.trim();
+  }
+
+  if (!Array.isArray(block.subelements)) {
+    return "";
+  }
+
+  return block.subelements
+    .map((subelement) =>
+      isPlainObject(subelement) && typeof subelement.text === "string"
+        ? subelement.text
+        : "",
+    )
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDocumentMonsterSectionHeading(text: string) {
+  return /^(Actions|Bonus Actions|Reactions|Legendary Actions|Lair Actions)$/i.test(
+    text,
+  );
+}
+
+function findNestedMonsterRecords(parsed: TabyltopSrdMonster): SrdDatasetParseResult {
+  const candidates: Array<{ records: TabyltopSrdMonster[]; shape: string }> = [];
+
+  collectMonsterRecordCandidates(parsed, "$", 0, candidates);
+
+  const best = candidates.sort((a, b) => b.records.length - a.records.length)[0];
+
+  return best ?? { records: [], shape: "nested" };
+}
+
+function collectMonsterRecordCandidates(
+  value: unknown,
+  path: string,
+  depth: number,
+  candidates: Array<{ records: TabyltopSrdMonster[]; shape: string }>,
+) {
+  if (depth > 8) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    const records = value.filter(isMonsterLikeRecord);
+
+    if (records.length) {
+      candidates.push({ records, shape: path });
+    }
+
+    value.forEach((item, index) => {
+      if (isPlainObject(item) || Array.isArray(item)) {
+        collectMonsterRecordCandidates(item, `${path}[${index}]`, depth + 1, candidates);
+      }
+    });
+    return;
+  }
+
+  if (!isPlainObject(value)) {
+    return;
+  }
+
+  Object.entries(value).forEach(([key, child]) => {
+    if (isPlainObject(child) || Array.isArray(child)) {
+      collectMonsterRecordCandidates(child, `${path}.${key}`, depth + 1, candidates);
+    }
+  });
+}
+
+function isMonsterLikeRecord(value: unknown): value is TabyltopSrdMonster {
+  if (!isPlainObject(value)) {
+    return false;
+  }
+
+  const name = readString(value, ["name", "Name"]);
+  const armor = readString(value, [
+    "armor_class",
+    "armorClass",
+    "Armor Class",
+    "ac",
+    "AC",
+  ]);
+  const hp = readString(value, [
+    "hit_points",
+    "hitPoints",
+    "Hit Points",
+    "hp",
+    "HP",
+  ]);
+  const challenge = readString(value, [
+    "challenge",
+    "challenge_rating",
+    "Challenge",
+    "CR",
+    "cr",
+  ]);
+  const speed = readString(value, ["speed", "Speed"]);
+  const meta = readString(value, ["meta", "Meta", "size_type_alignment"]);
+  const actions = value.actions ?? value.Actions;
+
+  return Boolean(
+    name &&
+      ((armor && hp) || (challenge && speed)) &&
+      (meta || actions || value.stats || value.str !== undefined || value.STR !== undefined),
   );
 }
 

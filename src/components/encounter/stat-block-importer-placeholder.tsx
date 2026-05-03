@@ -15,10 +15,11 @@ import {
   type StatBlockParseResult,
 } from "@/lib/encounter/stat-block-parser";
 import {
+  fetchTabyltopCcSrdJson,
   normalizeTabyltopSrdMonster,
   parseSrdMonsterDataset,
+  TABYLTOP_CC_SRD_RAW_URL,
   TABYLTOP_SRD_SOURCE,
-  tabyltopSrdAutomatedMonsterSource,
   tabyltopSrdSampleMonsters,
   type SrdImportPreview,
 } from "@/lib/encounter/srd-importer";
@@ -88,6 +89,7 @@ export function StatBlockImporterPlaceholder({
   const [srdDatasetShape, setSrdDatasetShape] = useState("local-sample");
   const [srdImporting, setSrdImporting] = useState(false);
   const [srdImportError, setSrdImportError] = useState("");
+  const [srdImportStatus, setSrdImportStatus] = useState("");
   const [processedSrdPreviews, setProcessedSrdPreviews] = useState<
     SrdImportPreview[]
   >([]);
@@ -211,6 +213,7 @@ export function StatBlockImporterPlaceholder({
     setActiveSrdId(srdPreviews[0]?.creature.id ?? "");
     setSrdImportMessage("");
     setSrdImportError("");
+    setSrdImportStatus("");
   }
 
   function processSrdJsonInput() {
@@ -222,6 +225,7 @@ export function StatBlockImporterPlaceholder({
       setSrdPreviewLoaded(false);
       setSelectedSrdIds([]);
       setSrdImportMessage("");
+      setSrdImportStatus("");
       return;
     }
 
@@ -229,6 +233,8 @@ export function StatBlockImporterPlaceholder({
     setProcessedSrdPreviews(previews);
     setSrdDatasetShape(result.shape);
     setSrdDatasetError("");
+    setSrdImportError("");
+    setSrdImportStatus("");
     setSrdPreviewLoaded(true);
     setSelectedSrdIds(
       previews
@@ -284,21 +290,51 @@ export function StatBlockImporterPlaceholder({
     });
 
     setSelectedSrdIds([]);
-    setSrdImportMessage(buildSrdImportReport(srdPreviews, importablePreviews.length, existingSrdKeys));
+    setSrdImportMessage(
+      buildSrdImportReport(
+        srdPreviews,
+        importablePreviews.length,
+        existingSrdKeys,
+        "manual preview / pasted JSON",
+      ),
+    );
   }
 
-  function importAllSrdMonsters() {
+  async function importAllSrdMonsters() {
     if (!onSaveCreature || srdImporting) {
       return;
     }
 
     setSrdImporting(true);
     setSrdImportError("");
+    setSrdImportMessage("");
+    setSrdImportStatus("Fetching Tabyltop CC-SRD data from GitHub...");
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 45000);
 
     try {
-      const previews = tabyltopSrdAutomatedMonsterSource.map(
-        normalizeTabyltopSrdMonster,
+      const fetched = await fetchTabyltopCcSrdJson({
+        signal: controller.signal,
+      });
+      setSrdImportStatus(
+        `Fetched ${formatBytes(fetched.byteLength)} from GitHub. Processing SRD monster records...`,
       );
+      await yieldToBrowser();
+
+      const result = parseSrdMonsterDataset(fetched.jsonText);
+
+      if (result.error) {
+        throw new Error(
+          `${result.error} You can try again later or paste SRD JSON into the fallback box below.`,
+        );
+      }
+
+      const previews = await normalizeSrdPreviews(result.records, (processed) => {
+        setSrdImportStatus(
+          `Processing SRD monster records... ${processed} of ${result.records.length}`,
+        );
+      });
       const importedKeys = new Set(existingSrdKeys);
       const importablePreviews = previews.filter((preview) => {
         const duplicateKey = getSrdDuplicateKey(preview.creature);
@@ -323,20 +359,32 @@ export function StatBlockImporterPlaceholder({
       });
 
       setProcessedSrdPreviews(previews);
-      setSrdDatasetShape("local-static-json");
+      setSrdDatasetShape(result.shape);
       setSrdPreviewLoaded(true);
       setSelectedSrdIds([]);
       setActiveSrdId(previews[0]?.creature.id ?? "");
       setSrdImportMessage(
-        buildSrdImportReport(previews, importablePreviews.length, existingSrdKeys),
+        buildSrdImportReport(
+          previews,
+          importablePreviews.length,
+          existingSrdKeys,
+          "GitHub raw JSON",
+        ),
+      );
+      setSrdImportStatus(
+        `Finished processing ${previews.length} extracted monster record${previews.length === 1 ? "" : "s"}.`,
       );
     } catch (error) {
       setSrdImportError(
-        error instanceof Error
+        error instanceof DOMException && error.name === "AbortError"
+          ? "The GitHub SRD fetch timed out. Try again later or paste SRD JSON into the fallback box below."
+          : error instanceof Error
           ? error.message
-          : "The automated SRD import could not be processed.",
+          : "The GitHub SRD import could not be processed. Try again later or use Paste SRD JSON.",
       );
+      setSrdImportStatus("");
     } finally {
+      window.clearTimeout(timeoutId);
       setSrdImporting(false);
     }
   }
@@ -412,6 +460,7 @@ export function StatBlockImporterPlaceholder({
           sourceShape={srdDatasetShape}
           importError={srdImportError}
           importing={srdImporting}
+          importStatus={srdImportStatus}
           selectedIds={selectedSrdIds}
           onImportAll={importAllSrdMonsters}
           onImportSelected={importSelectedSrdCreatures}
@@ -876,6 +925,7 @@ function SrdImportPlanning({
   importError,
   importing,
   importMessage,
+  importStatus,
   jsonInput,
   previewLoaded,
   previews,
@@ -895,6 +945,7 @@ function SrdImportPlanning({
   importError: string;
   importing: boolean;
   importMessage: string;
+  importStatus: string;
   jsonInput: string;
   previewLoaded: boolean;
   previews: SrdImportPreview[];
@@ -933,6 +984,7 @@ function SrdImportPlanning({
           </h3>
           <dl className="mt-4 grid gap-3 text-sm">
             <SourceFact label="GitHub" value="github.com/Tabyltop/CC-SRD" />
+            <SourceFact label="Raw JSON" value="SRD5.1-CCBY4.0License-TT.json" />
             <SourceFact label="Document" value={TABYLTOP_SRD_SOURCE.sourceDocumentVersion} />
             <SourceFact label="License" value={TABYLTOP_SRD_SOURCE.licenseName} />
             <SourceFact label="Source Type" value="srd" />
@@ -947,9 +999,12 @@ function SrdImportPlanning({
               One-click local SRD import
             </p>
             <p className="mt-1 text-sm leading-6 text-emerald-50/85">
-              Imports validated Creative Commons SRD monsters from the
-              configured local Tabyltop CC-SRD source. Invalid, needs-review,
-              and duplicate records are skipped.
+              Fetches the Creative Commons SRD data from GitHub and imports
+              only records that pass validation. Invalid, needs-review, and
+              duplicate records are skipped.
+            </p>
+            <p className="mt-2 break-all text-xs font-semibold text-emerald-100/80">
+              {TABYLTOP_CC_SRD_RAW_URL}
             </p>
             <button
               className="mt-3 rounded-lg border border-emerald-200 bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
@@ -982,6 +1037,11 @@ function SrdImportPlanning({
               {importError}
             </p>
           ) : null}
+          {importStatus ? (
+            <p className="mt-3 rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-3 text-sm font-bold text-cyan-100">
+              {importStatus}
+            </p>
+          ) : null}
           {importMessage ? (
             <p className="mt-3 text-sm font-bold text-emerald-100">
               {importMessage}
@@ -994,15 +1054,16 @@ function SrdImportPlanning({
             Planned Adapter Workflow
           </h3>
           <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-            <li>1. Obtain a reviewed CC-SRD monster JSON file or local adapter output.</li>
+            <li>1. Fetch the direct raw CC-SRD JSON file from GitHub on click.</li>
             <li>2. Normalize records into the app creature template shape.</li>
             <li>3. Validate AC, HP, initiative bonus, CR, actions, license, and attribution.</li>
             <li>4. Generate an import preview with warnings and missing fields.</li>
-            <li>5. Save selected creatures only after review.</li>
+            <li>5. Import Ready records only; skip duplicates and records that need review.</li>
           </ol>
           <p className="mt-4 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50/90">
-            This pass uses a tiny local Tabyltop-shaped sample subset. No
-            GitHub fetch, database write, or full SRD bundle is performed.
+            The fetch is user-triggered and uses only the raw JSON URL. If
+            GitHub is unavailable, use the pasted JSON fallback below. No
+            database write is performed.
           </p>
         </div>
       </div>
@@ -1635,6 +1696,7 @@ function buildSrdImportReport(
   previews: SrdImportPreview[],
   importedCount: number,
   existingSrdKeys: Set<string>,
+  sourceLabel: string,
 ) {
   const duplicateCount = getDuplicateSrdPreviews(previews, existingSrdKeys).length;
   const errorCount = previews.filter((preview) => preview.status === "error").length;
@@ -1644,12 +1706,52 @@ function buildSrdImportReport(
 
   return [
     `SRD Import Complete: ${previews.length} record${previews.length === 1 ? "" : "s"} processed.`,
-    `Source: ${TABYLTOP_SRD_SOURCE.sourceName} local/static JSON.`,
+    `Source: ${TABYLTOP_SRD_SOURCE.sourceName} ${sourceLabel}.`,
     `${importedCount} Ready SRD creature${importedCount === 1 ? "" : "s"} imported.`,
     `${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped.`,
     `${errorCount} error record${errorCount === 1 ? "" : "s"} skipped.`,
     `${needsReviewCount} needs-review record${needsReviewCount === 1 ? "" : "s"} skipped.`,
   ].join(" ");
+}
+
+async function normalizeSrdPreviews(
+  records: Array<Record<string, unknown>>,
+  onProgress: (processed: number) => void,
+) {
+  const previews: SrdImportPreview[] = [];
+
+  for (let index = 0; index < records.length; index += 1) {
+    previews.push(normalizeTabyltopSrdMonster(records[index]));
+
+    if ((index + 1) % 50 === 0) {
+      onProgress(index + 1);
+      await yieldToBrowser();
+    }
+  }
+
+  onProgress(records.length);
+
+  return previews;
+}
+
+function yieldToBrowser() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${value} bytes`;
+  }
+
+  const kb = value / 1024;
+
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+
+  return `${(kb / 1024).toFixed(1)} MB`;
 }
 
 function getDuplicateSrdPreviews(

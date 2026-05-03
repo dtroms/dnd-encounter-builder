@@ -99,11 +99,12 @@ source badge and become searchable in both the Library and Builder. This is
 still local state only and does not persist to Supabase.
 
 The Importer can also import SRD preview creatures into the same local session
-list. The primary Importer action is now Import All SRD Monsters, which loads a
-local/static Tabyltop CC-SRD-shaped JSON source, imports Ready records only, and
-skips duplicates, errors, and needs-review records. Those creatures use the SRD
-/ Creative Commons source badge and preserve Tabyltop CC-SRD source, license,
-URL, document version, and attribution metadata.
+list. The primary Importer action is now Import All SRD Monsters, which fetches
+the direct raw Tabyltop CC-SRD JSON from GitHub on user click, imports Ready
+records only, and skips duplicates, errors, and needs-review records. Those
+creatures use the SRD / Creative Commons source badge and preserve Tabyltop
+CC-SRD source, raw source URL, license, document version, and attribution
+metadata.
 
 Future SRD imports should preserve license, attribution, source name, source
 document version, and source URL metadata separately from non-SRD or

@@ -11,17 +11,22 @@ The repository contains converted SRD data. Because conversion errors may exist,
 the app should normalize and validate records before they become Creature
 Library templates.
 
-## Current Local Workflow
+## Current GitHub Fetch Workflow
 
-The Importer SRD tab currently uses a tiny local/static Tabyltop-shaped JSON
-source at `src/data/srd/tabyltop-cc-srd-monsters.sample.json`. It does not fetch
-GitHub at runtime and does not bundle the full SRD monster list yet.
+The Importer SRD tab fetches the direct raw Tabyltop CC-SRD JSON file only when
+the user clicks Import All SRD Monsters. It does not fetch on app load and does
+not scrape GitHub HTML pages.
+
+Raw URL:
+
+`https://raw.githubusercontent.com/Tabyltop/CC-SRD/main/SRD5.1-CCBY4.0License-TT.json`
 
 The automated workflow is:
 
 1. Click Import All SRD Monsters.
-2. Load the configured local/static CC-SRD-shaped JSON source.
-3. Extract the monster array from the supported dataset shape.
+2. Fetch the raw CC-SRD JSON from GitHub.
+3. Extract monster records from structured arrays or rebuild them from the
+   Tabyltop full-document heading/paragraph/table block format.
 4. Normalize each record into the local creature template shape.
 5. Validate each record as Ready, Needs Review, Error, or Already in library.
 6. Import Ready records only.
@@ -37,6 +42,10 @@ on demand. Supported shapes are arrays, objects with `monsters`, `data`, or
 
 Imported creatures appear in the Creature Library and Builder during the same
 browser session because both use the shared local creature list.
+
+If the GitHub fetch fails, the app shows a friendly error and imports nothing
+from that attempt. The pasted JSON fallback remains available for manually
+testing the same normalization and validation pipeline.
 
 ## Normalization
 
@@ -84,11 +93,9 @@ Not included yet:
 
 - Supabase persistence.
 - Auth or RLS.
-- Runtime GitHub fetching.
-- The full curated CC-SRD monster JSON file.
+- Automatic background fetching on app load.
 - D&D Beyond scraping.
 - Official non-SRD D&D monster data.
 
-Future production import should use either a curated pinned CC-SRD JSON file or
-a reviewed local adapter output, then perform licensing and schema review before
-public release.
+Future production import should keep the raw source URL pinned or configurable,
+then perform licensing and schema review before public release.

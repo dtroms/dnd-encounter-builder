@@ -9,6 +9,7 @@ export type LibraryCreature = CreatureTemplate & {
   licenseName: string;
   sourceName: string;
   sourceDocumentVersion?: string;
+  sourceRawUrl?: string;
   sourceType: LibrarySourceType;
   sourceUrl?: string;
   attribution?: string;
