@@ -6,6 +6,7 @@ export const combatantTypeOrder: CombatantType[] = [
   "enemy",
   "boss",
   "summon",
+  "minion",
   "neutral",
 ];
 
@@ -65,6 +66,15 @@ export const typeStyles: Record<
     softBg: "bg-violet-950/35",
     ring: "ring-violet-400/40",
     dot: "bg-violet-400",
+  },
+  minion: {
+    label: "Minion",
+    text: "text-orange-200",
+    border: "border-orange-400/50",
+    bg: "bg-orange-500/15",
+    softBg: "bg-orange-950/35",
+    ring: "ring-orange-400/40",
+    dot: "bg-orange-400",
   },
   neutral: {
     label: "Neutral",

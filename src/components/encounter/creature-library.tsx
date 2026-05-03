@@ -1,32 +1,71 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  libraryCreatures,
-  type LibraryCreature,
-  type LibrarySourceType,
-} from "@/lib/encounter/library-sample-data";
+import type { ReactNode } from "react";
 import type {
   AbilityScores,
   CombatantType,
+  MonsterType,
   StatBlockAction,
   StatBlockTrait,
 } from "@/lib/encounter/types";
+import type {
+  LibraryCreature,
+  LibrarySourceType,
+} from "@/lib/encounter/library-sample-data";
 import { TypeBadge } from "./type-badge";
 
 type RoleFilter = "all" | CombatantType | "npc";
 type SourceFilter = "all" | LibrarySourceType;
-type CrFilter = "all" | "0" | "eighth-quarter" | "half-one" | "two-four" | "five-plus";
+type MonsterTypeFilter = "all" | MonsterType;
+type CrFilter =
+  | "all"
+  | "0"
+  | "eighth-quarter"
+  | "half-one"
+  | "two-four"
+  | "five-plus";
+type EditorMode = "create" | "edit";
+
+const monsterTypeOptions: MonsterType[] = [
+  "Aberration",
+  "Beast",
+  "Celestial",
+  "Construct",
+  "Dragon",
+  "Elemental",
+  "Fey",
+  "Fiend",
+  "Giant",
+  "Humanoid",
+  "Monstrosity",
+  "Ooze",
+  "Plant",
+  "Undead",
+  "Custom / Other",
+  "Unknown / Unset",
+];
 
 const roleFilterOptions: Array<{ label: string; value: RoleFilter }> = [
-  { label: "All", value: "all" },
+  { label: "All Roles", value: "all" },
   { label: "PC", value: "pc" },
   { label: "Enemy", value: "enemy" },
   { label: "Boss", value: "boss" },
   { label: "NPC", value: "npc" },
   { label: "Ally", value: "ally" },
   { label: "Summon", value: "summon" },
+  { label: "Minion", value: "minion" },
   { label: "Neutral", value: "neutral" },
+];
+
+const combatRoleOptions: CombatantType[] = [
+  "pc",
+  "enemy",
+  "boss",
+  "ally",
+  "summon",
+  "minion",
+  "neutral",
 ];
 
 const sourceLabels: Record<LibrarySourceType, string> = {
@@ -63,26 +102,42 @@ const sizeOptions = [
   "Gargantuan",
 ];
 
+const emptyAction = { description: "", name: "" };
+
 export function CreatureLibrary({
+  creatures,
+  onCreateCreature,
+  onDuplicateCreature,
   onOpenBuilder,
   onOpenImporter,
+  onUpdateCreature,
 }: {
+  creatures: LibraryCreature[];
+  onCreateCreature: (creature: LibraryCreature) => void;
+  onDuplicateCreature: (creature: LibraryCreature) => void;
   onOpenBuilder: () => void;
   onOpenImporter: () => void;
+  onUpdateCreature: (creature: LibraryCreature) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [monsterTypeFilter, setMonsterTypeFilter] =
+    useState<MonsterTypeFilter>("all");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [crFilter, setCrFilter] = useState<CrFilter>("all");
   const [sizeFilter, setSizeFilter] = useState("Any");
   const [selectedCreatureId, setSelectedCreatureId] = useState(
-    libraryCreatures[0]?.id ?? "",
+    creatures[0]?.id ?? "",
   );
+  const [editorState, setEditorState] = useState<{
+    creature: LibraryCreature;
+    mode: EditorMode;
+  } | null>(null);
 
   const filteredCreatures = useMemo(() => {
     const normalized = query.trim().toLowerCase();
 
-    return libraryCreatures.filter((creature) => {
+    return creatures.filter((creature) => {
       const actionText = [
         ...creature.actions,
         ...(creature.bonusActions ?? []),
@@ -93,6 +148,7 @@ export function CreatureLibrary({
       const searchable = [
         creature.name,
         creature.type,
+        creature.monsterType ?? "",
         creature.size,
         creature.challengeRating ?? "",
         creature.notes ?? "",
@@ -105,6 +161,8 @@ export function CreatureLibrary({
 
       const matchesQuery =
         normalized.length === 0 || searchable.includes(normalized);
+      const matchesMonsterType =
+        monsterTypeFilter === "all" || creature.monsterType === monsterTypeFilter;
       const matchesRole =
         roleFilter === "all" ||
         creature.type === roleFilter ||
@@ -114,14 +172,58 @@ export function CreatureLibrary({
       const matchesSize = sizeFilter === "Any" || creature.size === sizeFilter;
       const matchesCr = matchesChallengeFilter(creature.challengeRating, crFilter);
 
-      return matchesQuery && matchesRole && matchesSource && matchesSize && matchesCr;
+      return (
+        matchesQuery &&
+        matchesMonsterType &&
+        matchesRole &&
+        matchesSource &&
+        matchesSize &&
+        matchesCr
+      );
     });
-  }, [crFilter, query, roleFilter, sizeFilter, sourceFilter]);
+  }, [
+    creatures,
+    crFilter,
+    monsterTypeFilter,
+    query,
+    roleFilter,
+    sizeFilter,
+    sourceFilter,
+  ]);
 
   const selectedCreature =
     filteredCreatures.find((creature) => creature.id === selectedCreatureId) ??
+    creatures.find((creature) => creature.id === selectedCreatureId) ??
     filteredCreatures[0] ??
     null;
+
+  function saveCreature(creature: LibraryCreature, mode: EditorMode) {
+    if (mode === "create") {
+      onCreateCreature(creature);
+    } else {
+      onUpdateCreature(creature);
+    }
+
+    setSelectedCreatureId(creature.id);
+    setEditorState(null);
+  }
+
+  function duplicateCreature(creature: LibraryCreature) {
+    const copy: LibraryCreature = {
+      ...cloneCreature(creature),
+      id: `custom-${slugify(creature.name)}-${Date.now()}`,
+      name: `${creature.name} Variant`,
+      sourceName: "Duplicated Local Creature",
+      sourceType: "custom",
+      licenseName: "none/custom/private",
+      attribution: creature.attribution
+        ? `${creature.attribution} Duplicated locally for editing.`
+        : undefined,
+    };
+
+    onDuplicateCreature(copy);
+    setSelectedCreatureId(copy.id);
+  }
 
   return (
     <section className="space-y-4">
@@ -135,11 +237,16 @@ export function CreatureLibrary({
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
+              className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200"
               type="button"
+              onClick={() =>
+                setEditorState({
+                  creature: createBlankCreature(),
+                  mode: "create",
+                })
+              }
             >
-              Create Creature later
+              Create Creature
             </button>
             <button
               className="rounded-lg border border-cyan-300/50 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:border-cyan-200 hover:text-white"
@@ -148,29 +255,41 @@ export function CreatureLibrary({
             >
               Import Stat Block
             </button>
-          <button
-            className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
-            type="button"
-          >
-            Import SRD Monsters
-          </button>
+            <button
+              className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
+              disabled
+              type="button"
+            >
+              Import SRD Monsters
+            </button>
           </div>
         </div>
       </div>
+
+      {editorState ? (
+        <CreatureEditor
+          creature={editorState.creature}
+          mode={editorState.mode}
+          onCancel={() => setEditorState(null)}
+          onSave={(creature) => saveCreature(creature, editorState.mode)}
+        />
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.4fr)_minmax(0,0.6fr)]">
         <aside className="rounded-xl border border-slate-800 bg-slate-950/65 p-3">
           <LibraryFilters
             crFilter={crFilter}
+            monsterTypeFilter={monsterTypeFilter}
             query={query}
             roleFilter={roleFilter}
             sizeFilter={sizeFilter}
             sourceFilter={sourceFilter}
             onCrFilterChange={setCrFilter}
+            onMonsterTypeFilterChange={setMonsterTypeFilter}
             onQueryChange={setQuery}
             onReset={() => {
               setQuery("");
+              setMonsterTypeFilter("all");
               setRoleFilter("all");
               setSourceFilter("all");
               setCrFilter("all");
@@ -205,7 +324,7 @@ export function CreatureLibrary({
                 No creatures found
               </p>
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                Clear filters or use future create/import actions.
+                Try clearing filters or creating a new local creature.
               </p>
             </div>
           ) : null}
@@ -214,6 +333,13 @@ export function CreatureLibrary({
         {selectedCreature ? (
           <CreatureDetailPanel
             creature={selectedCreature}
+            onDuplicate={() => duplicateCreature(selectedCreature)}
+            onEdit={() =>
+              setEditorState({
+                creature: cloneCreature(selectedCreature),
+                mode: "edit",
+              })
+            }
             onOpenBuilder={onOpenBuilder}
           />
         ) : (
@@ -231,11 +357,13 @@ export function CreatureLibrary({
 
 function LibraryFilters({
   crFilter,
+  monsterTypeFilter,
   query,
   roleFilter,
   sizeFilter,
   sourceFilter,
   onCrFilterChange,
+  onMonsterTypeFilterChange,
   onQueryChange,
   onReset,
   onRoleFilterChange,
@@ -243,11 +371,13 @@ function LibraryFilters({
   onSourceFilterChange,
 }: {
   crFilter: CrFilter;
+  monsterTypeFilter: MonsterTypeFilter;
   query: string;
   roleFilter: RoleFilter;
   sizeFilter: string;
   sourceFilter: SourceFilter;
   onCrFilterChange: (value: CrFilter) => void;
+  onMonsterTypeFilterChange: (value: MonsterTypeFilter) => void;
   onQueryChange: (value: string) => void;
   onReset: () => void;
   onRoleFilterChange: (value: RoleFilter) => void;
@@ -266,7 +396,22 @@ function LibraryFilters({
       />
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <select
-          aria-label="Role filter"
+          aria-label="Monster type filter"
+          className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-cyan-300"
+          value={monsterTypeFilter}
+          onChange={(event) =>
+            onMonsterTypeFilterChange(event.target.value as MonsterTypeFilter)
+          }
+        >
+          <option value="all">All monster types</option>
+          {monsterTypeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Combat role filter"
           className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-cyan-300"
           value={roleFilter}
           onChange={(event) => onRoleFilterChange(event.target.value as RoleFilter)}
@@ -354,6 +499,7 @@ function CreatureListItem({
         {creature.name}
       </h4>
       <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+        <span>{creature.monsterType ?? "Unknown / Unset"}</span>
         <span>CR {creature.challengeRating ?? "-"}</span>
         <span>AC {creature.armorClass}</span>
         <span>HP {creature.maxHp}</span>
@@ -368,9 +514,13 @@ function CreatureListItem({
 
 function CreatureDetailPanel({
   creature,
+  onDuplicate,
+  onEdit,
   onOpenBuilder,
 }: {
   creature: LibraryCreature;
+  onDuplicate: () => void;
+  onEdit: () => void;
   onOpenBuilder: () => void;
 }) {
   return (
@@ -380,6 +530,9 @@ function CreatureDetailPanel({
           <div className="flex flex-wrap items-center gap-2">
             <TypeBadge type={creature.type} />
             <SourceBadge sourceType={creature.sourceType} />
+            <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-black text-slate-300">
+              {creature.monsterType ?? "Unknown / Unset"}
+            </span>
             <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-black text-slate-300">
               CR {creature.challengeRating ?? "-"}
             </span>
@@ -400,18 +553,18 @@ function CreatureDetailPanel({
             Add to Builder
           </button>
           <button
-            className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
             type="button"
+            onClick={onEdit}
           >
-            Edit later
+            Edit Creature
           </button>
           <button
-            className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
             type="button"
+            onClick={onDuplicate}
           >
-            Duplicate later
+            Duplicate Creature
           </button>
           <button
             className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
@@ -463,6 +616,318 @@ function CreatureDetailPanel({
 
       <SourceMetadata creature={creature} />
     </section>
+  );
+}
+
+function CreatureEditor({
+  creature,
+  mode,
+  onCancel,
+  onSave,
+}: {
+  creature: LibraryCreature;
+  mode: EditorMode;
+  onCancel: () => void;
+  onSave: (creature: LibraryCreature) => void;
+}) {
+  const [draft, setDraft] = useState<LibraryCreature>(cloneCreature(creature));
+
+  function patch(updates: Partial<LibraryCreature>) {
+    setDraft((current) => ({ ...current, ...updates }));
+  }
+
+  function patchScores(scores: Partial<AbilityScores>) {
+    setDraft((current) => ({
+      ...current,
+      abilityScores: { ...current.abilityScores, ...scores },
+    }));
+  }
+
+  function save() {
+    const cleaned = normalizeCreature(draft);
+
+    if (!cleaned.name.trim()) {
+      return;
+    }
+
+    onSave(cleaned);
+  }
+
+  return (
+    <section className="rounded-xl border border-cyan-300/35 bg-slate-950/85 p-4 shadow-2xl shadow-cyan-950/20">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">
+            {mode === "create" ? "Create Creature" : "Edit Creature"}
+          </p>
+          <h3 className="mt-1 text-xl font-black text-white">
+            {draft.name || "Unnamed Creature"}
+          </h3>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!draft.name.trim()}
+            type="button"
+            onClick={save}
+          >
+            Save Creature
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
+        <div className="space-y-4">
+          <EditorSection title="Identity">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <TextInput
+                label="Name"
+                value={draft.name}
+                onChange={(name) => patch({ name })}
+              />
+              <SelectInput
+                label="Monster Type"
+                value={draft.monsterType ?? "Custom / Other"}
+                onChange={(monsterType) =>
+                  patch({ monsterType: monsterType as MonsterType })
+                }
+              >
+                {monsterTypeOptions.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </SelectInput>
+              <SelectInput
+                label="Combat Role"
+                value={draft.type}
+                onChange={(type) => patch({ type: type as CombatantType })}
+              >
+                {combatRoleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </SelectInput>
+              <SelectInput
+                label="Size"
+                value={draft.size}
+                onChange={(size) => patch({ size })}
+              >
+                {sizeOptions
+                  .filter((size) => size !== "Any")
+                  .map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+              </SelectInput>
+            </div>
+          </EditorSection>
+
+          <EditorSection title="Core Combat Stats">
+            <div className="grid gap-2 md:grid-cols-5">
+              <TextInput
+                label="CR"
+                value={draft.challengeRating ?? ""}
+                onChange={(challengeRating) => patch({ challengeRating })}
+              />
+              <NumberInput
+                label="AC"
+                value={draft.armorClass}
+                onChange={(armorClass) => patch({ armorClass })}
+              />
+              <NumberInput
+                label="HP"
+                value={draft.maxHp}
+                onChange={(maxHp) => patch({ maxHp })}
+              />
+              <TextInput
+                label="Speed"
+                value={draft.speed}
+                onChange={(speed) => patch({ speed })}
+              />
+              <NumberInput
+                label="Initiative"
+                value={draft.initiativeBonus}
+                onChange={(initiativeBonus) => patch({ initiativeBonus })}
+              />
+            </div>
+          </EditorSection>
+
+          <EditorSection title="Ability Scores">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+              {Object.entries(draft.abilityScores).map(([ability, value]) => (
+                <NumberInput
+                  key={ability}
+                  label={ability.toUpperCase()}
+                  value={value}
+                  onChange={(score) =>
+                    patchScores({ [ability]: score } as Partial<AbilityScores>)
+                  }
+                />
+              ))}
+            </div>
+          </EditorSection>
+
+          <EditorSection title="Notes / Tags / Source">
+            <div className="grid gap-2 xl:grid-cols-2">
+              <TextArea
+                label="Notes"
+                value={draft.notes ?? ""}
+                onChange={(notes) => patch({ notes })}
+              />
+              <div className="grid gap-2">
+                <TextInput
+                  label="Tags"
+                  value={draft.tags.join(", ")}
+                  onChange={(tags) => patch({ tags: splitTags(tags) })}
+                />
+                <SelectInput
+                  label="Source Type"
+                  value={draft.sourceType}
+                  onChange={(sourceType) => {
+                    const nextSourceType = sourceType as LibrarySourceType;
+                    patch({
+                      licenseName:
+                        nextSourceType === "custom"
+                          ? "none/custom/private"
+                          : draft.licenseName,
+                      sourceName:
+                        nextSourceType === "custom"
+                          ? "User Created"
+                          : draft.sourceName,
+                      sourceType: nextSourceType,
+                    });
+                  }}
+                >
+                  {Object.entries(sourceLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </SelectInput>
+                <TextInput
+                  label="Source Name"
+                  value={draft.sourceName}
+                  onChange={(sourceName) => patch({ sourceName })}
+                />
+                <TextInput
+                  label="License"
+                  value={draft.licenseName}
+                  onChange={(licenseName) => patch({ licenseName })}
+                />
+              </div>
+            </div>
+          </EditorSection>
+        </div>
+
+        <div className="space-y-4">
+          <RepeatableEntries
+            items={draft.traits}
+            title="Traits"
+            onChange={(traits) => patch({ traits })}
+          />
+          <RepeatableEntries
+            items={draft.actions}
+            title="Actions"
+            onChange={(actions) => patch({ actions })}
+          />
+          <RepeatableEntries
+            items={draft.bonusActions ?? []}
+            title="Bonus Actions"
+            onChange={(bonusActions) => patch({ bonusActions })}
+          />
+          <RepeatableEntries
+            items={draft.reactions ?? []}
+            title="Reactions"
+            onChange={(reactions) => patch({ reactions })}
+          />
+          <RepeatableEntries
+            items={draft.legendaryActions ?? []}
+            title="Legendary Actions"
+            onChange={(legendaryActions) => patch({ legendaryActions })}
+          />
+          <RepeatableEntries
+            items={draft.lairActions ?? []}
+            title="Lair Actions"
+            onChange={(lairActions) => patch({ lairActions })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RepeatableEntries({
+  items,
+  title,
+  onChange,
+}: {
+  items: StatBlockAction[];
+  title: string;
+  onChange: (items: StatBlockAction[]) => void;
+}) {
+  return (
+    <EditorSection title={title}>
+      <div className="grid gap-2">
+        {items.length === 0 ? (
+          <p className="text-xs font-semibold text-slate-500">
+            No {title.toLowerCase()} yet.
+          </p>
+        ) : null}
+        {items.map((item, index) => (
+          <div
+            className="grid gap-2 rounded-lg border border-slate-800 bg-slate-950 p-2"
+            key={`${title}-${index}`}
+          >
+            <TextInput
+              label="Name"
+              value={item.name}
+              onChange={(name) =>
+                onChange(
+                  items.map((entry, itemIndex) =>
+                    itemIndex === index ? { ...entry, name } : entry,
+                  ),
+                )
+              }
+            />
+            <TextArea
+              label="Description"
+              value={item.description}
+              onChange={(description) =>
+                onChange(
+                  items.map((entry, itemIndex) =>
+                    itemIndex === index ? { ...entry, description } : entry,
+                  ),
+                )
+              }
+            />
+            <button
+              className="justify-self-start rounded-md border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-300 transition hover:border-rose-400 hover:text-rose-200"
+              type="button"
+              onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+          type="button"
+          onClick={() => onChange([...items, { ...emptyAction }])}
+        >
+          Add {title.slice(0, -1)}
+        </button>
+      </div>
+    </EditorSection>
   );
 }
 
@@ -594,6 +1059,208 @@ function MetadataFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+function EditorSection({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+      <h4 className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+        {title}
+      </h4>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <input
+        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <input
+        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        type="number"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  );
+}
+
+function SelectInput({
+  children,
+  label,
+  value,
+  onChange,
+}: {
+  children: ReactNode;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <select
+        className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <textarea
+        className="min-h-24 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-sm font-semibold normal-case leading-6 tracking-normal text-white outline-none focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function createBlankCreature(): LibraryCreature {
+  return {
+    accentColor: "Purple",
+    actions: [{ name: "Improvised Strike", description: "Describe the attack." }],
+    armorClass: 10,
+    attribution: undefined,
+    autoRollEligible: true,
+    challengeRating: "0",
+    abilityScores: { cha: 10, con: 10, dex: 10, int: 10, str: 10, wis: 10 },
+    id: `custom-creature-${Date.now()}`,
+    importMethod: undefined,
+    initiativeBonus: 0,
+    languages: "None",
+    licenseName: "none/custom/private",
+    maxHp: 1,
+    monsterType: "Custom / Other",
+    name: "",
+    notes: "",
+    senses: "passive Perception 10",
+    size: "Medium",
+    sourceName: "User Created",
+    sourceType: "custom",
+    sourceUrl: undefined,
+    speed: "30 ft.",
+    tags: ["custom"],
+    traits: [],
+    type: "enemy",
+  };
+}
+
+function cloneCreature(creature: LibraryCreature): LibraryCreature {
+  return {
+    ...creature,
+    abilityScores: { ...creature.abilityScores },
+    actions: cloneEntries(creature.actions) ?? [],
+    bonusActions: cloneEntries(creature.bonusActions),
+    lairActions: cloneEntries(creature.lairActions),
+    legendaryActions: cloneEntries(creature.legendaryActions),
+    reactions: cloneEntries(creature.reactions),
+    tags: [...creature.tags],
+    traits: cloneEntries(creature.traits) ?? [],
+  };
+}
+
+function cloneEntries<T extends StatBlockAction | StatBlockTrait>(
+  items?: T[],
+): T[] | undefined {
+  return items?.map((item) => ({ ...item }));
+}
+
+function normalizeCreature(creature: LibraryCreature): LibraryCreature {
+  return {
+    ...creature,
+    actions: cleanEntries(creature.actions),
+    armorClass: clampNumber(creature.armorClass, 0),
+    bonusActions: cleanEntries(creature.bonusActions),
+    challengeRating: creature.challengeRating?.trim() || "0",
+    initiativeBonus: Number.isFinite(creature.initiativeBonus)
+      ? creature.initiativeBonus
+      : 0,
+    lairActions: cleanEntries(creature.lairActions),
+    languages: creature.languages.trim() || "None",
+    legendaryActions: cleanEntries(creature.legendaryActions),
+    maxHp: clampNumber(creature.maxHp, 1),
+    monsterType: creature.monsterType ?? "Custom / Other",
+    name: creature.name.trim(),
+    notes: creature.notes?.trim(),
+    reactions: cleanEntries(creature.reactions),
+    senses: creature.senses.trim() || "passive Perception 10",
+    size: creature.size || "Medium",
+    sourceName: creature.sourceName.trim() || "User Created",
+    speed: creature.speed.trim() || "30 ft.",
+    tags: creature.tags.map((tag) => tag.trim()).filter(Boolean),
+    traits: cleanEntries(creature.traits),
+  };
+}
+
+function cleanEntries<T extends StatBlockAction | StatBlockTrait>(
+  items?: T[],
+): T[] {
+  return (items ?? []).filter(
+    (item) => item.name.trim() || item.description.trim(),
+  );
+}
+
+function splitTags(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function clampNumber(value: number, minimum: number) {
+  return Number.isFinite(value) ? Math.max(minimum, value) : minimum;
+}
+
 function matchesChallengeFilter(value: string | undefined, filter: CrFilter) {
   if (filter === "all") {
     return true;
@@ -602,7 +1269,7 @@ function matchesChallengeFilter(value: string | undefined, filter: CrFilter) {
   const cr = parseChallengeRating(value);
 
   if (filter === "0") {
-    return cr === 0 || cr === null;
+    return cr === 0;
   }
 
   if (cr === null) {
@@ -640,4 +1307,11 @@ function parseChallengeRating(value?: string) {
 
 function formatModifier(value: number) {
   return `${value >= 0 ? "+" : ""}${value}`;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }

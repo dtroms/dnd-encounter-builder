@@ -4,7 +4,26 @@ export type CombatantType =
   | "enemy"
   | "boss"
   | "summon"
+  | "minion"
   | "neutral";
+
+export type MonsterType =
+  | "Aberration"
+  | "Beast"
+  | "Celestial"
+  | "Construct"
+  | "Dragon"
+  | "Elemental"
+  | "Fey"
+  | "Fiend"
+  | "Giant"
+  | "Humanoid"
+  | "Monstrosity"
+  | "Ooze"
+  | "Plant"
+  | "Undead"
+  | "Custom / Other"
+  | "Unknown / Unset";
 
 export type CombatantCondition =
   | "blinded"
@@ -52,6 +71,7 @@ export type StatBlockAction = {
 export type CreatureTemplate = {
   id: string;
   name: string;
+  monsterType?: MonsterType;
   type: CombatantType;
   size: string;
   armorClass: number;

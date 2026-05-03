@@ -6,6 +6,7 @@ import type {
   CombatantType,
   CreatureTemplate,
   EncounterCombatant,
+  MonsterType,
   StatBlockAction,
   StatBlockTrait,
 } from "@/lib/encounter/types";
@@ -32,20 +33,22 @@ type EncounterBuilderProps = {
   onLaunchRunner: () => void;
 };
 
-type TypeFilter = "all" | CombatantType;
+type TypeFilter = "all" | CombatantType | "npc";
+type MonsterTypeFilter = "all" | MonsterType;
 
 const quickFilters: Array<{ label: string; value: TypeFilter }> = [
   { label: "All", value: "all" },
   { label: "PC", value: "pc" },
   { label: "Enemy", value: "enemy" },
   { label: "Boss", value: "boss" },
-  { label: "NPC", value: "neutral" },
+  { label: "NPC", value: "npc" },
   { label: "Ally", value: "ally" },
   { label: "Summon", value: "summon" },
+  { label: "Minion", value: "minion" },
   { label: "Neutral", value: "neutral" },
 ];
 
-const futureTaxonomy = [
+const monsterTypeOptions: MonsterType[] = [
   "Aberration",
   "Beast",
   "Celestial",
@@ -60,6 +63,8 @@ const futureTaxonomy = [
   "Ooze",
   "Plant",
   "Undead",
+  "Custom / Other",
+  "Unknown / Unset",
 ];
 
 const campaignOptions = [
@@ -86,6 +91,8 @@ export function EncounterBuilder({
 }: EncounterBuilderProps) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [monsterTypeFilter, setMonsterTypeFilter] =
+    useState<MonsterTypeFilter>("all");
   const [sizeFilter, setSizeFilter] = useState("all");
   const [crMin, setCrMin] = useState("");
   const [crMax, setCrMax] = useState("");
@@ -112,6 +119,7 @@ export function EncounterBuilder({
       const templateCr = parseChallengeRating(template.challengeRating);
       const searchable = [
         template.name,
+        template.monsterType ?? "",
         template.type,
         template.size,
         template.challengeRating ?? "",
@@ -122,14 +130,26 @@ export function EncounterBuilder({
 
       const matchesQuery =
         normalized.length === 0 || searchable.includes(normalized);
-      const matchesType = typeFilter === "all" || template.type === typeFilter;
+      const matchesMonsterType =
+        monsterTypeFilter === "all" || template.monsterType === monsterTypeFilter;
+      const matchesType =
+        typeFilter === "all" ||
+        template.type === typeFilter ||
+        (typeFilter === "npc" && template.tags.includes("npc"));
       const matchesSize = sizeFilter === "all" || template.size === sizeFilter;
       const matchesMin = minCr === null || templateCr === null || templateCr >= minCr;
       const matchesMax = maxCr === null || templateCr === null || templateCr <= maxCr;
 
-      return matchesQuery && matchesType && matchesSize && matchesMin && matchesMax;
+      return (
+        matchesQuery &&
+        matchesMonsterType &&
+        matchesType &&
+        matchesSize &&
+        matchesMin &&
+        matchesMax
+      );
     });
-  }, [crMax, crMin, query, sizeFilter, templates, typeFilter]);
+  }, [crMax, crMin, monsterTypeFilter, query, sizeFilter, templates, typeFilter]);
 
   const groupedCombatants = useMemo(
     () => groupCombatantsByCombatGroup(combatants),
@@ -177,15 +197,18 @@ export function EncounterBuilder({
         <BrowserFilters
           crMax={crMax}
           crMin={crMin}
+          monsterTypeFilter={monsterTypeFilter}
           query={query}
           sizeFilter={sizeFilter}
           sizes={availableSizes}
           typeFilter={typeFilter}
           onCrMaxChange={setCrMax}
           onCrMinChange={setCrMin}
+          onMonsterTypeFilterChange={setMonsterTypeFilter}
           onQueryChange={setQuery}
           onReset={() => {
             setQuery("");
+            setMonsterTypeFilter("all");
             setTypeFilter("all");
             setSizeFilter("all");
             setCrMin("");
@@ -403,26 +426,6 @@ function QuickFilters({
           {filter.label}
         </button>
       ))}
-      <details className="relative">
-        <summary className="cursor-pointer rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-black text-slate-300 hover:border-slate-500 hover:text-white">
-          More Types later
-        </summary>
-        <div className="absolute z-10 mt-2 w-64 rounded-xl border border-slate-800 bg-slate-950 p-3 shadow-2xl shadow-black/40">
-          <p className="text-xs font-semibold leading-5 text-slate-500">
-            Future taxonomy filters:
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {futureTaxonomy.map((item) => (
-              <span
-                className="rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] font-bold text-slate-500"
-                key={item}
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      </details>
     </div>
   );
 }
@@ -430,12 +433,14 @@ function QuickFilters({
 function BrowserFilters({
   crMax,
   crMin,
+  monsterTypeFilter,
   query,
   sizeFilter,
   sizes,
   typeFilter,
   onCrMaxChange,
   onCrMinChange,
+  onMonsterTypeFilterChange,
   onQueryChange,
   onReset,
   onSizeFilterChange,
@@ -443,12 +448,14 @@ function BrowserFilters({
 }: {
   crMax: string;
   crMin: string;
+  monsterTypeFilter: MonsterTypeFilter;
   query: string;
   sizeFilter: string;
   sizes: string[];
   typeFilter: TypeFilter;
   onCrMaxChange: (value: string) => void;
   onCrMinChange: (value: string) => void;
+  onMonsterTypeFilterChange: (value: MonsterTypeFilter) => void;
   onQueryChange: (value: string) => void;
   onReset: () => void;
   onSizeFilterChange: (value: string) => void;
@@ -456,7 +463,7 @@ function BrowserFilters({
 }) {
   return (
     <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/55 p-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_8rem_7rem_7rem_8rem_auto]">
+      <div className="grid gap-2 lg:grid-cols-[minmax(12rem,1fr)_9rem_8rem_7rem_7rem_8rem_auto]">
         <input
           aria-label="Search creatures"
           className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
@@ -466,12 +473,28 @@ function BrowserFilters({
           onChange={(event) => onQueryChange(event.target.value)}
         />
         <select
-          aria-label="Role filter"
+          aria-label="Monster type filter"
+          className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-cyan-300"
+          value={monsterTypeFilter}
+          onChange={(event) =>
+            onMonsterTypeFilterChange(event.target.value as MonsterTypeFilter)
+          }
+        >
+          <option value="all">All monster types</option>
+          {monsterTypeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Combat role filter"
           className="h-9 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-cyan-300"
           value={typeFilter}
           onChange={(event) => onTypeFilterChange(event.target.value as TypeFilter)}
         >
           <option value="all">All roles</option>
+          <option value="npc">npc</option>
           {combatantTypeOrder.map((type) => (
             <option key={type} value={type}>
               {type}
@@ -551,7 +574,7 @@ function CreatureResultRow({
       >
         <span className="block truncate font-black text-white">{template.name}</span>
         <span className="block truncate text-xs font-semibold text-slate-500">
-          {template.size}
+          {template.monsterType ?? "Unknown / Unset"} - {template.size}
         </span>
       </button>
       <TypeBadge type={template.type} />
@@ -599,6 +622,9 @@ function CreaturePreview({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <TypeBadge type={template.type} />
+            <span className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-black text-slate-300">
+              {template.monsterType ?? "Unknown / Unset"}
+            </span>
             <span className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-black text-slate-300">
               {template.size}
             </span>

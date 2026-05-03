@@ -176,6 +176,7 @@ const typeLabels: Record<CombatantType, string> = {
   ally: "Ally",
   boss: "Boss",
   enemy: "Enemy",
+  minion: "Minion",
   neutral: "Neutral",
   pc: "PC",
   summon: "Summon",

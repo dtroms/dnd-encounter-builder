@@ -4,6 +4,10 @@ The Creature Library is the planned home for saved creatures, custom monsters,
 and imported stat blocks. It is currently a local mock-data UI only. It does
 not read from or write to Supabase yet.
 
+The Library is now the local source of truth for creature templates used by the
+Builder. During the current browser session, the Builder receives the same local
+creature list that the Library displays and edits.
+
 ## Current Layout
 
 The Library uses a two-column browser/detail layout:
@@ -20,12 +24,18 @@ selected creature details.
 The browser supports local filtering by:
 
 - Creature name, tags, trait text, and action text.
-- Role/type: PC, Enemy, Boss, NPC, Ally, Summon, or Neutral.
+- Monster Type: D&D-style taxonomy such as Humanoid, Beast, Monstrosity,
+  Undead, or Custom / Other.
+- Combat Role: how this app treats the creature in an encounter, such as PC,
+  Enemy, Boss, NPC, Ally, Summon, Minion, or Neutral.
 - Source: Sample, Custom, Imported, or SRD / Creative Commons.
 - Challenge rating ranges.
 - Size.
 
 These filters operate only on local sample data in this pass.
+
+Monster Type and Combat Role are intentionally separate. For example, a
+Humanoid can be a Boss, a Beast can be a Summon, and an Undead can be an Enemy.
 
 ## Selected Creature Preview
 
@@ -42,6 +52,23 @@ The detail panel shows:
 - Traits, actions, bonus actions, reactions, legendary actions, and lair actions
   when present.
 - Notes and tags.
+
+## Create, Edit, and Duplicate
+
+The Library now supports local-only creature management:
+
+- Create Creature opens a compact editor and adds a new custom creature to the
+  shared local list.
+- Edit Creature opens the same editor with the selected creature pre-filled and
+  updates the local template after saving.
+- Duplicate Creature copies the selected creature into a custom local variant
+  and selects the duplicate.
+
+Created, edited, and duplicated creatures appear in the Builder during the same
+session because the Builder uses the Library-backed local creature list.
+
+Existing encounter combatants already added to a roster are snapshots. They do
+not need to retroactively update when a Library template is edited.
 
 ## Source and License Metadata
 
@@ -64,8 +91,8 @@ user-provided content.
 The detail panel includes placeholder actions:
 
 - Add to Builder: currently switches to the Builder view only.
-- Edit Creature later.
-- Duplicate later.
+- Edit Creature: local/session-only template editing.
+- Duplicate Creature: local/session-only custom variant creation.
 - Delete/Archive later.
 
 Persistent create, edit, duplicate, archive, and import behavior should be added

@@ -13,6 +13,10 @@ import {
   sampleCreatureTemplates,
 } from "@/lib/encounter/sample-data";
 import {
+  libraryCreatures,
+  type LibraryCreature,
+} from "@/lib/encounter/library-sample-data";
+import {
   advanceTurn,
   previousTurn,
   rollEligibleInitiatives,
@@ -70,6 +74,8 @@ export function EncounterApp() {
   const [activeView, setActiveView] = useState<EncounterView>("encounters");
   const [encounterCampaignId, setEncounterCampaignId] =
     useState("lantern-road");
+  const [creatureTemplates, setCreatureTemplates] =
+    useState<LibraryCreature[]>(libraryCreatures);
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
@@ -447,7 +453,7 @@ export function EncounterApp() {
           combatGroups={combatGroups}
           combatants={encounter.combatants}
           encounterName={encounter.name}
-          templates={sampleCreatureTemplates}
+          templates={creatureTemplates}
           onCampaignChange={setEncounterCampaignId}
           onCreateGroup={createCombatGroup}
           onAdd={addCombatants}
@@ -470,7 +476,7 @@ export function EncounterApp() {
           selectedCombatantId={selectedCombatantId}
           selectedEntryId={selectedEntryId}
           syntheticEntryOverrides={syntheticEntryOverrides}
-          templates={sampleCreatureTemplates}
+          templates={creatureTemplates}
           turnNumber={encounter.turnNumber}
           onAdd={addCombatants}
           onDamage={(combatantId, amount) =>
@@ -527,8 +533,22 @@ export function EncounterApp() {
 
       {activeView === "library" ? (
         <CreatureLibrary
+          creatures={creatureTemplates}
           onOpenBuilder={openBuilder}
           onOpenImporter={() => setActiveView("importer")}
+          onCreateCreature={(creature) =>
+            setCreatureTemplates((current) => [creature, ...current])
+          }
+          onDuplicateCreature={(creature) =>
+            setCreatureTemplates((current) => [creature, ...current])
+          }
+          onUpdateCreature={(updatedCreature) =>
+            setCreatureTemplates((current) =>
+              current.map((creature) =>
+                creature.id === updatedCreature.id ? updatedCreature : creature,
+              ),
+            )
+          }
         />
       ) : null}
 

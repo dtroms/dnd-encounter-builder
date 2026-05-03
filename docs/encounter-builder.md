@@ -6,18 +6,25 @@ This pass uses local sample data only. It does not wire the Builder to Supabase,
 
 ## Creature Browser
 
-The main Builder area is a compact creature browser for local sample templates.
+The main Builder area is a compact creature browser for the shared local
+Creature Library templates.
 
 It includes:
 
-- quick role filters such as All, PC, Enemy, Boss, NPC, Ally, Summon, and Neutral
-- a future `More Types later` taxonomy placeholder
-- search by name, tag, role/type, size, or challenge rating text
-- basic filters for role/type, size, CR min, and CR max
+- quick role filters such as All, PC, Enemy, Boss, NPC, Ally, Summon, Minion, and Neutral
+- search by name, tag, monster type, combat role, size, or challenge rating text
+- a Monster Type filter for taxonomy such as Humanoid, Beast, Monstrosity, or Custom / Other
+- a Combat Role filter for PC, Enemy, Boss, NPC, Ally, Summon, Minion, or Neutral
+- basic filters for size, CR min, and CR max
 - compact creature result rows
 - expandable inline creature previews
 
 The interaction model is browse, inspect, then add. It borrows general list/browser interaction principles without copying any external visual design or content.
+
+The Builder no longer has its own diverging hardcoded creature list. It receives
+the same local creature templates used by the Creature Library. New, edited, and
+duplicated Library creatures become available in Builder during the same session.
+No Supabase persistence is involved yet.
 
 ## Expandable Creature Preview
 
@@ -44,6 +51,10 @@ Preview actions include Add Once, quantity-based Add Multiple, and a disabled Vi
 The row Add button adds one copy immediately.
 
 The expanded preview can add one copy or multiple copies. The current local add behavior remains responsible for unique display names such as `Cindercap Sneak 1` and `Cindercap Sneak 2`.
+
+Existing encounter combatants are snapshots of the creature template at the time
+they are added. Editing a Library template does not retroactively rewrite roster
+combatants already in the encounter.
 
 No database writes happen in this pass.
 
