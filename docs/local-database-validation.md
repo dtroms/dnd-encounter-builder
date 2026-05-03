@@ -148,3 +148,81 @@ This pass did not:
 The migration is ready for the next local validation attempt once Supabase CLI/Docker or another local Postgres workflow is available.
 
 The project is not ready for seed data until the migration has been executed successfully against a local database.
+
+## Next Steps On User Machine
+
+Codex could only do static review because this environment did not have:
+
+- Supabase CLI
+- `psql`
+- Docker
+
+To validate the migration on your own machine:
+
+1. Install Docker Desktop.
+2. Install Supabase CLI.
+3. Open Docker Desktop and wait until it is running.
+4. Open PowerShell in this project folder.
+5. Confirm the tools:
+
+```powershell
+docker --version
+supabase --version
+npm --version
+```
+
+6. If `supabase/config.toml` does not exist, initialize local config:
+
+```powershell
+supabase init
+```
+
+7. Start local Supabase:
+
+```powershell
+supabase start
+```
+
+8. Apply the local migration:
+
+```powershell
+supabase db reset
+```
+
+9. Check status:
+
+```powershell
+supabase migration list
+supabase status
+```
+
+10. Stop local Supabase when done:
+
+```powershell
+supabase stop
+```
+
+You can also use the npm shortcuts:
+
+```powershell
+npm run db:start
+npm run db:reset
+npm run db:migrations
+npm run db:status
+npm run db:stop
+```
+
+Expected success signs:
+
+- `supabase start` finishes and prints local service URLs.
+- `supabase db reset` applies `20260502_000001_initial_schema.sql` without a SQL error.
+- `supabase migration list` shows the initial schema migration.
+- `supabase status` shows local Supabase services running.
+
+If something fails, paste this back into ChatGPT:
+
+- the command you ran
+- the full error message
+- the few lines before and after the error
+- whether Docker Desktop was open and running
+- whether `supabase --version` works
