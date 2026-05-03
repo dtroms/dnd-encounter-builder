@@ -63,12 +63,19 @@ The Library now supports local-only creature management:
   updates the local template after saving.
 - Duplicate Creature copies the selected creature into a custom local variant
   and selects the duplicate.
+- Remove from Library asks for confirmation, then removes the template from the
+  local Library and Builder creature browser.
 
 Created, edited, and duplicated creatures appear in the Builder during the same
 session because the Builder uses the Library-backed local creature list.
 
 Existing encounter combatants already added to a roster are snapshots. They do
-not need to retroactively update when a Library template is edited.
+not need to retroactively update when a Library template is edited or removed.
+
+For the current local-only prototype, removing a creature deletes it from the
+in-memory creature template list for this browser session. Future database
+behavior should likely use archive or soft-delete behavior so saved encounter
+history can still point at old template records safely.
 
 ## Source and License Metadata
 
@@ -93,7 +100,7 @@ The detail panel includes placeholder actions:
 - Add to Builder: currently switches to the Builder view only.
 - Edit Creature: local/session-only template editing.
 - Duplicate Creature: local/session-only custom variant creation.
-- Delete/Archive later.
+- Remove from Library: local/session-only template removal with confirmation.
 
 Persistent create, edit, duplicate, archive, and import behavior should be added
 later when the database and auth model are ready.

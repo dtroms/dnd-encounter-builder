@@ -107,13 +107,24 @@ Selecting a campaign updates local app state and appears in the Builder summary.
 
 Future database work will need campaign persistence, likely either campaign fields on saved encounters or a dedicated `campaigns` table. That future wiring should allow the Saved Encounters dashboard campaign filters to use real saved encounter campaign assignments.
 
-## Future Sections
+## Waves / Reinforcements
 
-Wave editing is intentionally light in this pass.
+The Builder now includes local-only wave setup for reinforcements.
 
-The Builder includes:
+The basic workflow is:
 
-- `Waves / Reinforcements`
-- `Add Wave later`
+- Add creatures to the encounter roster as usual.
+- Create a wave with a name and optional description.
+- Use each roster combatant's Wave field to assign it to Active at start or a
+  planned wave.
+- Review each wave's combatant count and deployed/not deployed state.
+- Launch Runner and deploy undeployed waves from the Runner when needed.
 
-Future work can deepen waves, group rename/delete, and saved draft behavior without changing the basic browser-plus-roster workflow.
+Assigning a combatant to a wave keeps the combatant in the Builder roster for
+planning, but it is held out of the live Runner initiative list until that wave
+is deployed. Removing a wave returns its members to Active at start.
+
+Wave data is local React state only. It does not write to Supabase yet.
+
+Future work can deepen saved draft behavior and database persistence without
+changing the basic browser-plus-roster workflow.

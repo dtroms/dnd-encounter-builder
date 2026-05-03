@@ -7,6 +7,7 @@ import type {
   CreatureTemplate,
   Encounter,
   EncounterCombatant,
+  EncounterWave,
 } from "@/lib/encounter/types";
 import {
   createCombatant,
@@ -19,6 +20,7 @@ import {
 import {
   advanceTurn,
   previousTurn,
+  rollInitiative,
   rollEligibleInitiatives,
   rollEligibleInitiativesForGroup,
   rollSharedInitiativeForGroup,
@@ -93,11 +95,23 @@ export function EncounterApp() {
     id: "local-encounter",
     name: "Lantern Alley Ambush",
     combatants: starterCombatants,
-    waves: [{ id: "wave-1", name: "Opening wave" }],
+    waves: [
+      {
+        id: "wave-2",
+        name: "Wave 2: Reinforcements",
+        description: "Hold assigned combatants back until the fight escalates.",
+        deployed: false,
+      },
+    ],
     round: 1,
     turnNumber: 0,
     activeCombatantId: null,
   });
+
+  const deployedCombatants = useMemo(
+    () => getDeployedCombatants(encounter.combatants, encounter.waves),
+    [encounter.combatants, encounter.waves],
+  );
 
   const activeName = useMemo(() => {
     if (encounter.activeCombatantId === "lair-actions") {
@@ -106,7 +120,7 @@ export function EncounterApp() {
 
     if (encounter.activeCombatantId?.startsWith("lair-")) {
       const ownerId = encounter.activeCombatantId.replace("lair-", "");
-      const owner = encounter.combatants.find(
+      const owner = deployedCombatants.find(
         (combatant) => combatant.combatantId === ownerId,
       );
 
@@ -114,11 +128,11 @@ export function EncounterApp() {
     }
 
     return (
-      encounter.combatants.find(
+      deployedCombatants.find(
         (combatant) => combatant.combatantId === encounter.activeCombatantId,
       )?.displayName ?? "No active turn"
     );
-  }, [encounter.activeCombatantId, encounter.combatants, syntheticEntryOverrides]);
+  }, [deployedCombatants, encounter.activeCombatantId, syntheticEntryOverrides]);
 
   function updateCombatant(
     combatantId: string,
@@ -148,6 +162,12 @@ export function EncounterApp() {
           current.activeCombatantId ?? additions[0]?.combatantId ?? null,
       };
     });
+  }
+
+  function archiveCreatureTemplate(creatureId: string) {
+    setCreatureTemplates((current) =>
+      current.filter((creature) => creature.id !== creatureId),
+    );
   }
 
   function duplicateCombatant(combatant: EncounterCombatant) {
@@ -201,6 +221,116 @@ export function EncounterApp() {
     if (selectedEntryId === combatantId) {
       setSelectedEntryId(null);
     }
+  }
+
+  function createWave(input: { name: string; description?: string }) {
+    const name = input.name.trim();
+
+    if (!name) {
+      return;
+    }
+
+    setEncounter((current) => ({
+      ...current,
+      waves: [
+        ...current.waves,
+        {
+          id: `wave-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name,
+          description: input.description?.trim(),
+          deployed: false,
+        },
+      ],
+    }));
+  }
+
+  function updateWave(
+    waveId: string,
+    updates: Partial<Pick<EncounterWave, "description" | "name">>,
+  ) {
+    setEncounter((current) => ({
+      ...current,
+      waves: current.waves.map((wave) =>
+        wave.id === waveId ? { ...wave, ...updates } : wave,
+      ),
+    }));
+  }
+
+  function deleteWave(waveId: string) {
+    setEncounter((current) => ({
+      ...current,
+      combatants: current.combatants.map((combatant) =>
+        combatant.waveId === waveId
+          ? { ...combatant, waveId: undefined, waveLabel: undefined }
+          : combatant,
+      ),
+      waves: current.waves.filter((wave) => wave.id !== waveId),
+    }));
+  }
+
+  function assignCombatantToWave(combatantId: string, waveId: string | null) {
+    setEncounter((current) => {
+      const wave = waveId
+        ? current.waves.find((item) => item.id === waveId)
+        : null;
+
+      return {
+        ...current,
+        combatants: current.combatants.map((combatant) =>
+          combatant.combatantId === combatantId
+            ? {
+                ...combatant,
+                waveId: wave?.id,
+                waveLabel: wave?.name,
+              }
+            : combatant,
+        ),
+      };
+    });
+  }
+
+  function deployWave(waveId: string) {
+    setEncounter((current) => {
+      const wave = current.waves.find((item) => item.id === waveId);
+
+      if (!wave || wave.deployed) {
+        return current;
+      }
+
+      const combatants = current.combatants.map((combatant) => {
+        if (combatant.waveId !== waveId) {
+          return combatant;
+        }
+
+        if (
+          combatant.type === "pc" ||
+          !combatant.autoRollEligible ||
+          combatant.initiative !== null
+        ) {
+          return combatant;
+        }
+
+        return {
+          ...combatant,
+          initiative: rollInitiative(combatant.initiativeBonus),
+          manualInitiative: false,
+        };
+      });
+      const waves = current.waves.map((item) =>
+        item.id === waveId ? { ...item, deployed: true } : item,
+      );
+      const activeCombatants = getDeployedCombatants(combatants, waves);
+
+      return {
+        ...current,
+        activeCombatantId:
+          current.activeCombatantId ??
+          sortCombatantsByInitiative(activeCombatants)[0]?.combatantId ??
+          null,
+        combatants,
+        waves,
+      };
+    });
   }
 
   function patchCombatant(
@@ -318,7 +448,9 @@ export function EncounterApp() {
       ...current,
       activeCombatantId:
         current.activeCombatantId ??
-        sortCombatantsByInitiative(current.combatants)[0]?.combatantId ??
+        sortCombatantsByInitiative(
+          getDeployedCombatants(current.combatants, current.waves),
+        )[0]?.combatantId ??
         null,
     }));
     setActiveView("runner");
@@ -348,13 +480,29 @@ export function EncounterApp() {
 
   function rollMonstersAndNpcs() {
     setEncounter((current) => {
-      const rolled = rollEligibleInitiatives(current.combatants);
+      const deployedIds = new Set(
+        getDeployedCombatants(current.combatants, current.waves).map(
+          (combatant) => combatant.combatantId,
+        ),
+      );
+      const rolled = rollEligibleInitiatives(
+        current.combatants.filter((combatant) =>
+          deployedIds.has(combatant.combatantId),
+        ),
+      );
+      const rolledById = new Map(
+        rolled.map((combatant) => [combatant.combatantId, combatant]),
+      );
+      const combatants = current.combatants.map(
+        (combatant) => rolledById.get(combatant.combatantId) ?? combatant,
+      );
+      const activeCombatants = getDeployedCombatants(combatants, current.waves);
       return {
         ...current,
-        combatants: rolled,
+        combatants,
         activeCombatantId:
           current.activeCombatantId ??
-          sortCombatantsByInitiative(rolled)[0]?.combatantId ??
+          sortCombatantsByInitiative(activeCombatants)[0]?.combatantId ??
           null,
       };
     });
@@ -362,17 +510,27 @@ export function EncounterApp() {
 
   function rollCombatGroupInitiative(group: { label: string; color?: string }) {
     setEncounter((current) => {
-      const rolled = rollEligibleInitiativesForGroup(
+      const activeCombatants = getDeployedCombatants(
         current.combatants,
+        current.waves,
+      );
+      const rolledActive = rollEligibleInitiativesForGroup(
+        getDeployedCombatants(current.combatants, current.waves),
         group,
+      );
+      const rolledById = new Map(
+        rolledActive.map((combatant) => [combatant.combatantId, combatant]),
+      );
+      const combatants = current.combatants.map(
+        (combatant) => rolledById.get(combatant.combatantId) ?? combatant,
       );
 
       return {
         ...current,
-        combatants: rolled,
+        combatants,
         activeCombatantId:
           current.activeCombatantId ??
-          sortCombatantsByInitiative(rolled)[0]?.combatantId ??
+          sortCombatantsByInitiative(activeCombatants)[0]?.combatantId ??
           null,
       };
     });
@@ -383,43 +541,72 @@ export function EncounterApp() {
     color?: string;
   }) {
     setEncounter((current) => {
-      const rolled = rollSharedInitiativeForGroup(current.combatants, group);
+      const activeCombatants = getDeployedCombatants(
+        current.combatants,
+        current.waves,
+      );
+      const rolledActive = rollSharedInitiativeForGroup(activeCombatants, group);
+      const rolledById = new Map(
+        rolledActive.map((combatant) => [combatant.combatantId, combatant]),
+      );
+      const combatants = current.combatants.map(
+        (combatant) => rolledById.get(combatant.combatantId) ?? combatant,
+      );
 
       return {
         ...current,
-        combatants: rolled,
+        combatants,
         activeCombatantId:
           current.activeCombatantId ??
-          sortCombatantsByInitiative(rolled)[0]?.combatantId ??
+          sortCombatantsByInitiative(rolledActive)[0]?.combatantId ??
           null,
       };
     });
   }
 
   function sortInitiative() {
-    setEncounter((current) => ({
-      ...current,
-      combatants: sortCombatantsByInitiative(current.combatants),
-      activeCombatantId:
-        current.activeCombatantId ??
-        sortCombatantsByInitiative(current.combatants)[0]?.combatantId ??
-        null,
-    }));
+    setEncounter((current) => {
+      const activeCombatants = getDeployedCombatants(
+        current.combatants,
+        current.waves,
+      );
+      const activeIds = new Set(
+        activeCombatants.map((combatant) => combatant.combatantId),
+      );
+
+      return {
+        ...current,
+        combatants: [
+          ...sortCombatantsByInitiative(activeCombatants),
+          ...current.combatants.filter(
+            (combatant) => !activeIds.has(combatant.combatantId),
+          ),
+        ],
+        activeCombatantId:
+          current.activeCombatantId ??
+          sortCombatantsByInitiative(activeCombatants)[0]?.combatantId ??
+          null,
+      };
+    });
   }
 
   function moveTurn(direction: "next" | "previous") {
     setEncounter((current) => {
+      const activeCombatants = getDeployedCombatants(
+        current.combatants,
+        current.waves,
+      );
       const turn =
         direction === "next"
           ? advanceTurn(
-              current.combatants,
+              activeCombatants,
               current.activeCombatantId,
               current.round,
               current.turnNumber,
               syntheticEntryOverrides,
             )
           : previousTurn(
-              current.combatants,
+              activeCombatants,
               current.activeCombatantId,
               current.round,
               current.turnNumber,
@@ -454,13 +641,18 @@ export function EncounterApp() {
           combatants={encounter.combatants}
           encounterName={encounter.name}
           templates={creatureTemplates}
+          waves={encounter.waves}
+          onAssignToWave={assignCombatantToWave}
           onCampaignChange={setEncounterCampaignId}
+          onCreateWave={createWave}
           onCreateGroup={createCombatGroup}
+          onDeleteWave={deleteWave}
           onAdd={addCombatants}
           onDuplicate={duplicateCombatant}
           onLaunchRunner={launchRunner}
           onRemove={removeCombatant}
           onUpdate={patchCombatant}
+          onUpdateWave={updateWave}
         />
       ) : null}
 
@@ -469,8 +661,9 @@ export function EncounterApp() {
           activeCombatantId={encounter.activeCombatantId}
           addPanelOpen={addPanelOpen}
           combatGroups={combatGroups}
-          combatants={encounter.combatants}
+          combatants={deployedCombatants}
           encounterName={encounter.name}
+          plannedCombatants={encounter.combatants}
           round={encounter.round}
           runnerFilter={runnerFilter}
           selectedCombatantId={selectedCombatantId}
@@ -478,7 +671,9 @@ export function EncounterApp() {
           syntheticEntryOverrides={syntheticEntryOverrides}
           templates={creatureTemplates}
           turnNumber={encounter.turnNumber}
+          waves={encounter.waves}
           onAdd={addCombatants}
+          onDeployWave={deployWave}
           onDamage={(combatantId, amount) =>
             updateCombatant(combatantId, (combatant) => ({
               ...combatant,
@@ -536,6 +731,7 @@ export function EncounterApp() {
           creatures={creatureTemplates}
           onOpenBuilder={openBuilder}
           onOpenImporter={() => setActiveView("importer")}
+          onArchiveCreature={archiveCreatureTemplate}
           onCreateCreature={(creature) =>
             setCreatureTemplates((current) => [creature, ...current])
           }
@@ -554,5 +750,18 @@ export function EncounterApp() {
 
       {activeView === "importer" ? <StatBlockImporterPlaceholder /> : null}
     </AppShell>
+  );
+}
+
+function getDeployedCombatants(
+  combatants: EncounterCombatant[],
+  waves: EncounterWave[],
+) {
+  const deployedWaveIds = new Set(
+    waves.filter((wave) => wave.deployed).map((wave) => wave.id),
+  );
+
+  return combatants.filter(
+    (combatant) => !combatant.waveId || deployedWaveIds.has(combatant.waveId),
   );
 }

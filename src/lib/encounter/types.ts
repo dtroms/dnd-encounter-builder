@@ -114,6 +114,8 @@ export type EncounterCombatant = CreatureTemplate & {
 export type EncounterWave = {
   id: string;
   name: string;
+  description?: string;
+  deployed: boolean;
   notes?: string;
 };
 

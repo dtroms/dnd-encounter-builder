@@ -108,11 +108,13 @@ export function CreatureLibrary({
   creatures,
   onCreateCreature,
   onDuplicateCreature,
+  onArchiveCreature,
   onOpenBuilder,
   onOpenImporter,
   onUpdateCreature,
 }: {
   creatures: LibraryCreature[];
+  onArchiveCreature: (creatureId: string) => void;
   onCreateCreature: (creature: LibraryCreature) => void;
   onDuplicateCreature: (creature: LibraryCreature) => void;
   onOpenBuilder: () => void;
@@ -133,6 +135,7 @@ export function CreatureLibrary({
     creature: LibraryCreature;
     mode: EditorMode;
   } | null>(null);
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
 
   const filteredCreatures = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -223,6 +226,13 @@ export function CreatureLibrary({
 
     onDuplicateCreature(copy);
     setSelectedCreatureId(copy.id);
+  }
+
+  function archiveCreature(creature: LibraryCreature) {
+    const remainingCreatures = creatures.filter((item) => item.id !== creature.id);
+    onArchiveCreature(creature.id);
+    setSelectedCreatureId(remainingCreatures[0]?.id ?? "");
+    setConfirmArchiveId(null);
   }
 
   return (
@@ -340,6 +350,10 @@ export function CreatureLibrary({
                 mode: "edit",
               })
             }
+            archiveConfirmOpen={confirmArchiveId === selectedCreature.id}
+            onArchive={() => setConfirmArchiveId(selectedCreature.id)}
+            onArchiveCancel={() => setConfirmArchiveId(null)}
+            onArchiveConfirm={() => archiveCreature(selectedCreature)}
             onOpenBuilder={onOpenBuilder}
           />
         ) : (
@@ -514,13 +528,21 @@ function CreatureListItem({
 
 function CreatureDetailPanel({
   creature,
+  archiveConfirmOpen,
   onDuplicate,
   onEdit,
+  onArchive,
+  onArchiveCancel,
+  onArchiveConfirm,
   onOpenBuilder,
 }: {
   creature: LibraryCreature;
+  archiveConfirmOpen: boolean;
   onDuplicate: () => void;
   onEdit: () => void;
+  onArchive: () => void;
+  onArchiveCancel: () => void;
+  onArchiveConfirm: () => void;
   onOpenBuilder: () => void;
 }) {
   return (
@@ -567,14 +589,47 @@ function CreatureDetailPanel({
             Duplicate Creature
           </button>
           <button
-            className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-            disabled
+            className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-300 hover:bg-rose-500/20"
             type="button"
+            onClick={onArchive}
           >
-            Delete/Archive later
+            Remove from Library
           </button>
         </div>
       </div>
+
+      {archiveConfirmOpen ? (
+        <div className="mt-4 rounded-xl border border-rose-400/35 bg-rose-500/10 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-rose-100">
+                Remove this creature from the Library?
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-rose-100/70">
+                Existing encounter combatants stay in the current roster as
+                snapshots. This only removes the template from local Library and
+                Builder searches.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+                type="button"
+                onClick={onArchiveCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg bg-rose-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-rose-300"
+                type="button"
+                onClick={onArchiveConfirm}
+              >
+                Confirm Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <DetailStat label="AC" value={String(creature.armorClass)} />

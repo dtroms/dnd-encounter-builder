@@ -5,6 +5,7 @@ import type {
   CombatantCondition,
   CreatureTemplate,
   EncounterCombatant,
+  EncounterWave,
 } from "@/lib/encounter/types";
 import type { SyntheticInitiativeOverrides } from "@/lib/encounter/initiative";
 import { AddCombatantPanel } from "./add-combatant-panel";
@@ -17,8 +18,10 @@ import { StatBlockPanel } from "./stat-block-panel";
 type EncounterRunnerProps = {
   encounterName: string;
   combatants: EncounterCombatant[];
+  plannedCombatants: EncounterCombatant[];
   combatGroups: CombatGroup[];
   templates: CreatureTemplate[];
+  waves: EncounterWave[];
   activeCombatantId: string | null;
   selectedCombatantId: string | null;
   selectedEntryId: string | null;
@@ -28,6 +31,7 @@ type EncounterRunnerProps = {
   runnerFilter: RunnerFilter;
   addPanelOpen: boolean;
   onAdd: (template: CreatureTemplate, count: number) => void;
+  onDeployWave: (waveId: string) => void;
   onRemove: (combatantId: string) => void;
   onSelectEntry: (entryId: string, sourceCombatantId: string | null) => void;
   onDamage: (combatantId: string, amount: number) => void;
@@ -70,8 +74,10 @@ type EncounterRunnerProps = {
 export function EncounterRunner({
   encounterName,
   combatants,
+  plannedCombatants,
   combatGroups,
   templates,
+  waves,
   activeCombatantId,
   selectedCombatantId,
   selectedEntryId,
@@ -81,6 +87,7 @@ export function EncounterRunner({
   runnerFilter,
   addPanelOpen,
   onAdd,
+  onDeployWave,
   onRemove,
   onSelectEntry,
   onDamage,
@@ -158,6 +165,11 @@ export function EncounterRunner({
             filter={runnerFilter}
             onFilterChange={onFilterChange}
           />
+          <RunnerWavesPanel
+            combatants={plannedCombatants}
+            waves={waves}
+            onDeployWave={onDeployWave}
+          />
           <InitiativeList
             activeCombatantId={activeCombatantId}
             combatGroups={combatGroups}
@@ -217,12 +229,97 @@ function RunnerControlStrip({
           </button>
         ))}
       </div>
-      <button
-        className="h-7 rounded-md border border-dashed border-slate-700 px-2 text-xs font-bold text-slate-500"
-        type="button"
-      >
-        Add Wave later
-      </button>
+      <span className="h-7 rounded-md border border-dashed border-slate-700 px-2 py-1 text-xs font-bold text-slate-500">
+        Waves below
+      </span>
+    </section>
+  );
+}
+
+function RunnerWavesPanel({
+  combatants,
+  waves,
+  onDeployWave,
+}: {
+  combatants: EncounterCombatant[];
+  waves: EncounterWave[];
+  onDeployWave: (waveId: string) => void;
+}) {
+  const undeployedWaves = waves.filter((wave) => !wave.deployed);
+  const deployedWaves = waves.filter((wave) => wave.deployed);
+
+  if (waves.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mb-1.5 rounded-xl border border-slate-800 bg-slate-950/70 p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          Waves / Reinforcements
+        </h3>
+        <span className="text-[11px] font-bold text-slate-500">
+          {undeployedWaves.length} ready
+        </span>
+      </div>
+
+      {undeployedWaves.length === 0 ? (
+        <p className="mt-2 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-2 py-1.5 text-xs font-semibold text-emerald-100">
+          All planned waves have been deployed.
+        </p>
+      ) : null}
+
+      <div className="mt-2 grid gap-1.5">
+        {undeployedWaves.map((wave) => {
+          const members = combatants.filter(
+            (combatant) => combatant.waveId === wave.id,
+          );
+
+          return (
+            <div
+              className="rounded-lg border border-amber-300/25 bg-amber-300/10 p-2"
+              key={wave.id}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-amber-100">
+                    {wave.name}
+                  </p>
+                  {wave.description ? (
+                    <p className="mt-1 text-xs font-semibold leading-5 text-amber-100/70">
+                      {wave.description}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">
+                    {members.length} combatants held for deployment
+                  </p>
+                </div>
+                <button
+                  className="rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={members.length === 0}
+                  type="button"
+                  onClick={() => onDeployWave(wave.id)}
+                >
+                  Deploy
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {deployedWaves.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {deployedWaves.map((wave) => (
+            <span
+              className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-black text-emerald-100"
+              key={wave.id}
+            >
+              {wave.name} deployed
+            </span>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
