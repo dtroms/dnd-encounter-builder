@@ -196,6 +196,10 @@ export function SavedEncountersDashboard({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
+  const [encounters, setEncounters] = useState<SavedEncounterSummary[]>(
+    savedEncounterSamples,
+  );
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [selectedEncounterId, setSelectedEncounterId] = useState(
     savedEncounterSamples[0]?.id ?? "",
   );
@@ -203,7 +207,7 @@ export function SavedEncountersDashboard({
   const visibleEncounters = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return savedEncounterSamples
+    return encounters
       .filter((encounter) => {
         const matchesCampaign =
           campaignFilter === "all" || encounter.campaign_id === campaignFilter;
@@ -238,12 +242,54 @@ export function SavedEncountersDashboard({
 
         return getSortTime(right) - getSortTime(left);
       });
-  }, [campaignFilter, query, sortMode, statusFilter]);
+  }, [campaignFilter, encounters, query, sortMode, statusFilter]);
 
   const selectedEncounter =
     visibleEncounters.find((encounter) => encounter.id === selectedEncounterId) ??
     visibleEncounters[0] ??
     null;
+
+  function duplicateEncounter(encounter: SavedEncounterSummary) {
+    const now = new Date().toISOString();
+    const copy: SavedEncounterSummary = {
+      ...encounter,
+      combatants_preview: encounter.combatants_preview.map((combatant) => ({
+        ...combatant,
+        id: `${combatant.id}-copy-${Date.now()}`,
+      })),
+      current_round: 1,
+      current_turn_index: 0,
+      id: `local-copy-${Date.now()}`,
+      last_played_at: null,
+      name: `${encounter.name} Copy`,
+      reminders: encounter.reminders ? [...encounter.reminders] : undefined,
+      status: "draft",
+      updated_at: now,
+    };
+
+    setEncounters((current) => [copy, ...current]);
+    setSelectedEncounterId(copy.id);
+    setStatusFilter((current) => (current === "archived" ? "all" : current));
+    setActiveDetailTab("overview");
+    setArchiveConfirmId(null);
+  }
+
+  function archiveEncounter(encounter: SavedEncounterSummary) {
+    const now = new Date().toISOString();
+
+    setEncounters((current) =>
+      current.map((item) =>
+        item.id === encounter.id
+          ? {
+              ...item,
+              status: "archived",
+              updated_at: now,
+            }
+          : item,
+      ),
+    );
+    setArchiveConfirmId(null);
+  }
 
   return (
     <section className="space-y-4">
@@ -343,6 +389,11 @@ export function SavedEncountersDashboard({
             encounter={selectedEncounter}
             activeTab={activeDetailTab}
             onActiveTabChange={setActiveDetailTab}
+            archiveConfirmOpen={archiveConfirmId === selectedEncounter.id}
+            onArchive={() => setArchiveConfirmId(selectedEncounter.id)}
+            onArchiveCancel={() => setArchiveConfirmId(null)}
+            onArchiveConfirm={() => archiveEncounter(selectedEncounter)}
+            onDuplicate={() => duplicateEncounter(selectedEncounter)}
             onOpenBuilder={onOpenBuilder}
             onOpenRunner={onOpenRunner}
           />
@@ -529,14 +580,24 @@ function EncounterListItem({
 
 function EncounterDetailPanel({
   activeTab,
+  archiveConfirmOpen,
   encounter,
   onActiveTabChange,
+  onArchive,
+  onArchiveCancel,
+  onArchiveConfirm,
+  onDuplicate,
   onOpenBuilder,
   onOpenRunner,
 }: {
   activeTab: DetailTab;
+  archiveConfirmOpen: boolean;
   encounter: SavedEncounterSummary;
   onActiveTabChange: (tab: DetailTab) => void;
+  onArchive: () => void;
+  onArchiveCancel: () => void;
+  onArchiveConfirm: () => void;
+  onDuplicate: () => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
@@ -582,11 +643,45 @@ function EncounterDetailPanel({
             <ActionButtons
               encounter={encounter}
               isRunning={isRunning}
+              onArchive={onArchive}
+              onDuplicate={onDuplicate}
               onOpenBuilder={onOpenBuilder}
               onOpenRunner={onOpenRunner}
             />
           </div>
         </div>
+
+        {archiveConfirmOpen ? (
+          <div className="mt-4 rounded-xl border border-rose-400/35 bg-rose-500/10 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-rose-100">
+                  Archive this encounter?
+                </p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-rose-100/70">
+                  This changes the status to Archived but keeps the encounter in
+                  the local list.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  type="button"
+                  onClick={onArchiveCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="rounded-lg bg-rose-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-rose-300"
+                  type="button"
+                  onClick={onArchiveConfirm}
+                >
+                  Confirm Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <DetailTabs activeTab={activeTab} onActiveTabChange={onActiveTabChange} />
 
@@ -617,11 +712,15 @@ function EmptyDetailPanel() {
 function ActionButtons({
   encounter,
   isRunning,
+  onArchive,
+  onDuplicate,
   onOpenBuilder,
   onOpenRunner,
 }: {
   encounter: SavedEncounterSummary;
   isRunning: boolean;
+  onArchive: () => void;
+  onDuplicate: () => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
@@ -655,18 +754,19 @@ function ActionButtons({
         {secondaryAction}
       </button>
       <button
-        className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-black text-slate-500"
-        disabled
+        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
         type="button"
+        onClick={onDuplicate}
       >
-        Duplicate later
+        Duplicate
       </button>
       <button
-        className="cursor-not-allowed rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-black text-slate-500"
-        disabled
+        className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-300 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950/60 disabled:text-slate-500"
+        disabled={encounter.status === "archived"}
         type="button"
+        onClick={onArchive}
       >
-        Archive later
+        {encounter.status === "archived" ? "Archived" : "Archive"}
       </button>
     </div>
   );

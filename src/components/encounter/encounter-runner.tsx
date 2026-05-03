@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type {
   CombatGroup,
   CombatantCondition,
@@ -11,6 +12,7 @@ import type { SyntheticInitiativeOverrides } from "@/lib/encounter/initiative";
 import { AddCombatantPanel } from "./add-combatant-panel";
 import { CombatGroupSummary } from "./combat-group-summary";
 import { ConditionTrackerPanel } from "./condition-tracker-panel";
+import { ExternalCharacterSheetViewer } from "./external-character-sheet-viewer";
 import { InitiativeList, type RunnerFilter } from "./initiative-list";
 import { RunnerToolbar } from "./runner-toolbar";
 import { StatBlockPanel } from "./stat-block-panel";
@@ -110,6 +112,8 @@ export function EncounterRunner({
   onFilterChange,
   onToggleAddPanel,
 }: EncounterRunnerProps) {
+  const [sheetCombatant, setSheetCombatant] =
+    useState<EncounterCombatant | null>(null);
   const selectedCombatant =
     combatants.find(
       (combatant) => combatant.combatantId === selectedCombatantId,
@@ -185,11 +189,26 @@ export function EncounterRunner({
             onSyntheticEntryInitiativeChange={onSyntheticEntryInitiativeChange}
             onSyntheticEntryNameChange={onSyntheticEntryNameChange}
             onUpdateGroup={onUpdateGroup}
+            onViewSheet={setSheetCombatant}
             onRemove={onRemove}
           />
         </main>
-        <StatBlockPanel combatant={selectedCombatant} />
+        <StatBlockPanel
+          combatant={selectedCombatant}
+          onViewSheet={setSheetCombatant}
+        />
       </div>
+
+      {sheetCombatant?.characterSheetUrl ? (
+        <ExternalCharacterSheetViewer
+          title={
+            sheetCombatant.characterSheetTitle?.trim() ||
+            sheetCombatant.displayName
+          }
+          url={sheetCombatant.characterSheetUrl}
+          onClose={() => setSheetCombatant(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -419,6 +419,25 @@ Runtime fetching from GitHub should be avoided for early beta unless caching, ve
 
 The schema includes `source_url` and `import_method` values such as `url` and `dndbeyond_homebrew` so future link-based workflows have a place to store metadata.
 
+## Future External Character Sheet Links
+
+The local Creature Library UI can now store optional external character sheet
+links for player characters and other creature records. This is local/session
+state only for now.
+
+Future database planning may need nullable fields on `creature_templates` or a
+related table:
+
+- `character_sheet_url`
+- `character_sheet_title`
+- `character_sheet_embed_enabled`
+- `external_sheet_notes`
+
+These links should be treated as user-provided references. The app should not
+scrape external character sheets, store credentials, or attempt to bypass iframe
+blocking headers. If an external site blocks embedding, the UI should provide an
+Open in New Tab fallback.
+
 This does not implement scraping or integration.
 
 Future link import must:

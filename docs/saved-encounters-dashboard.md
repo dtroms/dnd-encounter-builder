@@ -62,9 +62,11 @@ The right column starts with a selected encounter hero/header section. It shows:
 - location
 - readable description
 - Open Runner and Open Builder actions
-- quieter future Duplicate and Archive placeholders
+- Duplicate and Archive actions
 
-Open Runner is primary for running encounters. Open Builder is primary for drafts. Duplicate and Archive remain disabled placeholders.
+Open Runner is primary for running encounters. Open Builder is primary for
+drafts. Duplicate is a secondary action, and Archive is a muted danger action
+with confirmation.
 
 If no encounter is selected, the right panel shows a clear empty state: choose an encounter on the left to view details, open the Builder, or start the Runner.
 
@@ -138,16 +140,20 @@ Group count can be derived from `combat_groups` for each encounter or stored as 
 
 Future campaign support may need either campaign fields on `encounters` or a separate `campaigns` table with encounter records linked by `campaign_id`. That database decision is only noted here; no schema changes are made in this dashboard UI pass.
 
-## Future Actions
+## Local Actions
 
-Dashboard actions are placeholders in this pass.
+Duplicate and Archive now work in local/session state only.
 
-Later:
+- Duplicate creates a local copy, marks it Draft, updates the timestamp, clears
+  last played, copies combatant previews/notes/reminders, and selects the copy.
+- Archive asks for confirmation, changes status to Archived, updates the
+  timestamp, and keeps the encounter in the local list.
 
-- Create New Encounter should create a draft encounter.
-- Open Builder should load the encounter into the Builder workspace.
-- Open Runner should load running combat state.
-- Duplicate should copy an encounter and its child rows.
-- Archive/Delete should use a safe confirmation flow.
+Archive is not a permanent delete. Archived encounters remain visible in All or
+Archived filters.
 
-The current placeholder buttons only switch views or show disabled future actions.
+These actions are not persisted to Supabase yet. Refreshing the app restores the
+original mock data.
+
+Future persistent wiring should duplicate or archive real `encounters` and child
+rows through the database after auth/RLS rules exist.

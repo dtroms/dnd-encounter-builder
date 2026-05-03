@@ -13,6 +13,11 @@ import type {
   LibraryCreature,
   LibrarySourceType,
 } from "@/lib/encounter/library-sample-data";
+import {
+  ExternalCharacterSheetViewer,
+  getSafeExternalSheetUrl,
+  getUrlHost,
+} from "./external-character-sheet-viewer";
 import { TypeBadge } from "./type-badge";
 
 type RoleFilter = "all" | CombatantType | "npc";
@@ -136,6 +141,8 @@ export function CreatureLibrary({
     mode: EditorMode;
   } | null>(null);
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [sheetViewerCreature, setSheetViewerCreature] =
+    useState<LibraryCreature | null>(null);
 
   const filteredCreatures = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -263,14 +270,7 @@ export function CreatureLibrary({
               type="button"
               onClick={onOpenImporter}
             >
-              Import Stat Block
-            </button>
-            <button
-              className="cursor-not-allowed rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-500"
-              disabled
-              type="button"
-            >
-              Import SRD Monsters
+              Go to Importer
             </button>
           </div>
         </div>
@@ -355,6 +355,7 @@ export function CreatureLibrary({
             onArchiveCancel={() => setConfirmArchiveId(null)}
             onArchiveConfirm={() => archiveCreature(selectedCreature)}
             onOpenBuilder={onOpenBuilder}
+            onViewSheet={() => setSheetViewerCreature(selectedCreature)}
           />
         ) : (
           <section className="rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-8 text-center">
@@ -365,6 +366,17 @@ export function CreatureLibrary({
           </section>
         )}
       </div>
+
+      {sheetViewerCreature?.characterSheetUrl ? (
+        <ExternalCharacterSheetViewer
+          title={
+            sheetViewerCreature.characterSheetTitle?.trim() ||
+            sheetViewerCreature.name
+          }
+          url={sheetViewerCreature.characterSheetUrl}
+          onClose={() => setSheetViewerCreature(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -508,6 +520,11 @@ function CreatureListItem({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <TypeBadge type={creature.type} />
         <SourceBadge sourceType={creature.sourceType} />
+        {creature.characterSheetUrl ? (
+          <span className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-cyan-100">
+            Sheet
+          </span>
+        ) : null}
       </div>
       <h4 className="mt-2 line-clamp-1 text-base font-black text-white">
         {creature.name}
@@ -535,6 +552,7 @@ function CreatureDetailPanel({
   onArchiveCancel,
   onArchiveConfirm,
   onOpenBuilder,
+  onViewSheet,
 }: {
   creature: LibraryCreature;
   archiveConfirmOpen: boolean;
@@ -544,6 +562,7 @@ function CreatureDetailPanel({
   onArchiveCancel: () => void;
   onArchiveConfirm: () => void;
   onOpenBuilder: () => void;
+  onViewSheet: () => void;
 }) {
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950/75 p-4 shadow-2xl shadow-black/20">
@@ -597,6 +616,10 @@ function CreatureDetailPanel({
           </button>
         </div>
       </div>
+
+      {creature.characterSheetUrl ? (
+        <ExternalSheetSummary creature={creature} onViewSheet={onViewSheet} />
+      ) : null}
 
       {archiveConfirmOpen ? (
         <div className="mt-4 rounded-xl border border-rose-400/35 bg-rose-500/10 p-3">
@@ -674,6 +697,55 @@ function CreatureDetailPanel({
   );
 }
 
+function ExternalSheetSummary({
+  creature,
+  onViewSheet,
+}: {
+  creature: LibraryCreature;
+  onViewSheet: () => void;
+}) {
+  const url = creature.characterSheetUrl ?? "";
+  const safeUrl = getSafeExternalSheetUrl(url);
+  const title = creature.characterSheetTitle?.trim() || getUrlHost(url);
+
+  return (
+    <div className="mt-4 rounded-xl border border-cyan-300/25 bg-cyan-300/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-cyan-100">
+            External Character Sheet
+          </p>
+          <h4 className="mt-1 text-base font-black text-white">{title}</h4>
+          {creature.externalSheetNotes ? (
+            <p className="mt-1 text-sm font-semibold leading-6 text-slate-300">
+              {creature.externalSheetNotes}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200"
+            type="button"
+            onClick={onViewSheet}
+          >
+            View Sheet
+          </button>
+          {safeUrl ? (
+            <a
+              className="rounded-lg border border-cyan-300/45 bg-slate-950 px-3 py-2 text-xs font-black text-cyan-100 transition hover:border-cyan-200 hover:text-white"
+              href={safeUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open in New Tab
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreatureEditor({
   creature,
   mode,
@@ -686,6 +758,7 @@ function CreatureEditor({
   onSave: (creature: LibraryCreature) => void;
 }) {
   const [draft, setDraft] = useState<LibraryCreature>(cloneCreature(creature));
+  const sheetUrlError = validateExternalSheetUrl(draft.characterSheetUrl ?? "");
 
   function patch(updates: Partial<LibraryCreature>) {
     setDraft((current) => ({ ...current, ...updates }));
@@ -701,7 +774,7 @@ function CreatureEditor({
   function save() {
     const cleaned = normalizeCreature(draft);
 
-    if (!cleaned.name.trim()) {
+    if (!cleaned.name.trim() || sheetUrlError) {
       return;
     }
 
@@ -729,7 +802,7 @@ function CreatureEditor({
           </button>
           <button
             className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!draft.name.trim()}
+            disabled={!draft.name.trim() || Boolean(sheetUrlError)}
             type="button"
             onClick={save}
           >
@@ -879,6 +952,42 @@ function CreatureEditor({
                   value={draft.licenseName}
                   onChange={(licenseName) => patch({ licenseName })}
                 />
+              </div>
+            </div>
+          </EditorSection>
+
+          <EditorSection title="External Character Sheet">
+            <div className="grid gap-2 xl:grid-cols-2">
+              <TextInput
+                label="Character Sheet URL"
+                value={draft.characterSheetUrl ?? ""}
+                onChange={(characterSheetUrl) => patch({ characterSheetUrl })}
+              />
+              <TextInput
+                label="Display Title"
+                value={draft.characterSheetTitle ?? ""}
+                onChange={(characterSheetTitle) =>
+                  patch({ characterSheetTitle })
+                }
+              />
+              <TextArea
+                label="Sheet Notes"
+                value={draft.externalSheetNotes ?? ""}
+                onChange={(externalSheetNotes) => patch({ externalSheetNotes })}
+              />
+              <div className="rounded-lg border border-slate-800 bg-slate-950/75 p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  Embed Safety
+                </p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">
+                  Optional user-provided link. Some websites block embedded
+                  views, so Open in New Tab stays available.
+                </p>
+                {sheetUrlError ? (
+                  <p className="mt-2 text-sm font-bold text-rose-200">
+                    {sheetUrlError}
+                  </p>
+                ) : null}
               </div>
             </div>
           </EditorSection>
@@ -1277,6 +1386,9 @@ function normalizeCreature(creature: LibraryCreature): LibraryCreature {
     armorClass: clampNumber(creature.armorClass, 0),
     bonusActions: cleanEntries(creature.bonusActions),
     challengeRating: creature.challengeRating?.trim() || "0",
+    characterSheetTitle: creature.characterSheetTitle?.trim(),
+    characterSheetUrl: normalizeExternalSheetUrl(creature.characterSheetUrl),
+    externalSheetNotes: creature.externalSheetNotes?.trim(),
     initiativeBonus: Number.isFinite(creature.initiativeBonus)
       ? creature.initiativeBonus
       : 0,
@@ -1314,6 +1426,32 @@ function splitTags(value: string) {
 
 function clampNumber(value: number, minimum: number) {
   return Number.isFinite(value) ? Math.max(minimum, value) : minimum;
+}
+
+function normalizeExternalSheetUrl(value?: string) {
+  const trimmed = value?.trim() ?? "";
+
+  return trimmed && !validateExternalSheetUrl(trimmed) ? trimmed : undefined;
+}
+
+function validateExternalSheetUrl(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return "Use an http:// or https:// character sheet URL.";
+    }
+
+    return "";
+  } catch {
+    return "Enter a valid character sheet URL starting with http:// or https://.";
+  }
 }
 
 function matchesChallengeFilter(value: string | undefined, filter: CrFilter) {

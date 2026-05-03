@@ -8,6 +8,10 @@ The Library is now the local source of truth for creature templates used by the
 Builder. During the current browser session, the Builder receives the same local
 creature list that the Library displays and edits.
 
+The Library manages creatures. The Importer page handles SRD imports and pasted
+stat block imports, so the Library header no longer shows a direct Import SRD
+button.
+
 ## Current Layout
 
 The Library uses a two-column browser/detail layout:
@@ -101,6 +105,40 @@ preserve Tabyltop CC-SRD source, license, URL, and attribution metadata.
 Future SRD imports should preserve license, attribution, source name, source
 document version, and source URL metadata separately from non-SRD or
 user-provided content.
+
+## External Character Sheets
+
+Create/Edit Creature now includes an optional External Character Sheet section.
+Users can add:
+
+- Character Sheet URL
+- Display title
+- Notes
+
+The URL must start with `http://` or `https://`. `javascript:` and `data:` style
+URLs are not accepted.
+
+When a creature has a character sheet URL, the Library detail panel shows an
+External Character Sheet section with:
+
+- View Sheet
+- Open in New Tab
+
+View Sheet opens an in-app iframe panel using a sandboxed iframe. Some websites
+block embedding with browser security headers such as X-Frame-Options or
+Content-Security-Policy. The app cannot bypass those restrictions, so Open in
+New Tab remains available as the safe fallback.
+
+External character sheet links are user-provided links. The app does not scrape,
+import, or read data from those pages.
+
+When a Library creature with a linked sheet is added to an encounter, the local
+combatant snapshot keeps the character sheet URL and display title. In the
+Encounter Runner, combatants with linked sheets show a small sheet icon next to
+their name in the initiative tracker. Clicking it opens the same embedded viewer
+when the host website allows iframes, and Open in New Tab remains available as
+the fallback. The selected combatant stat panel also shows a small external
+sheet action.
 
 ## Actions
 

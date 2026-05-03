@@ -5,13 +5,15 @@ import type {
   StatBlockTrait,
 } from "@/lib/encounter/types";
 import { EmptyState } from "./empty-state";
+import { getSafeExternalSheetUrl } from "./external-character-sheet-viewer";
 import { TypeBadge } from "./type-badge";
 
 type StatBlockPanelProps = {
   combatant: EncounterCombatant | null;
+  onViewSheet?: (combatant: EncounterCombatant) => void;
 };
 
-export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
+export function StatBlockPanel({ combatant, onViewSheet }: StatBlockPanelProps) {
   if (!combatant) {
     return (
       <EmptyState
@@ -20,6 +22,10 @@ export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
       />
     );
   }
+
+  const safeSheetUrl = combatant.characterSheetUrl
+    ? getSafeExternalSheetUrl(combatant.characterSheetUrl)
+    : "";
 
   return (
     <aside className="max-h-none rounded-xl border border-slate-800 bg-slate-950/75 p-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-auto">
@@ -56,6 +62,38 @@ export function StatBlockPanel({ combatant }: StatBlockPanelProps) {
           {combatant.languages}
         </p>
       </div>
+
+      {safeSheetUrl ? (
+        <section className="mt-3 rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wide text-cyan-100">
+                External Sheet
+              </h3>
+              <p className="mt-0.5 text-xs font-semibold text-slate-300">
+                {combatant.characterSheetTitle?.trim() || combatant.displayName}
+              </p>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                className="rounded-md bg-cyan-300 px-2 py-1.5 text-[11px] font-black text-slate-950 transition hover:bg-cyan-200"
+                type="button"
+                onClick={() => onViewSheet?.(combatant)}
+              >
+                View
+              </button>
+              <a
+                className="rounded-md border border-cyan-300/45 bg-slate-950 px-2 py-1.5 text-[11px] font-black text-cyan-100 transition hover:border-cyan-200 hover:text-white"
+                href={safeSheetUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                New Tab
+              </a>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <AbilityGrid scores={combatant.abilityScores} />
 

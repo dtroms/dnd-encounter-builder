@@ -93,6 +93,10 @@ export type CreatureTemplate = {
   languages: string;
   challengeRating?: string;
   challengeXp?: string;
+  characterSheetUrl?: string;
+  characterSheetTitle?: string;
+  characterSheetEmbedEnabled?: boolean;
+  externalSheetNotes?: string;
   traits: StatBlockTrait[];
   actions: StatBlockAction[];
   bonusActions?: StatBlockAction[];

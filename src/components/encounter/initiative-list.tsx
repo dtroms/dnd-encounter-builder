@@ -28,6 +28,7 @@ type InitiativeListProps = {
   onHealing: (combatantId: string, amount: number) => void;
   onInitiativeChange: (combatantId: string, initiative: number | null) => void;
   onNameChange: (combatantId: string, name: string) => void;
+  onViewSheet?: (combatant: EncounterCombatant) => void;
   onSyntheticEntryNameChange: (entryId: string, name: string) => void;
   onSyntheticEntryInitiativeChange: (
     entryId: string,
@@ -52,6 +53,7 @@ export function InitiativeList({
   onHealing,
   onInitiativeChange,
   onNameChange,
+  onViewSheet,
   onSyntheticEntryNameChange,
   onSyntheticEntryInitiativeChange,
   onUpdateGroup,
@@ -113,6 +115,7 @@ export function InitiativeList({
             onSelect={() =>
               onSelectEntry(entry.id, entry.combatant.combatantId)
             }
+            onViewSheet={() => onViewSheet?.(entry.combatant)}
             onUpdateGroup={(updates) =>
               onUpdateGroup(entry.combatant.combatantId, updates)
             }

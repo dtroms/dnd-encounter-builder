@@ -10,6 +10,7 @@ import {
 } from "@/lib/encounter/colors";
 import { getHpPercent, getHpStatus } from "@/lib/encounter/hp";
 import { CombatGroupPicker } from "./combat-group-picker";
+import { getSafeExternalSheetUrl } from "./external-character-sheet-viewer";
 import { HpControls } from "./hp-controls";
 import { StatusBadge } from "./status-badge";
 import { TypeBadge } from "./type-badge";
@@ -25,6 +26,7 @@ type CombatantCardProps = {
   onHealing: (amount: number) => void;
   onInitiativeChange: (initiative: number | null) => void;
   onNameChange: (name: string) => void;
+  onViewSheet?: () => void;
   onUpdateGroup: (updates: {
     combatGroupLabel?: string;
     combatGroupColor?: string;
@@ -42,6 +44,7 @@ export function CombatantCard({
   onHealing,
   onInitiativeChange,
   onNameChange,
+  onViewSheet,
   onUpdateGroup,
 }: CombatantCardProps) {
   const status = getHpStatus(combatant.currentHp, combatant.maxHp);
@@ -52,6 +55,10 @@ export function CombatantCard({
   const down = status === "Down";
   const isBoss = combatant.type === "boss";
   const legendaryActions = combatant.legendaryActions ?? [];
+  const hasSafeSheetUrl = Boolean(
+    combatant.characterSheetUrl &&
+      getSafeExternalSheetUrl(combatant.characterSheetUrl),
+  );
   return (
     <article
       className={`relative rounded-xl border py-1.5 pl-2 pr-0 shadow-sm transition-all duration-200 ease-out ${groupRowStyle.rowTint} ${
@@ -80,11 +87,27 @@ export function CombatantCard({
         />
 
         <div className="min-w-0">
-          <div className="min-w-0 cursor-pointer text-left">
-            <EditableCombatantName
-              name={combatant.displayName}
-              onNameChange={onNameChange}
-            />
+          <div className="flex min-w-0 items-center gap-2 text-left">
+            <div className="min-w-0 cursor-pointer">
+              <EditableCombatantName
+                name={combatant.displayName}
+                onNameChange={onNameChange}
+              />
+            </div>
+            {hasSafeSheetUrl ? (
+              <button
+                aria-label={`View character sheet for ${combatant.displayName}`}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50"
+                title="View linked character sheet"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewSheet?.();
+                }}
+              >
+                <SheetLinkIcon />
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-1 grid grid-cols-[4.75rem_3.75rem_7.75rem_5.25rem_8.5rem_minmax(1rem,1fr)_7rem] items-center gap-2">
@@ -162,6 +185,27 @@ export function CombatantCard({
       ) : null}
 
     </article>
+  );
+}
+
+function SheetLinkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+      <path d="M14 2v5h5" />
+      <path d="M10 13h4" />
+      <path d="M10 17h4" />
+      <path d="M10 9h1" />
+    </svg>
   );
 }
 
