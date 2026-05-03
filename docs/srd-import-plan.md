@@ -110,6 +110,10 @@ This normalizes into the app ability score shape:
 ```
 
 String values such as `"21 (+5)"` are also reduced to the score number.
+Validation checks this same `str` / `dex` / `con` / `int` / `wis` / `cha`
+shape, so an Aboleth-style Tabyltop record with the `stats` object above should
+not produce a missing ability scores warning. The SRD review panel also displays
+the parsed scores as STR, DEX, CON, INT, WIS, and CHA for quick visual checking.
 
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.

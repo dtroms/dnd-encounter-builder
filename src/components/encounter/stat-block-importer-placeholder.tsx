@@ -1492,12 +1492,16 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
     return null;
   }
 
-  const missingLabel =
-    preview.missingRequiredFields.length === 1
-      ? "Missing required field"
-      : "Missing required fields";
-
   const creature = preview.creature;
+  const validationNotes = buildSrdValidationNotes(preview);
+  const abilityPreviewStats = [
+    ["STR", creature.abilityScores.str],
+    ["DEX", creature.abilityScores.dex],
+    ["CON", creature.abilityScores.con],
+    ["INT", creature.abilityScores.int],
+    ["WIS", creature.abilityScores.wis],
+    ["CHA", creature.abilityScores.cha],
+  ] as const;
 
   return (
     <aside className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -1526,20 +1530,21 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
         <PreviewStat label="Init" value={signed(creature.initiativeBonus)} />
       </div>
 
-      {preview.warnings.length || preview.missingRequiredFields.length ? (
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {abilityPreviewStats.map(([label, value]) => (
+          <PreviewStat key={label} label={label} value={String(value)} />
+        ))}
+      </div>
+
+      {validationNotes.length ? (
         <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">
           <p className="text-xs font-black uppercase tracking-wide text-amber-100">
             Validation Notes
           </p>
           <ul className="mt-2 space-y-1 text-sm leading-5 text-amber-50/90">
-            {preview.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
+            {validationNotes.map((note) => (
+              <li key={note}>{note}</li>
             ))}
-            {preview.missingRequiredFields.length ? (
-              <li>
-                {missingLabel}: {preview.missingRequiredFields.join(", ")}.
-              </li>
-            ) : null}
           </ul>
         </div>
       ) : null}
@@ -1568,6 +1573,39 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
       </div>
     </aside>
   );
+}
+
+function buildSrdValidationNotes(preview: SrdImportPreview) {
+  const notes = [
+    preview.missingRequiredFields.length
+      ? `${
+          preview.missingRequiredFields.length === 1
+            ? "Missing required field"
+            : "Missing required fields"
+        }: ${preview.missingRequiredFields.join(", ")}.`
+      : "",
+    ...preview.warnings,
+  ].filter(Boolean);
+  const seen = new Set<string>();
+
+  return notes.filter((note) => {
+    const key = normalizeValidationNote(note);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeValidationNote(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/missing required fields?:/g, "")
+    .replace(/\.+$/g, "")
+    .trim();
 }
 
 function PreviewStat({ label, value }: { label: string; value: string }) {

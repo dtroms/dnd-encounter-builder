@@ -156,7 +156,8 @@ export function normalizeTabyltopSrdMonster(
   raw: TabyltopSrdMonster,
 ): SrdImportPreview {
   const warnings: string[] = [];
-  const criticalErrors: string[] = [];
+  const criticalMessages: string[] = [];
+  const criticalMissingFields: string[] = [];
 
   if (!isPlainObject(raw)) {
     const creature = buildInvalidCreature("Malformed SRD Record", raw);
@@ -283,35 +284,35 @@ export function normalizeTabyltopSrdMonster(
   const missingRequiredFields = validateSrdMonsterDraft(creature);
 
   if (!name) {
-    criticalErrors.push("Missing name.");
+    criticalMissingFields.push("name");
   }
 
   if (armor.value === null) {
-    criticalErrors.push("Missing or invalid Armor Class.");
+    criticalMissingFields.push("armor class");
   }
 
   if (hp.value === null) {
-    criticalErrors.push("Missing or invalid Hit Points.");
+    criticalMissingFields.push("hit points");
   }
 
   if (!challenge.value) {
-    criticalErrors.push("Missing or invalid challenge rating.");
+    criticalMissingFields.push("challenge rating");
   }
 
   if (!abilityResult.detected) {
-    criticalErrors.push("Missing required field: ability scores.");
+    criticalMissingFields.push("ability scores");
   }
 
   if (hasBadCoreNumber(creature)) {
-    criticalErrors.push("NaN or invalid numeric value detected in core fields.");
+    criticalMessages.push("NaN or invalid numeric value detected in core fields.");
   }
 
   if (entriesMalformed(raw, ["actions", "Actions"])) {
-    criticalErrors.push("Actions data is malformed.");
+    criticalMessages.push("Actions data is malformed.");
   }
 
   if (entriesMalformed(raw, ["traits", "special_abilities", "Special Abilities"])) {
-    criticalErrors.push("Traits data is malformed.");
+    criticalMessages.push("Traits data is malformed.");
   }
 
   if (!meta) {
@@ -344,15 +345,18 @@ export function normalizeTabyltopSrdMonster(
     warnings.push("Hit Points could not be parsed from source text.");
   }
 
-  const allMissingFields = [
-    ...new Set(
-      [...missingRequiredFields, ...criticalErrors].map(normalizeValidationMessage),
-    ),
-  ];
+  const allMissingFields = uniqueValidationFields([
+    ...missingRequiredFields,
+    ...criticalMissingFields,
+  ]);
+  const validationWarnings = uniqueValidationMessages([
+    ...criticalMessages,
+    ...warnings,
+  ]);
 
-  const status: SrdValidationStatus = criticalErrors.length
+  const status: SrdValidationStatus = allMissingFields.length || criticalMessages.length
     ? "error"
-    : warnings.length
+    : validationWarnings.length
       ? "needs-review"
       : "ready";
 
@@ -361,7 +365,7 @@ export function normalizeTabyltopSrdMonster(
     missingRequiredFields: allMissingFields,
     raw,
     status,
-    warnings: [...criticalErrors, ...warnings],
+    warnings: validationWarnings,
   };
 }
 
@@ -684,20 +688,25 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
   detected: boolean;
   scores: AbilityScores;
 } {
-  const stats = readValue(raw, "stats") ?? readValue(raw, "ability_scores") ?? readValue(raw, "abilityScores");
+  const stats =
+    readValue(raw, "stats") ??
+    readValue(raw, "ability_scores") ??
+    readValue(raw, "abilityScores");
 
   if (Array.isArray(stats) && stats.length >= 6) {
-    const values = stats.map(parseAbilityScoreValue);
-    return {
-      detected: values.every((value) => value !== null),
-      scores: {
+    const values = stats.slice(0, 6).map(parseAbilityScoreValue);
+    const scores = {
       cha: values[5] ?? 10,
       con: values[2] ?? 10,
       dex: values[1] ?? 10,
       int: values[3] ?? 10,
       str: values[0] ?? 10,
       wis: values[4] ?? 10,
-      },
+    };
+
+    return {
+      detected: hasValidAbilityScores(scores),
+      scores,
     };
   }
 
@@ -711,17 +720,18 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
       str: parseAbilityScoreValue(readAbilityValue(record, "str")),
       wis: parseAbilityScoreValue(readAbilityValue(record, "wis")),
     };
+    const scores = {
+      cha: parsed.cha ?? 10,
+      con: parsed.con ?? 10,
+      dex: parsed.dex ?? 10,
+      int: parsed.int ?? 10,
+      str: parsed.str ?? 10,
+      wis: parsed.wis ?? 10,
+    };
 
     return {
-      detected: Object.values(parsed).every((value) => value !== null),
-      scores: {
-        cha: parsed.cha ?? 10,
-        con: parsed.con ?? 10,
-        dex: parsed.dex ?? 10,
-        int: parsed.int ?? 10,
-        str: parsed.str ?? 10,
-        wis: parsed.wis ?? 10,
-      },
+      detected: hasValidAbilityScores(scores),
+      scores,
     };
   }
 
@@ -733,20 +743,21 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
     "wis",
     "cha",
   ];
-  const detected = abilityKeys.every(
-    (key) => readAbilityValue(raw, key) !== undefined,
-  );
+  const scores = {
+    cha: parseAbilityScoreValue(readAbilityValue(raw, "cha")) ?? 10,
+    con: parseAbilityScoreValue(readAbilityValue(raw, "con")) ?? 10,
+    dex: parseAbilityScoreValue(readAbilityValue(raw, "dex")) ?? 10,
+    int: parseAbilityScoreValue(readAbilityValue(raw, "int")) ?? 10,
+    str: parseAbilityScoreValue(readAbilityValue(raw, "str")) ?? 10,
+    wis: parseAbilityScoreValue(readAbilityValue(raw, "wis")) ?? 10,
+  };
+  const detected =
+    abilityKeys.every((key) => readAbilityValue(raw, key) !== undefined) &&
+    hasValidAbilityScores(scores);
 
   return {
     detected,
-    scores: {
-      cha: parseAbilityScoreValue(readAbilityValue(raw, "cha")) ?? 10,
-      con: parseAbilityScoreValue(readAbilityValue(raw, "con")) ?? 10,
-      dex: parseAbilityScoreValue(readAbilityValue(raw, "dex")) ?? 10,
-      int: parseAbilityScoreValue(readAbilityValue(raw, "int")) ?? 10,
-      str: parseAbilityScoreValue(readAbilityValue(raw, "str")) ?? 10,
-      wis: parseAbilityScoreValue(readAbilityValue(raw, "wis")) ?? 10,
-    },
+    scores,
   };
 }
 
@@ -876,9 +887,40 @@ function normalizeValidationMessage(value: string) {
   const labels: Record<string, string> = {
     "ability scores": "ability scores",
     "missing required field: ability scores": "ability scores",
+    "missing required fields: ability scores": "ability scores",
   };
 
   return labels[normalized] ?? value.trim().replace(/\.+$/g, "");
+}
+
+function uniqueValidationFields(values: string[]) {
+  return [
+    ...new Set(
+      values
+        .map(normalizeValidationMessage)
+        .map((value) => value.toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function uniqueValidationMessages(values: string[]) {
+  const seen = new Set<string>();
+  const messages: string[] = [];
+
+  values.forEach((value) => {
+    const message = value.trim().replace(/\s+/g, " ").replace(/\.+$/g, ".");
+    const key = normalizeValidationMessage(message).toLowerCase();
+
+    if (!message || seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    messages.push(message);
+  });
+
+  return messages;
 }
 
 function stringifySrdValue(value: unknown): string {
