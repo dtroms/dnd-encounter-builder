@@ -16,6 +16,7 @@ import {
 } from "@/lib/encounter/stat-block-parser";
 import {
   normalizeTabyltopSrdMonster,
+  parseSrdMonsterDataset,
   TABYLTOP_SRD_SOURCE,
   tabyltopSrdSampleMonsters,
   type SrdImportPreview,
@@ -81,10 +82,19 @@ export function StatBlockImporterPlaceholder({
   const [selectedSrdIds, setSelectedSrdIds] = useState<string[]>([]);
   const [activeSrdId, setActiveSrdId] = useState("");
   const [srdImportMessage, setSrdImportMessage] = useState("");
+  const [srdJsonInput, setSrdJsonInput] = useState("");
+  const [srdDatasetError, setSrdDatasetError] = useState("");
+  const [srdDatasetShape, setSrdDatasetShape] = useState("local-sample");
+  const [processedSrdPreviews, setProcessedSrdPreviews] = useState<
+    SrdImportPreview[]
+  >([]);
 
   const srdPreviews = useMemo(
-    () => tabyltopSrdSampleMonsters.map(normalizeTabyltopSrdMonster),
-    [],
+    () =>
+      processedSrdPreviews.length
+        ? processedSrdPreviews
+        : tabyltopSrdSampleMonsters.map(normalizeTabyltopSrdMonster),
+    [processedSrdPreviews],
   );
   const existingSrdKeys = useMemo(
     () =>
@@ -190,13 +200,45 @@ export function StatBlockImporterPlaceholder({
     const importableIds = srdPreviews
       .filter(
         (preview) =>
-          preview.status !== "error" &&
+          preview.status === "ready" &&
           !existingSrdKeys.has(preview.creature.name.toLowerCase()),
       )
       .map((preview) => preview.creature.id);
     setSelectedSrdIds(importableIds);
     setActiveSrdId(srdPreviews[0]?.creature.id ?? "");
     setSrdImportMessage("");
+  }
+
+  function processSrdJsonInput() {
+    const result = parseSrdMonsterDataset(srdJsonInput);
+
+    if (result.error) {
+      setSrdDatasetError(result.error);
+      setProcessedSrdPreviews([]);
+      setSrdPreviewLoaded(false);
+      setSelectedSrdIds([]);
+      setSrdImportMessage("");
+      return;
+    }
+
+    const previews = result.records.map(normalizeTabyltopSrdMonster);
+    setProcessedSrdPreviews(previews);
+    setSrdDatasetShape(result.shape);
+    setSrdDatasetError("");
+    setSrdPreviewLoaded(true);
+    setSelectedSrdIds(
+      previews
+        .filter(
+          (preview) =>
+            preview.status === "ready" &&
+            !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+        )
+        .map((preview) => preview.creature.id),
+    );
+    setActiveSrdId(previews[0]?.creature.id ?? "");
+    setSrdImportMessage(
+      `Processed ${previews.length} SRD record${previews.length === 1 ? "" : "s"} from ${result.shape}.`,
+    );
   }
 
   function toggleSrdSelection(creatureId: string) {
@@ -217,7 +259,7 @@ export function StatBlockImporterPlaceholder({
     );
     const importablePreviews = selectedPreviews.filter(
       (preview) =>
-        preview.status !== "error" &&
+        preview.status === "ready" &&
         !existingSrdKeys.has(preview.creature.name.toLowerCase()),
     );
 
@@ -230,11 +272,7 @@ export function StatBlockImporterPlaceholder({
     });
 
     setSelectedSrdIds([]);
-    setSrdImportMessage(
-      importablePreviews.length
-        ? `${importablePreviews.length} SRD creature${importablePreviews.length === 1 ? "" : "s"} added to the local Creature Library.`
-        : "No new SRD creatures were imported.",
-    );
+    setSrdImportMessage(buildSrdImportReport(srdPreviews, importablePreviews.length, existingSrdKeys));
   }
 
   return (
@@ -301,12 +339,17 @@ export function StatBlockImporterPlaceholder({
           activePreview={activeSrdPreview}
           existingSrdKeys={existingSrdKeys}
           importMessage={srdImportMessage}
+          jsonInput={srdJsonInput}
           previewLoaded={srdPreviewLoaded}
           previews={srdPreviews}
+          processingError={srdDatasetError}
+          sourceShape={srdDatasetShape}
           selectedIds={selectedSrdIds}
           onImportSelected={importSelectedSrdCreatures}
           onLoadPreview={loadSrdPreview}
+          onProcessJson={processSrdJsonInput}
           onSelectPreview={setActiveSrdId}
+          onJsonInputChange={setSrdJsonInput}
           onToggleSelection={toggleSrdSelection}
         />
       ) : null}
@@ -762,26 +805,45 @@ function SrdImportPlanning({
   activePreview,
   existingSrdKeys,
   importMessage,
+  jsonInput,
   previewLoaded,
   previews,
+  processingError,
   selectedIds,
+  sourceShape,
   onImportSelected,
   onLoadPreview,
+  onJsonInputChange,
+  onProcessJson,
   onSelectPreview,
   onToggleSelection,
 }: {
   activePreview?: SrdImportPreview;
   existingSrdKeys: Set<string>;
   importMessage: string;
+  jsonInput: string;
   previewLoaded: boolean;
   previews: SrdImportPreview[];
+  processingError: string;
   selectedIds: string[];
+  sourceShape: string;
   onImportSelected: () => void;
   onLoadPreview: () => void;
+  onJsonInputChange: (value: string) => void;
+  onProcessJson: () => void;
   onSelectPreview: (creatureId: string) => void;
   onToggleSelection: (creatureId: string) => void;
 }) {
   const selectedCount = selectedIds.length;
+  const readyCount = previews.filter(
+    (preview) =>
+      preview.status === "ready" &&
+      !existingSrdKeys.has(preview.creature.name.toLowerCase()),
+  ).length;
+  const errorCount = previews.filter((preview) => preview.status === "error").length;
+  const needsReviewCount = previews.filter(
+    (preview) => preview.status === "needs-review",
+  ).length;
 
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
@@ -819,7 +881,7 @@ function SrdImportPlanning({
               type="button"
               onClick={onImportSelected}
             >
-              Import Selected ({selectedCount})
+              Import All Valid ({selectedCount})
             </button>
           </div>
           {importMessage ? (
@@ -847,23 +909,66 @@ function SrdImportPlanning({
         </div>
       </div>
 
+      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+              Full Dataset Test Input
+            </p>
+            <h3 className="mt-1 text-lg font-black text-white">
+              Paste Tabyltop-Style Monster JSON
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Supports arrays, <code>{"{ monsters: [...] }"}</code>,{" "}
+              <code>{"{ data: [...] }"}</code>,{" "}
+              <code>{"{ results: [...] }"}</code>, and keyed monster objects.
+              Processing happens only when you click Process Import.
+            </p>
+          </div>
+          <button
+            className="rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:border-cyan-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
+            disabled={!jsonInput.trim()}
+            type="button"
+            onClick={onProcessJson}
+          >
+            Process Import
+          </button>
+        </div>
+        <textarea
+          className="mt-3 min-h-36 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm leading-6 text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-300"
+          placeholder={'[{ "name": "Example", "meta": "Medium beast, unaligned", "armor_class": "Armor Class 12", "hit_points": "Hit Points 7 (2d6)", "speed": "Speed 30 ft.", "challenge": "Challenge 1/8 (25 XP)", "stats": [10, 12, 10, 3, 10, 6], "actions": [{ "name": "Bite", "desc": "Melee Weapon Attack..." }] }]'}
+          value={jsonInput}
+          onChange={(event) => onJsonInputChange(event.target.value)}
+        />
+        {processingError ? (
+          <p className="mt-3 rounded-lg border border-red-300/25 bg-red-400/10 p-3 text-sm font-bold text-red-100">
+            {processingError}
+          </p>
+        ) : null}
+      </div>
+
       {previewLoaded ? (
         <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_0.85fr]">
           <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-                Local SRD Preview
+                SRD Import Preview
               </p>
               <span className="text-xs font-black uppercase tracking-wide text-slate-400">
-                {previews.length} records normalized
+                {previews.length} records normalized from {sourceShape}
               </span>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <PreviewStat label="Ready" value={String(readyCount)} />
+              <PreviewStat label="Needs Review" value={String(needsReviewCount)} />
+              <PreviewStat label="Errors" value={String(errorCount)} />
             </div>
             <div className="mt-3 space-y-2">
               {previews.map((preview) => {
                 const duplicate = existingSrdKeys.has(
                   preview.creature.name.toLowerCase(),
                 );
-                const disabled = duplicate || preview.status === "error";
+                const disabled = duplicate || preview.status !== "ready";
 
                 return (
                   <button
@@ -913,6 +1018,10 @@ function SrdImportPlanning({
 
           <SrdReviewPanel preview={activePreview} />
         </div>
+      ) : null}
+
+      {previewLoaded ? (
+        <SrdBatchReport previews={previews} existingSrdKeys={existingSrdKeys} />
       ) : (
         <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-900/45 p-6 text-center">
           <h3 className="text-lg font-black text-white">
@@ -926,6 +1035,80 @@ function SrdImportPlanning({
         </div>
       )}
     </section>
+  );
+}
+
+function SrdBatchReport({
+  existingSrdKeys,
+  previews,
+}: {
+  existingSrdKeys: Set<string>;
+  previews: SrdImportPreview[];
+}) {
+  const skippedDuplicates = previews.filter((preview) =>
+    existingSrdKeys.has(preview.creature.name.toLowerCase()),
+  );
+  const errors = previews.filter((preview) => preview.status === "error");
+  const needsReview = previews.filter(
+    (preview) => preview.status === "needs-review",
+  );
+  const reportItems = [
+    ...errors.map((preview) => ({
+      name: preview.creature.name || "Unnamed record",
+      reason:
+        preview.missingRequiredFields.join(", ") ||
+        preview.warnings.join(", ") ||
+        "Validation error",
+      status: "Error",
+    })),
+    ...needsReview.map((preview) => ({
+      name: preview.creature.name || "Unnamed record",
+      reason: preview.warnings.join(", ") || "Needs review",
+      status: "Needs Review",
+    })),
+    ...skippedDuplicates.map((preview) => ({
+      name: preview.creature.name,
+      reason: "Already exists in the local Library.",
+      status: "Duplicate",
+    })),
+  ].slice(0, 12);
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-base font-black text-white">
+          Skipped / Review Report
+        </h3>
+        <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+          Showing first {reportItems.length} issue{reportItems.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {reportItems.length ? (
+        <div className="mt-3 space-y-2">
+          {reportItems.map((item) => (
+            <div
+              key={`${item.status}-${item.name}-${item.reason}`}
+              className="rounded-lg border border-slate-800 bg-slate-950/70 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-black text-white">{item.name}</p>
+                <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-300">
+                  {item.status}
+                </span>
+              </div>
+              <p className="mt-1 text-sm leading-5 text-slate-400">
+                {item.reason}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm font-semibold text-slate-400">
+          No skipped errors, review records, or duplicates in the current
+          processed set.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1350,6 +1533,27 @@ function cleanNumber(value: number, fallback: number) {
 
 function cleanTextList(values?: string[]) {
   return (values ?? []).map((value) => value.trim()).filter(Boolean);
+}
+
+function buildSrdImportReport(
+  previews: SrdImportPreview[],
+  importedCount: number,
+  existingSrdKeys: Set<string>,
+) {
+  const duplicateCount = previews.filter((preview) =>
+    existingSrdKeys.has(preview.creature.name.toLowerCase()),
+  ).length;
+  const errorCount = previews.filter((preview) => preview.status === "error").length;
+  const needsReviewCount = previews.filter(
+    (preview) => preview.status === "needs-review",
+  ).length;
+
+  return [
+    `${importedCount} Ready SRD creature${importedCount === 1 ? "" : "s"} imported.`,
+    `${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped.`,
+    `${errorCount} error record${errorCount === 1 ? "" : "s"} skipped.`,
+    `${needsReviewCount} needs-review record${needsReviewCount === 1 ? "" : "s"} skipped.`,
+  ].join(" ");
 }
 
 function hasValidAbilityScores(scores: AbilityScores) {

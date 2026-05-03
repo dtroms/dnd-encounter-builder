@@ -25,6 +25,10 @@ The workflow is:
 4. Select importable records.
 5. Import selected records into local session state.
 
+For full-library testing, the SRD tab also accepts pasted JSON and processes it
+on demand. Supported shapes are arrays, objects with `monsters`, `data`, or
+`results` arrays, and keyed objects whose values are monster records.
+
 Imported creatures appear in the Creature Library and Builder during the same
 browser session because both use the shared local creature list.
 
@@ -56,6 +60,11 @@ fields into the app creature template shape:
 
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.
+
+Import All Valid imports Ready records only. It skips Error records, Needs
+Review records, and duplicates. Error records include missing names, invalid AC
+or HP, missing CR, missing ability scores, unknown creature type, malformed
+records, malformed actions/traits, or invalid numeric values.
 
 ## Boundaries
 

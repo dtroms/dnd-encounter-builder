@@ -44,6 +44,18 @@ The SRD tab now supports:
 4. Select records for import.
 5. Import selected records into the local Creature Library session state.
 
+The SRD tab also supports full-dataset testing by pasting SRD monster JSON into
+the dataset textarea and clicking Process Import. Supported JSON shapes are:
+
+- An array of monster records.
+- `{ "monsters": [...] }`
+- `{ "data": [...] }`
+- `{ "results": [...] }`
+- A keyed object such as `{ "wolf": { ...monster } }`
+
+If the shape is not recognized or the JSON cannot be parsed, the importer shows
+a clear error and does not import anything.
+
 Imported SRD creatures use:
 
 - `sourceType = srd`
@@ -53,13 +65,38 @@ Imported SRD creatures use:
 - `importMethod = srd-json-review`
 
 Duplicate prevention is simple for now: if a local Library creature already has
-the same name from Tabyltop CC-SRD, the preview marks it as already in the
-Library and disables selection.
+the same normalized name from Tabyltop CC-SRD, the preview marks it as already
+in the Library and disables selection.
+
+Import All Valid imports Ready records only. It skips Error records, Needs
+Review records, and duplicates. The report area summarizes total processed
+records, imported count, skipped duplicates, skipped errors, and skipped
+needs-review records, with the first issue details shown in the UI.
 
 The normalizer extracts or preserves common fields such as name, meta
 size/type/alignment, AC, HP, speed, ability scores, saving throws, skills,
 senses, languages, CR, traits, actions, reactions, legendary actions, lair
 actions, defenses, license metadata, and raw source JSON.
+
+Critical validation failures become Error and are skipped:
+
+- Missing name.
+- Missing or invalid AC.
+- Missing or invalid HP.
+- Missing or invalid CR.
+- Missing or invalid ability scores.
+- Unknown creature type.
+- Malformed record object.
+- NaN or invalid core numeric values.
+- Malformed actions or traits data.
+
+Non-critical issues become Needs Review and are skipped by Import All Valid for
+now:
+
+- No actions found.
+- No traits found.
+- Missing languages or senses.
+- Unusual or incomplete non-core fields.
 
 ## Paste Stat Block Workflow
 

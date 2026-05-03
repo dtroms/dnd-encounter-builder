@@ -18,6 +18,12 @@ export type SrdImportPreview = {
   warnings: string[];
 };
 
+export type SrdDatasetParseResult = {
+  error?: string;
+  records: TabyltopSrdMonster[];
+  shape: string;
+};
+
 export const TABYLTOP_SRD_SOURCE = {
   attribution:
     "Contains content from the SRD 5.1 made available under CC-BY-4.0. Verify final attribution before public release.",
@@ -124,6 +130,20 @@ export function normalizeTabyltopSrdMonster(
   raw: TabyltopSrdMonster,
 ): SrdImportPreview {
   const warnings: string[] = [];
+  const criticalErrors: string[] = [];
+
+  if (!isPlainObject(raw)) {
+    const creature = buildInvalidCreature("Malformed SRD Record", raw);
+
+    return {
+      creature,
+      missingRequiredFields: ["malformed record object"],
+      raw,
+      status: "error",
+      warnings: ["Malformed record object."],
+    };
+  }
+
   const name = readString(raw, ["name", "Name"]);
   const meta = readString(raw, ["meta", "Meta", "size_type_alignment"]);
   const identity = parseMeta(meta);
@@ -136,7 +156,8 @@ export function normalizeTabyltopSrdMonster(
   const challenge = parseChallenge(
     readString(raw, ["challenge", "challenge_rating", "Challenge", "CR", "cr"]),
   );
-  const abilityScores = parseSrdAbilityScores(raw);
+  const abilityResult = parseSrdAbilityScores(raw);
+  const abilityScores = abilityResult.scores;
   const speed = stripLeadingLabel(readString(raw, ["speed", "Speed"]), "Speed");
   const actions = readEntries(raw, ["actions", "Actions"]);
   const traits = readEntries(raw, ["traits", "special_abilities", "Special Abilities"]);
@@ -233,6 +254,42 @@ export function normalizeTabyltopSrdMonster(
 
   const missingRequiredFields = validateSrdMonsterDraft(creature);
 
+  if (!name) {
+    criticalErrors.push("Missing name.");
+  }
+
+  if (armor.value === null) {
+    criticalErrors.push("Missing or invalid Armor Class.");
+  }
+
+  if (hp.value === null) {
+    criticalErrors.push("Missing or invalid Hit Points.");
+  }
+
+  if (!challenge.value) {
+    criticalErrors.push("Missing or invalid challenge rating.");
+  }
+
+  if (!abilityResult.detected) {
+    criticalErrors.push("Ability scores were not detected.");
+  }
+
+  if (!identity.monsterType || identity.monsterType === "Unknown / Unset") {
+    criticalErrors.push("Monster type could not be determined.");
+  }
+
+  if (hasBadCoreNumber(creature)) {
+    criticalErrors.push("NaN or invalid numeric value detected in core fields.");
+  }
+
+  if (entriesMalformed(raw, ["actions", "Actions"])) {
+    criticalErrors.push("Actions data is malformed.");
+  }
+
+  if (entriesMalformed(raw, ["traits", "special_abilities", "Special Abilities"])) {
+    criticalErrors.push("Traits data is malformed.");
+  }
+
   if (!meta) {
     warnings.push("Missing size/type/alignment metadata.");
   }
@@ -253,15 +310,21 @@ export function normalizeTabyltopSrdMonster(
     warnings.push("Hit Points could not be parsed from source text.");
   }
 
-  const status: SrdValidationStatus = missingRequiredFields.length
-    ? missingRequiredFields.length >= 3
-      ? "error"
-      : "needs-review"
+  const allMissingFields = [...new Set([...missingRequiredFields, ...criticalErrors])];
+
+  const status: SrdValidationStatus = criticalErrors.length
+    ? "error"
     : warnings.length
       ? "needs-review"
       : "ready";
 
-  return { creature, missingRequiredFields, raw, status, warnings };
+  return {
+    creature,
+    missingRequiredFields: allMissingFields,
+    raw,
+    status,
+    warnings: [...criticalErrors, ...warnings],
+  };
 }
 
 export function validateSrdMonsterDraft(creature: LibraryCreature) {
@@ -276,11 +339,77 @@ export function validateSrdMonsterDraft(creature: LibraryCreature) {
     !creature.monsterType || creature.monsterType === "Unknown / Unset"
       ? "creature type"
       : null,
+    !hasValidAbilityScores(creature.abilityScores) ? "ability scores" : null,
   ].filter(Boolean) as string[];
 }
 
 export function tabyltopMonsterToCreatureTemplate(raw: TabyltopSrdMonster) {
   return normalizeTabyltopSrdMonster(raw).creature;
+}
+
+export function parseSrdMonsterDataset(jsonText: string): SrdDatasetParseResult {
+  if (!jsonText.trim()) {
+    return { error: "Paste SRD monster JSON before processing.", records: [], shape: "empty" };
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? `JSON could not be parsed: ${error.message}`
+          : "JSON could not be parsed.",
+      records: [],
+      shape: "invalid-json",
+    };
+  }
+
+  return extractSrdMonsterRecords(parsed);
+}
+
+export function extractSrdMonsterRecords(parsed: unknown): SrdDatasetParseResult {
+  if (Array.isArray(parsed)) {
+    return {
+      records: parsed.filter(isPlainObject) as TabyltopSrdMonster[],
+      shape: "array",
+    };
+  }
+
+  if (!isPlainObject(parsed)) {
+    return {
+      error: "JSON shape was not recognized. Expected an array or object.",
+      records: [],
+      shape: "unrecognized",
+    };
+  }
+
+  for (const key of ["monsters", "data", "results"]) {
+    const value = parsed[key];
+
+    if (Array.isArray(value)) {
+      return {
+        records: value.filter(isPlainObject) as TabyltopSrdMonster[],
+        shape: `object.${key}`,
+      };
+    }
+  }
+
+  const values = Object.values(parsed);
+  const keyedRecords = values.filter(isPlainObject) as TabyltopSrdMonster[];
+
+  if (keyedRecords.length) {
+    return { records: keyedRecords, shape: "keyed-object" };
+  }
+
+  return {
+    error:
+      "JSON shape was not recognized. Use an array, { monsters: [...] }, { data: [...] }, { results: [...] }, or a keyed object.",
+    records: [],
+    shape: "unrecognized",
+  };
 }
 
 function readString(raw: TabyltopSrdMonster, keys: string[]) {
@@ -378,39 +507,55 @@ function parseChallenge(value: string) {
   };
 }
 
-function parseSrdAbilityScores(raw: TabyltopSrdMonster): AbilityScores {
+function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
+  detected: boolean;
+  scores: AbilityScores;
+} {
   const stats = raw.stats;
 
   if (Array.isArray(stats) && stats.length >= 6) {
     return {
+      detected: true,
+      scores: {
       cha: safeNumber(stats[5]) ?? 10,
       con: safeNumber(stats[2]) ?? 10,
       dex: safeNumber(stats[1]) ?? 10,
       int: safeNumber(stats[3]) ?? 10,
       str: safeNumber(stats[0]) ?? 10,
       wis: safeNumber(stats[4]) ?? 10,
+      },
     };
   }
 
   if (stats && typeof stats === "object") {
     const record = stats as Record<string, unknown>;
     return {
-      cha: safeNumber(record.cha ?? record.CHA ?? record.charisma) ?? 10,
-      con: safeNumber(record.con ?? record.CON ?? record.constitution) ?? 10,
-      dex: safeNumber(record.dex ?? record.DEX ?? record.dexterity) ?? 10,
-      int: safeNumber(record.int ?? record.INT ?? record.intelligence) ?? 10,
-      str: safeNumber(record.str ?? record.STR ?? record.strength) ?? 10,
-      wis: safeNumber(record.wis ?? record.WIS ?? record.wisdom) ?? 10,
+      detected: hasAbilityKeys(record),
+      scores: {
+        cha: safeNumber(record.cha ?? record.CHA ?? record.charisma) ?? 10,
+        con: safeNumber(record.con ?? record.CON ?? record.constitution) ?? 10,
+        dex: safeNumber(record.dex ?? record.DEX ?? record.dexterity) ?? 10,
+        int: safeNumber(record.int ?? record.INT ?? record.intelligence) ?? 10,
+        str: safeNumber(record.str ?? record.STR ?? record.strength) ?? 10,
+        wis: safeNumber(record.wis ?? record.WIS ?? record.wisdom) ?? 10,
+      },
     };
   }
 
+  const detected = ["str", "dex", "con", "int", "wis", "cha"].every(
+    (key) => raw[key] !== undefined || raw[key.toUpperCase()] !== undefined,
+  );
+
   return {
-    cha: safeNumber(raw.cha ?? raw.CHA ?? raw.charisma) ?? 10,
-    con: safeNumber(raw.con ?? raw.CON ?? raw.constitution) ?? 10,
-    dex: safeNumber(raw.dex ?? raw.DEX ?? raw.dexterity) ?? 10,
-    int: safeNumber(raw.int ?? raw.INT ?? raw.intelligence) ?? 10,
-    str: safeNumber(raw.str ?? raw.STR ?? raw.strength) ?? 10,
-    wis: safeNumber(raw.wis ?? raw.WIS ?? raw.wisdom) ?? 10,
+    detected,
+    scores: {
+      cha: safeNumber(raw.cha ?? raw.CHA ?? raw.charisma) ?? 10,
+      con: safeNumber(raw.con ?? raw.CON ?? raw.constitution) ?? 10,
+      dex: safeNumber(raw.dex ?? raw.DEX ?? raw.dexterity) ?? 10,
+      int: safeNumber(raw.int ?? raw.INT ?? raw.intelligence) ?? 10,
+      str: safeNumber(raw.str ?? raw.STR ?? raw.strength) ?? 10,
+      wis: safeNumber(raw.wis ?? raw.WIS ?? raw.wisdom) ?? 10,
+    },
   };
 }
 
@@ -437,6 +582,71 @@ function abilityModifier(score: number) {
 function safeNumber(value: unknown) {
   const parsed = Number(String(value).replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildInvalidCreature(
+  name: string,
+  raw: unknown,
+): LibraryCreature {
+  return {
+    accentColor: "Emerald",
+    actions: [],
+    armorClass: 0,
+    attribution: TABYLTOP_SRD_SOURCE.attribution,
+    autoRollEligible: true,
+    challengeRating: "",
+    abilityScores: { cha: 10, con: 10, dex: 10, int: 10, str: 10, wis: 10 },
+    id: `srd-invalid-${Date.now()}`,
+    importMethod: "srd-json-review",
+    initiativeBonus: 0,
+    languages: "None",
+    licenseName: TABYLTOP_SRD_SOURCE.licenseName,
+    maxHp: 0,
+    monsterType: "Unknown / Unset",
+    name,
+    notes: "Invalid SRD record. Skipped by validation.",
+    rawImportText: JSON.stringify(raw, null, 2),
+    senses: "passive Perception 10",
+    size: "Medium",
+    sourceName: TABYLTOP_SRD_SOURCE.sourceName,
+    sourceType: "srd",
+    sourceUrl: TABYLTOP_SRD_SOURCE.sourceUrl,
+    speed: "",
+    tags: ["srd", "validation-error"],
+    traits: [],
+    type: "enemy",
+  };
+}
+
+function entriesMalformed(raw: TabyltopSrdMonster, keys: string[]) {
+  return keys.some((key) => {
+    const value = raw[key];
+    return (
+      value !== undefined &&
+      typeof value !== "string" &&
+      !Array.isArray(value)
+    );
+  });
+}
+
+function hasAbilityKeys(record: Record<string, unknown>) {
+  return ["str", "dex", "con", "int", "wis", "cha"].every(
+    (key) => record[key] !== undefined || record[key.toUpperCase()] !== undefined,
+  );
+}
+
+function hasBadCoreNumber(creature: LibraryCreature) {
+  return [creature.armorClass, creature.maxHp, creature.initiativeBonus].some(
+    (value) => !Number.isFinite(value),
+  );
+}
+
+function hasValidAbilityScores(scores: AbilityScores) {
+  return Object.values(scores).every((score) => Number.isFinite(score) && score > 0);
+}
+
+function isPlainObject(value: unknown): value is TabyltopSrdMonster {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function slugify(value: string) {
