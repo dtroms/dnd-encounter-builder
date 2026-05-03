@@ -755,7 +755,13 @@ export function EncounterApp() {
         />
       ) : null}
 
-      {activeView === "importer" ? <StatBlockImporterPlaceholder /> : null}
+      {activeView === "importer" ? (
+        <StatBlockImporterPlaceholder
+          onSaveCreature={(creature) =>
+            setCreatureTemplates((current) => [creature, ...current])
+          }
+        />
+      ) : null}
     </AppShell>
   );
 }

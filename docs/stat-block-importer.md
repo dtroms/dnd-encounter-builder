@@ -1,0 +1,112 @@
+# Stat Block Importer
+
+The Stat Block Importer is the planned workspace for bringing creature data
+into the Creature Library. It is currently a local UI and parser scaffold only.
+It does not read from or write to Supabase.
+
+## Import Methods
+
+The Importer currently has three sections:
+
+- Paste Stat Block: paste user-provided stat block text, parse it locally, and
+  review the detected creature fields before saving.
+- Import SRD Monsters: planned Creative Commons SRD import workflow using the
+  Tabyltop CC-SRD repository as the likely source.
+- Import History: placeholder for future saved import attempts and parser
+  status once persistence exists.
+
+## Planned SRD Source
+
+The planned SRD source is:
+
+- Source name: Tabyltop CC-SRD
+- Source URL: `https://github.com/Tabyltop/CC-SRD`
+- Source document version: SRD 5.1
+- License: CC-BY-4.0
+- Source type: `srd`
+
+This pass does not fetch from GitHub at runtime and does not bundle a bulk SRD
+monster dataset. The UI shows a source card and mock preview state only.
+
+Future SRD import work should use a local adapter script or curated import file,
+then review the output before records become Library creature templates.
+
+## Paste Stat Block Workflow
+
+The paste workflow is:
+
+1. Paste stat block text.
+2. Optionally add a source name and source URL.
+3. Run the local parser helper.
+4. Review detected creature fields.
+5. Fill in missing required fields.
+6. Save the reviewed creature into the local Creature Library.
+
+Saved pasted creatures are marked as `Imported` with `importMethod = paste`.
+They are treated as user-provided content.
+
+## Parser Scope
+
+The parser is intentionally heuristic. It attempts to detect:
+
+- Name
+- Size and creature type line
+- Armor Class
+- Hit Points
+- Speed
+- Ability scores
+- Initiative bonus
+- Saving throws
+- Skills
+- Senses
+- Languages
+- Challenge rating
+- Traits
+- Actions
+- Bonus actions
+- Reactions
+- Legendary actions
+- Lair actions
+
+The parser can be wrong or incomplete. It returns confidence, warnings, and
+missing required fields so the user can review the result before saving.
+
+## Review Before Saving
+
+The review panel exposes editable fields for identity, combat role, core stats,
+ability scores, traits, actions, advanced action sections, notes, tags, and
+source metadata.
+
+Required fields are:
+
+- Name
+- Creature type
+- Armor Class
+- Hit Points
+- Challenge Rating
+
+The Save to Library button remains disabled until required fields are present.
+
+## Local Save Behavior
+
+For this pass, Save to Library updates the shared local creature template list.
+That means the imported creature appears in the Creature Library and Builder
+during the same browser session.
+
+This is not persistent. Refreshing the app restores the original local sample
+data until database wiring exists.
+
+## Boundaries
+
+This pass intentionally does not include:
+
+- Supabase reads or writes.
+- Auth or RLS.
+- Runtime GitHub fetching.
+- D&D Beyond scraping.
+- Official non-SRD D&D monster data.
+- Bulk SRD monster import.
+
+Use only content the user has the right to use. SRD Creative Commons imports
+should preserve attribution and license metadata. Official non-SRD content
+should not be bundled with the app.

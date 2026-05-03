@@ -89,6 +89,11 @@ Current local source examples include:
 - Imported: placeholder for future pasted stat block review output.
 - SRD / Creative Commons: placeholder for future SRD 5.1 CC-BY-4.0 imports.
 
+The Importer can now save a reviewed pasted stat block into the shared local
+creature list for the current browser session. Those creatures use the Imported
+source badge and become searchable in both the Library and Builder. This is
+still local state only and does not persist to Supabase.
+
 Future SRD imports should preserve license, attribution, source name, source
 document version, and source URL metadata separately from non-SRD or
 user-provided content.
@@ -112,7 +117,7 @@ This pass intentionally does not include:
 - Supabase reads or writes.
 - Auth or RLS.
 - SRD importer implementation.
-- Paste-stat-block parsing.
+- Paste-stat-block parsing beyond the current heuristic local review scaffold.
 - Official copyrighted monster data.
 - Runtime fetching from GitHub or other external sources.
 
