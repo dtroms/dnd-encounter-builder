@@ -8,6 +8,10 @@ import type {
   SavedEncounterSummary,
 } from "./dashboard-sample-data";
 import type {
+  LibraryCreature,
+  LibrarySourceType,
+} from "./library-sample-data";
+import type {
   CreatureTemplateRecord,
   CreatureTemplateRecordInput,
   EncounterRecord,
@@ -25,6 +29,28 @@ const defaultAbilityScores = {
   wis: 10,
   cha: 10,
 };
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function readMetadataString(
+  metadata: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readMetadataBoolean(
+  metadata: Record<string, unknown>,
+  key: string,
+): boolean | undefined {
+  const value = metadata[key];
+  return typeof value === "boolean" ? value : undefined;
+}
 
 const dashboardAccentColors = [
   "Blue",
@@ -95,11 +121,20 @@ function mapTraits(traits: StatBlockTrait[] | undefined) {
 export function creatureTemplateRecordToCreatureTemplate(
   record: CreatureTemplateRecord,
 ): CreatureTemplate {
+  const metadata = record.import_metadata as Record<string, unknown>;
+
   return {
     id: record.id,
     name: record.name,
     type: record.creature_type,
     size: record.size ?? "Medium",
+    armorClassNote: readMetadataString(metadata, "armorClassNote"),
+    hitPointFormula: readMetadataString(metadata, "hitPointFormula"),
+    monsterType:
+      (readMetadataString(metadata, "monsterType") as CreatureTemplate["monsterType"]) ??
+      "Unknown / Unset",
+    monsterSubtype: readMetadataString(metadata, "monsterSubtype"),
+    alignment: readMetadataString(metadata, "alignment"),
     armorClass: record.armor_class,
     maxHp: record.hit_points,
     speed: record.speed ?? "30 ft.",
@@ -107,9 +142,21 @@ export function creatureTemplateRecordToCreatureTemplate(
     abilityScores: record.ability_scores ?? defaultAbilityScores,
     savingThrows: record.saving_throws,
     skills: record.skills,
+    damageVulnerabilities: readStringArray(record.vulnerabilities),
+    damageResistances: readStringArray(record.resistances),
+    damageImmunities: readStringArray(record.immunities),
+    conditionImmunities: readStringArray(metadata.conditionImmunities),
     senses: record.senses ?? "passive Perception 10",
     languages: record.languages ?? "-",
     challengeRating: record.challenge_rating ?? undefined,
+    challengeXp: readMetadataString(metadata, "challengeXp"),
+    characterSheetUrl: readMetadataString(metadata, "characterSheetUrl"),
+    characterSheetTitle: readMetadataString(metadata, "characterSheetTitle"),
+    characterSheetEmbedEnabled: readMetadataBoolean(
+      metadata,
+      "characterSheetEmbedEnabled",
+    ),
+    externalSheetNotes: readMetadataString(metadata, "externalSheetNotes"),
     traits: record.traits,
     actions: record.actions,
     bonusActions: record.bonus_actions,
@@ -120,6 +167,29 @@ export function creatureTemplateRecordToCreatureTemplate(
     tags: record.tags,
     accentColor: "Gray",
     autoRollEligible: record.creature_type !== "pc",
+  };
+}
+
+export function creatureTemplateRecordToLibraryCreature(
+  record: CreatureTemplateRecord,
+): LibraryCreature {
+  const metadata = record.import_metadata as Record<string, unknown>;
+  const template = creatureTemplateRecordToCreatureTemplate(record);
+
+  return {
+    ...template,
+    attribution: readMetadataString(metadata, "attribution"),
+    importMethod: record.import_method ?? undefined,
+    importNotes: record.import_notes ?? undefined,
+    importedAt: record.imported_at ?? undefined,
+    licenseName: readMetadataString(metadata, "licenseName") ?? "none/custom",
+    parserConfidence: record.parser_confidence ?? undefined,
+    parserVersion: record.parser_version ?? undefined,
+    sourceDocumentVersion: readMetadataString(metadata, "sourceDocumentVersion"),
+    sourceName: record.source_name ?? "User Created",
+    sourceRawUrl: readMetadataString(metadata, "sourceRawUrl"),
+    sourceType: record.source_type as LibrarySourceType,
+    sourceUrl: record.source_url ?? undefined,
   };
 }
 
@@ -166,6 +236,83 @@ export function creatureTemplateToRecordInput(
     parser_confidence: null,
     import_metadata: {},
   };
+}
+
+export function libraryCreatureToRecordInput(
+  creature: LibraryCreature,
+  ownerUserId: string | null = null,
+): CreatureTemplateRecordInput {
+  return {
+    owner_user_id: ownerUserId,
+    name: creature.name,
+    creature_type: creature.type,
+    size: creature.size,
+    role: creature.type,
+    armor_class: creature.armorClass,
+    hit_points: creature.maxHp,
+    speed: creature.speed,
+    initiative_bonus: creature.initiativeBonus,
+    challenge_rating: creature.challengeRating ?? null,
+    proficiency_bonus: null,
+    ability_scores: creature.abilityScores,
+    saving_throws: creature.savingThrows ?? [],
+    skills: creature.skills ?? [],
+    senses: creature.senses,
+    languages: creature.languages,
+    resistances: creature.damageResistances ?? [],
+    immunities: creature.damageImmunities ?? [],
+    vulnerabilities: creature.damageVulnerabilities ?? [],
+    traits: mapTraits(creature.traits),
+    actions: mapActions(creature.actions),
+    bonus_actions: mapActions(creature.bonusActions),
+    reactions: mapActions(creature.reactions),
+    legendary_actions: mapActions(creature.legendaryActions),
+    lair_actions: mapActions(creature.lairActions),
+    notes: creature.notes ?? null,
+    tags: creature.tags,
+    source_type: creature.sourceType,
+    source_name: creature.sourceName,
+    source_url: creature.sourceUrl ?? null,
+    import_method: normalizeImportMethod(creature.importMethod),
+    imported_at: creature.importedAt ?? null,
+    original_import_text: creature.rawImportText ?? null,
+    import_notes: creature.importNotes ?? null,
+    parser_version: creature.parserVersion ?? null,
+    parser_confidence: creature.parserConfidence ?? null,
+    import_metadata: {
+      alignment: creature.alignment ?? "",
+      armorClassNote: creature.armorClassNote ?? "",
+      attribution: creature.attribution ?? "",
+      challengeXp: creature.challengeXp ?? "",
+      characterSheetEmbedEnabled: creature.characterSheetEmbedEnabled ?? false,
+      characterSheetTitle: creature.characterSheetTitle ?? "",
+      characterSheetUrl: creature.characterSheetUrl ?? "",
+      conditionImmunities: creature.conditionImmunities ?? [],
+      externalSheetNotes: creature.externalSheetNotes ?? "",
+      hitPointFormula: creature.hitPointFormula ?? "",
+      licenseName: creature.licenseName,
+      monsterSubtype: creature.monsterSubtype ?? "",
+      monsterType: creature.monsterType ?? "Unknown / Unset",
+      sourceDocumentVersion: creature.sourceDocumentVersion ?? "",
+      sourceRawUrl: creature.sourceRawUrl ?? "",
+    },
+  };
+}
+
+function normalizeImportMethod(
+  method: string | undefined,
+): CreatureTemplateRecordInput["import_method"] {
+  if (
+    method === "paste" ||
+    method === "url" ||
+    method === "srd-json-review" ||
+    method === "automated-srd-json" ||
+    method === "dndbeyond_homebrew"
+  ) {
+    return method;
+  }
+
+  return "manual";
 }
 
 export function encounterCombatantRecordToEncounterCombatant(

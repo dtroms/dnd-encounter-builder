@@ -69,9 +69,39 @@ Saved Encounters metadata persistence has started for signed-in users:
 - local demo/mock behavior remains available when Supabase is not configured or
   `NEXT_PUBLIC_USE_DEMO_DATA=true`
 
-Builder, Runner, Creature Library, and Importer data are still local/session
-state. Opening a database-backed encounter into Builder/Runner and wiring child
-tables is the next persistence step.
+Builder, Runner, and Importer data are still local/session state. Opening a
+database-backed encounter into Builder/Runner and wiring child tables is the next
+persistence step.
+
+Creature Library persistence has also started for signed-in users:
+
+- the Library can fetch the current user's `creature_templates`
+- the Library can create custom creature templates
+- the Library can edit creature template rows
+- the Library can duplicate creature template rows
+- the Library can remove creature template rows after confirmation
+- local demo/mock behavior remains available when Supabase is not configured or
+  `NEXT_PUBLIC_USE_DEMO_DATA=true`
+
+Builder can see the currently loaded signed-in creature list because it already
+uses the shared in-session Library state. Builder encounter persistence and
+Runner runtime persistence are still future steps.
+
+Importer paste-save persistence has started for signed-in users:
+
+- reviewed pasted stat blocks can save to the current user's
+  `creature_templates`
+- source/import metadata is preserved on the creature row where the schema
+  supports it
+- saved imports are added to shared in-session creature state so Library and
+  Builder can see them immediately
+- local demo mode still saves pasted imports to local/session state only
+- the richer `stat_block_imports` audit/history table is not wired yet
+
+SRD import tools remain hidden from normal beta UI unless
+`NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`. If enabled locally, Ready SRD records use
+the same Library save path; invalid, needs-review, and duplicate records remain
+skipped.
 
 ## RLS Validation Gate
 

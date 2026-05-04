@@ -111,20 +111,36 @@ const emptyAction = { description: "", name: "" };
 
 export function CreatureLibrary({
   creatures,
+  errorMessage,
+  isBusy = false,
+  isLoading = false,
   onCreateCreature,
   onDuplicateCreature,
   onArchiveCreature,
   onOpenBuilder,
   onOpenImporter,
+  onRetry,
   onUpdateCreature,
+  useSupabaseData = false,
 }: {
   creatures: LibraryCreature[];
-  onArchiveCreature: (creatureId: string) => void;
-  onCreateCreature: (creature: LibraryCreature) => void;
-  onDuplicateCreature: (creature: LibraryCreature) => void;
+  errorMessage?: string | null;
+  isBusy?: boolean;
+  isLoading?: boolean;
+  onArchiveCreature: (creatureId: string) => Promise<boolean> | boolean | void;
+  onCreateCreature: (
+    creature: LibraryCreature,
+  ) => Promise<LibraryCreature | null | void> | LibraryCreature | null | void;
+  onDuplicateCreature: (
+    creature: LibraryCreature,
+  ) => Promise<LibraryCreature | null | void> | LibraryCreature | null | void;
   onOpenBuilder: () => void;
   onOpenImporter: () => void;
-  onUpdateCreature: (creature: LibraryCreature) => void;
+  onRetry?: () => void;
+  onUpdateCreature: (
+    creature: LibraryCreature,
+  ) => Promise<LibraryCreature | null | void> | LibraryCreature | null | void;
+  useSupabaseData?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [monsterTypeFilter, setMonsterTypeFilter] =
@@ -207,18 +223,29 @@ export function CreatureLibrary({
     filteredCreatures[0] ??
     null;
 
-  function saveCreature(creature: LibraryCreature, mode: EditorMode) {
-    if (mode === "create") {
-      onCreateCreature(creature);
-    } else {
-      onUpdateCreature(creature);
-    }
+  async function saveCreature(creature: LibraryCreature, mode: EditorMode) {
+    const savedCreature =
+      mode === "create"
+        ? await onCreateCreature(creature)
+        : await onUpdateCreature(creature);
 
-    setSelectedCreatureId(creature.id);
+    const creatureToSelect = savedCreature ?? creature;
+
+    setSelectedCreatureId(creatureToSelect.id);
     setEditorState(null);
   }
 
-  function duplicateCreature(creature: LibraryCreature) {
+  async function duplicateCreature(creature: LibraryCreature) {
+    if (useSupabaseData) {
+      const savedCopy = await onDuplicateCreature(creature);
+
+      if (savedCopy) {
+        setSelectedCreatureId(savedCopy.id);
+      }
+
+      return;
+    }
+
     const copy: LibraryCreature = {
       ...cloneCreature(creature),
       id: `custom-${slugify(creature.name)}-${Date.now()}`,
@@ -231,13 +258,18 @@ export function CreatureLibrary({
         : undefined,
     };
 
-    onDuplicateCreature(copy);
+    await onDuplicateCreature(copy);
     setSelectedCreatureId(copy.id);
   }
 
-  function archiveCreature(creature: LibraryCreature) {
+  async function archiveCreature(creature: LibraryCreature) {
     const remainingCreatures = creatures.filter((item) => item.id !== creature.id);
-    onArchiveCreature(creature.id);
+    const removed = await onArchiveCreature(creature.id);
+
+    if (removed === false) {
+      return;
+    }
+
     setSelectedCreatureId(remainingCreatures[0]?.id ?? "");
     setConfirmArchiveId(null);
   }
@@ -249,12 +281,15 @@ export function CreatureLibrary({
           <div>
             <h2 className="text-2xl font-black text-white">Creature Library</h2>
             <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-400">
-              Manage saved creatures, custom monsters, and imported stat blocks.
+              {useSupabaseData
+                ? "Signed-in creature templates are saved to Supabase. Builder still uses the shared in-session creature list for now."
+                : "Manage saved creatures, custom monsters, and imported stat blocks."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200"
+              disabled={isBusy}
               type="button"
               onClick={() =>
                 setEditorState({
@@ -279,10 +314,15 @@ export function CreatureLibrary({
       {editorState ? (
         <CreatureEditor
           creature={editorState.creature}
+          isSaving={isBusy}
           mode={editorState.mode}
           onCancel={() => setEditorState(null)}
           onSave={(creature) => saveCreature(creature, editorState.mode)}
         />
+      ) : null}
+
+      {errorMessage ? (
+        <LibraryErrorState error={errorMessage} onRetry={onRetry} />
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.4fr)_minmax(0,0.6fr)]">
@@ -317,6 +357,17 @@ export function CreatureLibrary({
             </span>
           </div>
 
+          {isLoading ? (
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/55 p-6 text-center">
+              <p className="text-sm font-black text-slate-200">
+                Loading creature library...
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                Pulling your creature templates from Supabase.
+              </p>
+            </div>
+          ) : null}
+
           <div className="mt-2 grid gap-2">
             {filteredCreatures.map((creature) => (
               <CreatureListItem
@@ -328,14 +379,41 @@ export function CreatureLibrary({
             ))}
           </div>
 
-          {filteredCreatures.length === 0 ? (
+          {!isLoading && filteredCreatures.length === 0 ? (
             <div className="mt-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
               <p className="text-sm font-black text-slate-200">
-                No creatures found
+                {creatures.length === 0
+                  ? "No creatures in your library yet"
+                  : "No creatures found"}
               </p>
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                Try clearing filters or creating a new local creature.
+                {creatures.length === 0
+                  ? "Create your first creature or go to the Importer."
+                  : "Try clearing filters or creating a new creature."}
               </p>
+              {creatures.length === 0 ? (
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <button
+                    className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200"
+                    type="button"
+                    onClick={() =>
+                      setEditorState({
+                        creature: createBlankCreature(),
+                        mode: "create",
+                      })
+                    }
+                  >
+                    Create Creature
+                  </button>
+                  <button
+                    className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+                    type="button"
+                    onClick={onOpenImporter}
+                  >
+                    Go to Importer
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </aside>
@@ -351,6 +429,7 @@ export function CreatureLibrary({
               })
             }
             archiveConfirmOpen={confirmArchiveId === selectedCreature.id}
+            isBusy={isBusy}
             onArchive={() => setConfirmArchiveId(selectedCreature.id)}
             onArchiveCancel={() => setConfirmArchiveId(null)}
             onArchiveConfirm={() => archiveCreature(selectedCreature)}
@@ -546,6 +625,7 @@ function CreatureListItem({
 function CreatureDetailPanel({
   creature,
   archiveConfirmOpen,
+  isBusy,
   onDuplicate,
   onEdit,
   onArchive,
@@ -556,6 +636,7 @@ function CreatureDetailPanel({
 }: {
   creature: LibraryCreature;
   archiveConfirmOpen: boolean;
+  isBusy: boolean;
   onDuplicate: () => void;
   onEdit: () => void;
   onArchive: () => void;
@@ -588,6 +669,7 @@ function CreatureDetailPanel({
         <div className="flex flex-wrap gap-2">
           <button
             className="rounded-lg border border-cyan-300/50 bg-cyan-300/10 px-3 py-2 text-xs font-black text-cyan-100 transition hover:border-cyan-200 hover:text-white"
+            disabled={isBusy}
             type="button"
             onClick={onOpenBuilder}
           >
@@ -595,6 +677,7 @@ function CreatureDetailPanel({
           </button>
           <button
             className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+            disabled={isBusy}
             type="button"
             onClick={onEdit}
           >
@@ -602,13 +685,15 @@ function CreatureDetailPanel({
           </button>
           <button
             className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+            disabled={isBusy}
             type="button"
             onClick={onDuplicate}
           >
-            Duplicate Creature
+            {isBusy ? "Working..." : "Duplicate Creature"}
           </button>
           <button
             className="rounded-lg border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-300 hover:bg-rose-500/20"
+            disabled={isBusy}
             type="button"
             onClick={onArchive}
           >
@@ -644,10 +729,11 @@ function CreatureDetailPanel({
               </button>
               <button
                 className="rounded-lg bg-rose-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-rose-300"
+                disabled={isBusy}
                 type="button"
                 onClick={onArchiveConfirm}
               >
-                Confirm Remove
+                {isBusy ? "Removing..." : "Confirm Remove"}
               </button>
             </div>
           </div>
@@ -746,13 +832,47 @@ function ExternalSheetSummary({
   );
 }
 
+function LibraryErrorState({
+  error,
+  onRetry,
+}: {
+  error: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-rose-100">
+            Could not load creature library.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-rose-100/75">
+            {error}
+          </p>
+        </div>
+        {onRetry ? (
+          <button
+            className="rounded-lg border border-rose-200/45 bg-slate-950 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-100 hover:text-white"
+            type="button"
+            onClick={onRetry}
+          >
+            Retry
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function CreatureEditor({
   creature,
+  isSaving,
   mode,
   onCancel,
   onSave,
 }: {
   creature: LibraryCreature;
+  isSaving: boolean;
   mode: EditorMode;
   onCancel: () => void;
   onSave: (creature: LibraryCreature) => void;
@@ -795,6 +915,7 @@ function CreatureEditor({
         <div className="flex gap-2">
           <button
             className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+            disabled={isSaving}
             type="button"
             onClick={onCancel}
           >
@@ -802,11 +923,11 @@ function CreatureEditor({
           </button>
           <button
             className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!draft.name.trim() || Boolean(sheetUrlError)}
+            disabled={isSaving || !draft.name.trim() || Boolean(sheetUrlError)}
             type="button"
             onClick={save}
           >
-            Save Creature
+            {isSaving ? "Saving..." : "Save Creature"}
           </button>
         </div>
       </div>

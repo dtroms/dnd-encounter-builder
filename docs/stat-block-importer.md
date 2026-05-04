@@ -1,8 +1,9 @@
 # Stat Block Importer
 
-The Stat Block Importer is the planned workspace for bringing creature data
-into the Creature Library. It is currently a local UI and parser scaffold only.
-It does not read from or write to Supabase.
+The Stat Block Importer is the workspace for bringing creature data into the
+Creature Library. In signed-in mode, reviewed pasted imports can now save to the
+current user's Supabase `creature_templates` rows. In Local Demo Mode, the same
+workflow still saves into local/session state only.
 
 ## Import Methods
 
@@ -52,7 +53,8 @@ is enabled, it supports:
 4. Normalize Tabyltop-shaped SRD records into the app creature template shape.
 5. Show validation status for each record: Ready, Needs Review, Error, or
    Already in library.
-6. Import only Ready records into the local Creature Library session state.
+6. Import only Ready records into the signed-in Creature Library or local demo
+   session, depending on app mode.
 7. Skip Needs Review, Error, and Already in library records.
 8. Show an import report with processed, imported, duplicate, review, and error
    counts.
@@ -60,10 +62,10 @@ is enabled, it supports:
    path, candidate collection counts, sample record keys, top error reasons,
    and sample failed records.
 
-Manual fallback tools remain available: Load Local Preview, paste SRD JSON,
-Process Import, select records, and Import All Valid/selected records. The
-pasted JSON fallback uses the same normalization, validation, duplicate
-prevention, and local import pipeline.
+Manual fallback tools remain available behind the feature flag: Load Local
+Preview, paste SRD JSON, Process Import, select records, and Import All
+Valid/selected records. The pasted JSON fallback uses the same normalization,
+validation, duplicate prevention, and save pipeline.
 
 The SRD tab also supports full-dataset testing by pasting SRD monster JSON into
 the dataset textarea and clicking Process Import. Supported JSON shapes are:
@@ -95,7 +97,7 @@ Imported SRD creatures use:
 - `licenseName = CC-BY-4.0`
 - `importMethod = automated-srd-json` for the one-click path, or
   `srd-json-review` for manual selected imports
-- `importedAt` for local session imports when available
+- `importedAt` when available
 
 Duplicate prevention checks the normalized creature name, source type, source
 name, and SRD document version. Already imported records are skipped and are not
@@ -157,10 +159,18 @@ The paste workflow is:
 3. Run the local parser helper.
 4. Review detected creature fields.
 5. Fill in missing required fields.
-6. Save the reviewed creature into the local Creature Library.
+6. Save the reviewed creature into the Creature Library.
 
 Saved pasted creatures are marked as `Imported` with `importMethod = paste`.
 They are treated as user-provided content.
+
+When Supabase is configured, the user is signed in, and Local Demo Mode is off,
+Save to Library creates a private `creature_templates` row owned by that user.
+The saved creature is also added to the shared in-session creature list so it is
+visible in the Creature Library and Builder without a reload.
+
+When Supabase is not configured or `NEXT_PUBLIC_USE_DEMO_DATA=true`, Save to
+Library keeps the previous local/session behavior.
 
 ## Parser Scope
 
@@ -224,25 +234,39 @@ The Save to Library button remains disabled until required fields are present.
 The UI also guards against bad numeric values so `NaN`, `undefined`, `null`, and
 object output are not shown as review values.
 
-## Local Save Behavior
+## Save Behavior
 
-For this pass, Save to Library updates the shared local creature template list.
-That means the imported creature appears in the Creature Library and Builder
-during the same browser session.
+Save to Library validates the reviewed creature before writing anything. It
+requires a name, creature type, AC, HP, speed, challenge rating, and complete
+ability scores. Invalid core values such as `NaN`, `undefined`, `null`, or object
+output are blocked before save.
 
-This is not persistent. Refreshing the app restores the original local sample
-data until database wiring exists.
+Pasted imports preserve metadata where the schema supports it:
+
+- `source_type = imported`
+- `import_method = paste`
+- original pasted text
+- source name and source URL when provided
+- parser confidence
+- parser version
+- import notes
+- `imported` tag
+
+The richer `stat_block_imports` history table is not wired yet. For now, pasted
+imports save directly to `creature_templates`; fuller import audit/history can
+be added later.
 
 ## Boundaries
 
 This pass intentionally does not include:
 
-- Supabase reads or writes.
-- Auth or RLS.
+- Builder save/load persistence.
+- Runner runtime persistence.
+- Writing to `stat_block_imports`.
 - D&D Beyond scraping.
 - Official non-SRD D&D monster data.
 - Automatic fetches on app load.
-- Supabase persistence of imported SRD creatures.
+- Visible SRD import tools in the normal beta UI.
 
 Use only content the user has the right to use. SRD Creative Commons imports
 should preserve attribution and license metadata. Official non-SRD content

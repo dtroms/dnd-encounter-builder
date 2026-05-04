@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import type {
@@ -17,9 +17,17 @@ import {
   sampleCreatureTemplates,
 } from "@/lib/encounter/sample-data";
 import {
+  archiveOrDeleteCreatureTemplate as archiveOrDeleteCreatureTemplateRecord,
+  createCreatureTemplate as createCreatureTemplateRecord,
+  duplicateCreatureTemplate as duplicateCreatureTemplateRecord,
+  fetchCreatureTemplates,
+  updateCreatureTemplate as updateCreatureTemplateRecord,
+} from "@/lib/encounter/creature-queries";
+import {
   libraryCreatures,
   type LibraryCreature,
 } from "@/lib/encounter/library-sample-data";
+import { creatureTemplateRecordToLibraryCreature } from "@/lib/encounter/mappers";
 import {
   advanceTurn,
   previousTurn,
@@ -96,6 +104,11 @@ export function EncounterApp() {
     useState("lantern-road");
   const [creatureTemplates, setCreatureTemplates] =
     useState<LibraryCreature[]>(libraryCreatures);
+  const [creatureLibraryError, setCreatureLibraryError] = useState<string | null>(
+    null,
+  );
+  const [creatureLibraryLoading, setCreatureLibraryLoading] = useState(false);
+  const [creatureLibraryMutating, setCreatureLibraryMutating] = useState(false);
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
@@ -153,6 +166,8 @@ export function EncounterApp() {
       unsubscribe();
     };
   }, [authRequired]);
+
+  const useSupabaseCreatureLibrary = Boolean(authRequired && session);
 
   const deployedCombatants = useMemo(
     () => getDeployedCombatants(encounter.combatants, encounter.waves),
@@ -217,19 +232,146 @@ export function EncounterApp() {
     });
   }
 
-  function archiveCreatureTemplate(creatureId: string) {
+  const reloadCreatureLibrary = useCallback(async () => {
+    if (!useSupabaseCreatureLibrary) {
+      return;
+    }
+
+    setCreatureLibraryLoading(true);
+    setCreatureLibraryError(null);
+
+    const result = await fetchCreatureTemplates();
+
+    if (result.error || !result.data) {
+      setCreatureLibraryError(result.error ?? "Could not load creature library.");
+    } else {
+      setCreatureTemplates(
+        result.data.map(creatureTemplateRecordToLibraryCreature),
+      );
+    }
+
+    setCreatureLibraryLoading(false);
+  }, [useSupabaseCreatureLibrary]);
+
+  useEffect(() => {
+    if (!useSupabaseCreatureLibrary) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void reloadCreatureLibrary();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [reloadCreatureLibrary, useSupabaseCreatureLibrary]);
+
+  async function archiveCreatureTemplate(creatureId: string) {
+    if (useSupabaseCreatureLibrary) {
+      setCreatureLibraryMutating(true);
+      setCreatureLibraryError(null);
+
+      const result = await archiveOrDeleteCreatureTemplateRecord(creatureId);
+
+      if (result.error) {
+        setCreatureLibraryError(result.error);
+        setCreatureLibraryMutating(false);
+        return false;
+      }
+
+      setCreatureTemplates((current) =>
+        current.filter((creature) => creature.id !== creatureId),
+      );
+      setCreatureLibraryMutating(false);
+      return true;
+    }
+
     setCreatureTemplates((current) =>
       current.filter((creature) => creature.id !== creatureId),
     );
+
+    return true;
   }
 
-  function updateCreatureTemplate(updatedCreature: LibraryCreature) {
+  async function createCreatureTemplate(creature: LibraryCreature) {
+    if (useSupabaseCreatureLibrary) {
+      setCreatureLibraryMutating(true);
+      setCreatureLibraryError(null);
+
+      const result = await createCreatureTemplateRecord(creature);
+
+      if (result.error || !result.data) {
+        setCreatureLibraryError(result.error ?? "Could not create creature.");
+        setCreatureLibraryMutating(false);
+        return null;
+      }
+
+      const savedCreature = creatureTemplateRecordToLibraryCreature(result.data);
+      setCreatureTemplates((current) => [savedCreature, ...current]);
+      setCreatureLibraryMutating(false);
+      return savedCreature;
+    }
+
+    setCreatureTemplates((current) => [creature, ...current]);
+    return creature;
+  }
+
+  async function updateCreatureTemplate(updatedCreature: LibraryCreature) {
+    if (useSupabaseCreatureLibrary) {
+      setCreatureLibraryMutating(true);
+      setCreatureLibraryError(null);
+
+      const result = await updateCreatureTemplateRecord(
+        updatedCreature.id,
+        updatedCreature,
+      );
+
+      if (result.error || !result.data) {
+        setCreatureLibraryError(result.error ?? "Could not update creature.");
+        setCreatureLibraryMutating(false);
+        return null;
+      }
+
+      const savedCreature = creatureTemplateRecordToLibraryCreature(result.data);
+      setCreatureTemplates((current) =>
+        current.map((creature) =>
+          creature.id === savedCreature.id ? savedCreature : creature,
+        ),
+      );
+      syncCombatantExternalSheetFields(savedCreature);
+      setCreatureLibraryMutating(false);
+      return savedCreature;
+    }
+
     setCreatureTemplates((current) =>
       current.map((creature) =>
         creature.id === updatedCreature.id ? updatedCreature : creature,
       ),
     );
     syncCombatantExternalSheetFields(updatedCreature);
+    return updatedCreature;
+  }
+
+  async function duplicateCreatureTemplate(creature: LibraryCreature) {
+    if (useSupabaseCreatureLibrary) {
+      setCreatureLibraryMutating(true);
+      setCreatureLibraryError(null);
+
+      const result = await duplicateCreatureTemplateRecord(creature.id);
+
+      if (result.error || !result.data) {
+        setCreatureLibraryError(result.error ?? "Could not duplicate creature.");
+        setCreatureLibraryMutating(false);
+        return null;
+      }
+
+      const savedCreature = creatureTemplateRecordToLibraryCreature(result.data);
+      setCreatureTemplates((current) => [savedCreature, ...current]);
+      setCreatureLibraryMutating(false);
+      return savedCreature;
+    }
+
+    setCreatureTemplates((current) => [creature, ...current]);
+    return creature;
   }
 
   function syncCombatantExternalSheetFields(updatedCreature: LibraryCreature) {
@@ -859,15 +1001,16 @@ export function EncounterApp() {
       {activeView === "library" ? (
         <CreatureLibrary
           creatures={creatureTemplates}
+          errorMessage={creatureLibraryError}
+          isBusy={creatureLibraryMutating}
+          isLoading={creatureLibraryLoading}
+          useSupabaseData={useSupabaseCreatureLibrary}
           onOpenBuilder={openBuilder}
           onOpenImporter={() => setActiveView("importer")}
           onArchiveCreature={archiveCreatureTemplate}
-          onCreateCreature={(creature) =>
-            setCreatureTemplates((current) => [creature, ...current])
-          }
-          onDuplicateCreature={(creature) =>
-            setCreatureTemplates((current) => [creature, ...current])
-          }
+          onCreateCreature={createCreatureTemplate}
+          onDuplicateCreature={duplicateCreatureTemplate}
+          onRetry={reloadCreatureLibrary}
           onUpdateCreature={updateCreatureTemplate}
         />
       ) : null}
@@ -875,9 +1018,8 @@ export function EncounterApp() {
       {activeView === "importer" ? (
         <StatBlockImporterPlaceholder
           existingCreatures={creatureTemplates}
-          onSaveCreature={(creature) =>
-            setCreatureTemplates((current) => [creature, ...current])
-          }
+          useSupabaseData={useSupabaseCreatureLibrary}
+          onSaveCreature={createCreatureTemplate}
         />
       ) : null}
     </AppShell>

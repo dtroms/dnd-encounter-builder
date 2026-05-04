@@ -1,12 +1,17 @@
 # Creature Library
 
 The Creature Library is the planned home for saved creatures, custom monsters,
-and imported stat blocks. It is currently a local mock-data UI only. It does
-not read from or write to Supabase yet.
+and imported stat blocks. It now has first-pass Supabase persistence for
+signed-in beta users. When Supabase is configured, the user is signed in, and
+local demo mode is off, the Library reads and writes `creature_templates` rows.
 
-The Library is now the local source of truth for creature templates used by the
-Builder. During the current browser session, the Builder receives the same local
-creature list that the Library displays and edits.
+When Supabase is not configured or `NEXT_PUBLIC_USE_DEMO_DATA=true`, the Library
+keeps using local mock/session data.
+
+The Library remains the in-session source of truth for creature templates used by
+the Builder. In signed-in mode, fetched Supabase creature templates are loaded
+into that shared in-session list, so the Builder can see them during the current
+session. Builder encounter save/load is not database-wired yet.
 
 The Library manages creatures. The Importer page handles SRD imports and pasted
 stat block imports, so the Library header no longer shows a direct Import SRD
@@ -36,7 +41,8 @@ The browser supports local filtering by:
 - Challenge rating ranges.
 - Size.
 
-These filters operate only on local sample data in this pass.
+These filters operate on whichever creature list is active: signed-in Supabase
+creatures or local demo/sample creatures.
 
 Monster Type and Combat Role are intentionally separate. For example, a
 Humanoid can be a Boss, a Beast can be a Summon, and an Undead can be an Enemy.
@@ -59,16 +65,19 @@ The detail panel shows:
 
 ## Create, Edit, and Duplicate
 
-The Library now supports local-only creature management:
+The Library now supports creature management:
 
-- Create Creature opens a compact editor and adds a new custom creature to the
-  shared local list.
+- Create Creature opens a compact editor and adds a new custom creature.
 - Edit Creature opens the same editor with the selected creature pre-filled and
-  updates the local template after saving.
-- Duplicate Creature copies the selected creature into a custom local variant
-  and selects the duplicate.
+  updates the template after saving.
+- Duplicate Creature copies the selected creature into a custom variant and
+  selects the duplicate.
 - Remove from Library asks for confirmation, then removes the template from the
-  local Library and Builder creature browser.
+  Library and Builder creature browser.
+
+In signed-in Supabase mode, those actions operate on `creature_templates` rows
+owned by the current user. In local demo mode, those actions remain local/session
+state only.
 
 Created, edited, and duplicated creatures appear in the Builder during the same
 session because the Builder uses the Library-backed local creature list.
@@ -76,10 +85,11 @@ session because the Builder uses the Library-backed local creature list.
 Existing encounter combatants already added to a roster are snapshots. They do
 not need to retroactively update when a Library template is edited or removed.
 
-For the current local-only prototype, removing a creature deletes it from the
-in-memory creature template list for this browser session. Future database
-behavior should likely use archive or soft-delete behavior so saved encounter
-history can still point at old template records safely.
+The current database schema does not include a soft-delete/archive flag for
+`creature_templates`, so signed-in Remove from Library currently deletes the
+template row. Existing encounter combatant snapshots should remain separate from
+library templates. A future migration should prefer soft-delete/archive behavior
+before broader persistence is exposed.
 
 ## Source and License Metadata
 
@@ -93,18 +103,16 @@ Current local source examples include:
 - Imported: placeholder for future pasted stat block review output.
 - SRD / Creative Commons: placeholder for future SRD 5.1 CC-BY-4.0 imports.
 
-The Importer can now save a reviewed pasted stat block into the shared local
-creature list for the current browser session. Those creatures use the Imported
-source badge and become searchable in both the Library and Builder. This is
-still local state only and does not persist to Supabase.
+The Importer can save a reviewed pasted stat block into the Creature Library.
+In signed-in mode, pasted imports create private `creature_templates` rows owned
+by the current user. In local demo mode, pasted imports still save into the
+shared local/session creature list. Those creatures use the Imported source
+badge and become searchable in both the Library and Builder during the current
+session.
 
-The Importer can also import SRD preview creatures into the same local session
-list. The primary Importer action is now Import All SRD Monsters, which fetches
-the direct raw Tabyltop CC-SRD JSON from GitHub on user click, imports Ready
-records only, and skips duplicates, errors, and needs-review records. Those
-creatures use the SRD / Creative Commons source badge and preserve Tabyltop
-CC-SRD source, raw source URL, license, document version, and attribution
-metadata.
+The hidden SRD importer work can also save Ready records through the same
+Library save path when enabled for development. It remains hidden from the
+normal beta UI unless `NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`.
 
 Future SRD imports should preserve license, attribution, source name, source
 document version, and source URL metadata separately from non-SRD or
@@ -160,23 +168,28 @@ changing that combatant's HP, initiative, conditions, or custom display name.
 The detail panel includes placeholder actions:
 
 - Add to Builder: currently switches to the Builder view only.
-- Edit Creature: local/session-only template editing.
-- Duplicate Creature: local/session-only custom variant creation.
-- Remove from Library: local/session-only template removal with confirmation.
+- Edit Creature: updates local/session state or the signed-in user's Supabase
+  creature row.
+- Duplicate Creature: creates a local/session variant or a signed-in Supabase
+  copy.
+- Remove from Library: removes the local/session template or deletes the
+  signed-in Supabase row after confirmation.
 
-Persistent create, edit, duplicate, archive, and import behavior should be added
-later when the database and auth model are ready.
+Importer paste saves now create signed-in `creature_templates` rows when
+Supabase mode is active, or local/session creatures in demo mode.
 
 ## Not Wired Yet
 
 This pass intentionally does not include:
 
-- Supabase reads or writes.
-- Auth or RLS.
-- Persistent SRD importer implementation.
+- Builder save/load persistence.
+- Runner combat/runtime persistence.
+- `stat_block_imports` import history writes.
+- Visible SRD importer tools in normal beta UI.
 - Paste-stat-block parsing beyond the current heuristic local review scaffold.
 - Official copyrighted monster data.
 - Runtime fetching from GitHub or other external sources.
 
-Future database work may need creature template ownership fields, source/license
-metadata, import review status, and campaign/encounter usage relationships.
+Future database work may need creature template soft-delete/archive fields,
+character sheet URL columns, import review status, and campaign/encounter usage
+relationships.

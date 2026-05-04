@@ -5,8 +5,11 @@ export type LibrarySourceType = "sample" | "custom" | "imported" | "srd";
 
 export type LibraryCreature = CreatureTemplate & {
   importMethod?: string;
+  importNotes?: string;
   importedAt?: string;
   licenseName: string;
+  parserConfidence?: number;
+  parserVersion?: string;
   sourceName: string;
   sourceDocumentVersion?: string;
   sourceRawUrl?: string;

@@ -12,6 +12,7 @@ import type { LibraryCreature } from "@/lib/encounter/library-sample-data";
 import {
   parseStatBlock,
   type ParsedCreatureDraft,
+  type ParserConfidence,
   type StatBlockParseResult,
 } from "@/lib/encounter/stat-block-parser";
 import {
@@ -70,9 +71,13 @@ const sizeOptions = [
 export function StatBlockImporterPlaceholder({
   existingCreatures = [],
   onSaveCreature,
+  useSupabaseData = false,
 }: {
   existingCreatures?: LibraryCreature[];
-  onSaveCreature?: (creature: LibraryCreature) => void;
+  onSaveCreature?: (
+    creature: LibraryCreature,
+  ) => Promise<LibraryCreature | null | void> | LibraryCreature | null | void;
+  useSupabaseData?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<ImporterTab>("paste");
   const [rawText, setRawText] = useState("");
@@ -83,6 +88,8 @@ export function StatBlockImporterPlaceholder({
   );
   const [draft, setDraft] = useState<LibraryCreature | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [srdPreviewLoaded, setSrdPreviewLoaded] = useState(false);
   const [selectedSrdIds, setSelectedSrdIds] = useState<string[]>([]);
   const [activeSrdId, setActiveSrdId] = useState("");
@@ -153,6 +160,7 @@ export function StatBlockImporterPlaceholder({
       ),
     );
     setSavedMessage("");
+    setSaveError("");
   }
 
   function patchDraft(updates: Partial<LibraryCreature>) {
@@ -170,10 +178,21 @@ export function StatBlockImporterPlaceholder({
     );
   }
 
-  function saveToLibrary() {
-    if (!draft || !onSaveCreature || missingFields.length) {
+  async function saveToLibrary() {
+    if (!draft || !onSaveCreature || saving) {
       return;
     }
+
+    if (missingFields.length) {
+      setSaveError(
+        `Review required fields before saving: ${missingFields.join(", ")}.`,
+      );
+      return;
+    }
+
+    setSaving(true);
+    setSaveError("");
+    setSavedMessage("");
 
     const normalized: LibraryCreature = {
       ...draft,
@@ -196,13 +215,38 @@ export function StatBlockImporterPlaceholder({
       sourceName: draft.sourceName.trim() || "User Provided Paste",
       sourceType: "imported",
       sourceUrl: draft.sourceUrl?.trim() || undefined,
-      tags: draft.tags.map((tag) => tag.trim()).filter(Boolean),
+      importMethod: "paste",
+      importedAt: new Date().toISOString(),
+      importNotes: "Saved from reviewed pasted stat block.",
+      parserConfidence: confidenceToScore(parseResult?.confidence),
+      parserVersion: "stat-block-parser-v1",
+      tags: uniqueTags([...draft.tags, "imported"]),
       traits: cleanEntries(draft.traits),
     };
 
-    onSaveCreature(normalized);
-    setDraft(normalized);
-    setSavedMessage(`${normalized.name} was saved to the local Creature Library.`);
+    try {
+      const savedCreature = await onSaveCreature(normalized);
+
+      if (savedCreature === null) {
+        throw new Error("Could not save this creature to the library.");
+      }
+
+      const nextDraft = savedCreature ?? normalized;
+      setDraft(nextDraft);
+      setSavedMessage(
+        `${nextDraft.name} was saved to ${
+          useSupabaseData ? "your signed-in" : "the local"
+        } Creature Library.`,
+      );
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Could not save this creature to the library.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function loadSrdPreview() {
@@ -287,10 +331,14 @@ export function StatBlockImporterPlaceholder({
     );
   }
 
-  function importSelectedSrdCreatures() {
-    if (!onSaveCreature) {
+  async function importSelectedSrdCreatures() {
+    if (!onSaveCreature || srdImporting) {
       return;
     }
+
+    setSrdImporting(true);
+    setSrdImportError("");
+    setSrdImportStatus("Saving selected SRD records to Creature Library...");
 
     const importedKeys = new Set(existingSrdKeys);
     const selectedPreviews = srdPreviews.filter((preview) =>
@@ -307,21 +355,39 @@ export function StatBlockImporterPlaceholder({
       return canImport;
     });
     const importedAt = new Date().toISOString();
+    let importedCount = 0;
 
-    importablePreviews.forEach((preview, index) => {
-      onSaveCreature({
-        ...preview.creature,
-        id: `${preview.creature.id}-${Date.now()}-${index}`,
-        importedAt,
-        notes: `${preview.creature.notes}\nImported locally at ${importedAt}.`,
-      });
-    });
+    try {
+      for (const [index, preview] of importablePreviews.entries()) {
+        const savedCreature = await onSaveCreature({
+          ...preview.creature,
+          id: `${preview.creature.id}-${Date.now()}-${index}`,
+          importedAt,
+          notes: `${preview.creature.notes}\nImported ${
+            useSupabaseData ? "to signed-in library" : "locally"
+          } at ${importedAt}.`,
+        });
+
+        if (savedCreature !== null) {
+          importedCount += 1;
+        }
+      }
+    } catch (error) {
+      setSrdImportError(
+        error instanceof Error
+          ? error.message
+          : "Could not save selected SRD records.",
+      );
+    } finally {
+      setSrdImporting(false);
+      setSrdImportStatus("");
+    }
 
     setSelectedSrdIds([]);
     setSrdImportMessage(
       buildSrdImportReport(
         srdPreviews,
-        importablePreviews.length,
+        importedCount,
         existingSrdKeys,
         "manual preview / pasted JSON",
       ),
@@ -377,16 +443,29 @@ export function StatBlockImporterPlaceholder({
         return canImport;
       });
       const importedAt = new Date().toISOString();
+      let importedCount = 0;
 
-      importablePreviews.forEach((preview, index) => {
-        onSaveCreature({
+      setSrdImportStatus(
+        `Saving ${importablePreviews.length} valid SRD record${
+          importablePreviews.length === 1 ? "" : "s"
+        } to Creature Library...`,
+      );
+
+      for (const [index, preview] of importablePreviews.entries()) {
+        const savedCreature = await onSaveCreature({
           ...preview.creature,
           id: `${preview.creature.id}-${Date.now()}-${index}`,
           importMethod: "automated-srd-json",
           importedAt,
-          notes: `${preview.creature.notes}\nImported locally at ${importedAt}.`,
+          notes: `${preview.creature.notes}\nImported ${
+            useSupabaseData ? "to signed-in library" : "locally"
+          } at ${importedAt}.`,
         });
-      });
+
+        if (savedCreature !== null) {
+          importedCount += 1;
+        }
+      }
 
       setProcessedSrdPreviews(previews);
       setSrdDiagnostics(result.diagnostics);
@@ -397,7 +476,7 @@ export function StatBlockImporterPlaceholder({
       setSrdImportMessage(
         buildSrdImportReport(
           previews,
-          importablePreviews.length,
+          importedCount,
           existingSrdKeys,
           "GitHub raw JSON",
         ),
@@ -434,7 +513,7 @@ export function StatBlockImporterPlaceholder({
             </p>
           </div>
           <span className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-100">
-            Local review only
+            {useSupabaseData ? "Signed-in library save" : "Local demo save"}
           </span>
         </div>
 
@@ -446,7 +525,7 @@ export function StatBlockImporterPlaceholder({
           <MethodTab
             active={activeTab === "paste"}
             label="Paste Stat Block"
-            text="Paste user-provided text, parse, review, then save locally."
+            text="Paste user-provided text, parse, review, then save to Library."
             onClick={() => setActiveTab("paste")}
           />
           {srdImportEnabled ? (
@@ -473,6 +552,8 @@ export function StatBlockImporterPlaceholder({
           parseResult={parseResult}
           rawText={rawText}
           savedMessage={savedMessage}
+          saveError={saveError}
+          saving={saving}
           sourceName={sourceName}
           sourceUrl={sourceUrl}
           onParse={parsePastedText}
@@ -557,7 +638,9 @@ function PasteImportWorkflow({
   missingFields,
   parseResult,
   rawText,
+  saveError,
   savedMessage,
+  saving,
   sourceName,
   sourceUrl,
   onParse,
@@ -572,7 +655,9 @@ function PasteImportWorkflow({
   missingFields: string[];
   parseResult: StatBlockParseResult | null;
   rawText: string;
+  saveError: string;
   savedMessage: string;
+  saving: boolean;
   sourceName: string;
   sourceUrl: string;
   onParse: () => void;
@@ -633,7 +718,9 @@ function PasteImportWorkflow({
         draft={draft}
         missingFields={missingFields}
         parseResult={parseResult}
+        saveError={saveError}
         savedMessage={savedMessage}
+        saving={saving}
         onPatchDraft={onPatchDraft}
         onPatchScores={onPatchScores}
         onSave={onSave}
@@ -646,7 +733,9 @@ function ReviewPanel({
   draft,
   missingFields,
   parseResult,
+  saveError,
   savedMessage,
+  saving,
   onPatchDraft,
   onPatchScores,
   onSave,
@@ -654,7 +743,9 @@ function ReviewPanel({
   draft: LibraryCreature | null;
   missingFields: string[];
   parseResult: StatBlockParseResult | null;
+  saveError: string;
   savedMessage: string;
+  saving: boolean;
   onPatchDraft: (updates: Partial<LibraryCreature>) => void;
   onPatchScores: (scores: Partial<AbilityScores>) => void;
   onSave: () => void;
@@ -942,15 +1033,20 @@ function ReviewPanel({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
         <p className="text-sm font-semibold text-slate-400">
           {savedMessage ||
-            "Save adds this reviewed creature to the local Library and Builder for this session."}
+            "Save adds this reviewed creature to your Creature Library and the shared Builder list for this session."}
         </p>
+        {saveError ? (
+          <p className="w-full rounded-lg border border-red-300/25 bg-red-400/10 p-3 text-sm font-bold text-red-100">
+            {saveError}
+          </p>
+        ) : null}
         <button
           className="rounded-lg border border-emerald-300/50 bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
-          disabled={missingFields.length > 0}
+          disabled={saving || missingFields.length > 0}
           type="button"
           onClick={onSave}
         >
-          Save to Library
+          {saving ? "Saving..." : "Save to Library"}
         </button>
       </div>
     </section>
@@ -992,8 +1088,8 @@ function SrdImportPlanning({
   processingError: string;
   selectedIds: string[];
   sourceShape: string;
-  onImportAll: () => void;
-  onImportSelected: () => void;
+  onImportAll: () => Promise<void> | void;
+  onImportSelected: () => Promise<void> | void;
   onLoadPreview: () => void;
   onJsonInputChange: (value: string) => void;
   onProcessJson: () => void;
@@ -1036,7 +1132,7 @@ function SrdImportPlanning({
           </p>
           <div className="mt-4 rounded-xl border border-emerald-300/30 bg-slate-950/55 p-3">
             <p className="text-sm font-black text-white">
-              One-click local SRD import
+              One-click SRD import
             </p>
             <p className="mt-1 text-sm leading-6 text-emerald-50/85">
               Fetches the Creative Commons SRD data from GitHub and imports
@@ -1103,7 +1199,8 @@ function SrdImportPlanning({
           <p className="mt-4 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50/90">
             The fetch is user-triggered and uses only the raw JSON URL. If
             GitHub is unavailable, use the pasted JSON fallback below. No
-            database write is performed.
+            records are saved to the signed-in Creature Library when auth is
+            enabled, or to local demo state otherwise.
           </p>
         </div>
       </div>
@@ -1229,7 +1326,7 @@ function SrdImportPlanning({
           <p className="mt-2 text-sm leading-6 text-slate-400">
             This will normalize a small local Tabyltop-shaped sample subset so
             you can review validation status and import selected records into
-            the local Library session.
+            the Creature Library.
           </p>
         </div>
       )}
@@ -2016,6 +2113,26 @@ function cleanNumber(value: number, fallback: number) {
 
 function cleanTextList(values?: string[]) {
   return (values ?? []).map((value) => value.trim()).filter(Boolean);
+}
+
+function confidenceToScore(confidence?: ParserConfidence) {
+  if (confidence === "high") {
+    return 0.9;
+  }
+
+  if (confidence === "medium") {
+    return 0.65;
+  }
+
+  if (confidence === "low") {
+    return 0.35;
+  }
+
+  return undefined;
+}
+
+function uniqueTags(tags: string[]) {
+  return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
 }
 
 function buildSrdImportReport(

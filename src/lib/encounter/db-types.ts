@@ -6,12 +6,14 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export type SourceType = "sample" | "custom" | "imported";
+export type SourceType = "sample" | "custom" | "imported" | "srd";
 
 export type ImportMethod =
   | "manual"
   | "paste"
   | "url"
+  | "srd-json-review"
+  | "automated-srd-json"
   | "dndbeyond_homebrew";
 
 export type ImportStatus = "draft" | "parsed" | "reviewed" | "saved" | "failed";
