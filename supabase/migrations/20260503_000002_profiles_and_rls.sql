@@ -59,6 +59,17 @@ alter table public.encounter_wave_members enable row level security;
 alter table public.initiative_entries enable row level security;
 alter table public.encounter_log enable row level security;
 
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.creature_templates to authenticated;
+grant select, insert, update, delete on public.stat_block_imports to authenticated;
+grant select, insert, update, delete on public.encounters to authenticated;
+grant select, insert, update, delete on public.combat_groups to authenticated;
+grant select, insert, update, delete on public.encounter_combatants to authenticated;
+grant select, insert, update, delete on public.encounter_waves to authenticated;
+grant select, insert, update, delete on public.encounter_wave_members to authenticated;
+grant select, insert, update, delete on public.initiative_entries to authenticated;
+grant select, insert, update, delete on public.encounter_log to authenticated;
+
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
 on public.profiles

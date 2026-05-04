@@ -33,6 +33,10 @@ The rule is the same for each table:
 
 No broad anonymous read policy is included.
 
+The `authenticated` role is granted table privileges for these operations, and
+RLS policies narrow those privileges down to owned rows. Anonymous users are not
+given broad user-data access.
+
 ## Encounter Child Tables
 
 These tables are protected through their parent encounter:
@@ -76,3 +80,6 @@ Before public beta persistence:
   `owner_user_id`.
 - Confirm anonymous users cannot read user-owned tables.
 - Confirm service role keys are never exposed to browser code.
+
+The repeatable local SQL smoke test is documented in
+`docs/rls-validation.md` and lives at `supabase/tests/rls_smoke_test.sql`.

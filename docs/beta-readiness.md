@@ -34,7 +34,7 @@ Tabyltop CC-SRD adapter, and docs remain available for future work.
 Before storing real beta user data, the app still needs:
 
 - Supabase persistence.
-- RLS testing with multiple users.
+- RLS smoke tests and two-user validation.
 - Owner user id writes from the app.
 - Deployment environment variables.
 - Production-safe import attribution and validation.
@@ -57,3 +57,22 @@ isolation are stable.
   separate shared SRD catalog is designed.
 - Local Demo Mode remains a local/session experience and is not production user
   storage.
+
+## RLS Validation Gate
+
+RLS validation must pass before wiring app data persistence.
+
+The repeatable local smoke test lives at:
+
+```text
+supabase/tests/rls_smoke_test.sql
+```
+
+It checks that one fake beta user cannot see or modify another fake beta user's
+profiles, creatures, imports, encounters, combat groups, combatants, waves,
+initiative entries, or encounter log rows.
+
+See `docs/rls-validation.md` for the plain-English checklist and local commands.
+
+The browser/client app must never receive a Supabase service role key. Client
+code should use only the public anon key and let RLS enforce user isolation.
