@@ -49,6 +49,11 @@ Initial schema tables:
 - `encounter_wave_members`
 - `initiative_entries`
 - `encounter_log`
+- `profiles`
+
+`profiles` is the app-facing user profile table for beta auth. Its `id` matches
+`auth.users(id)`, and it stores display-friendly metadata such as email,
+display name, avatar URL, and role. Sensitive auth data stays in Supabase Auth.
 
 ## Saved Encounters Dashboard
 
@@ -451,9 +456,49 @@ Future link import must:
 
 Source URLs can be stored as metadata even before the app knows how to parse them.
 
-## Future Auth, User Accounts, and Support/Subscription Model
+## Auth, Profiles, And RLS Foundation
 
-The app should eventually support sign-up/sign-in, but auth is intentionally not implemented yet.
+The app now has a Supabase Auth shell and a database security foundation. The UI
+still uses local/session state for encounters, creatures, imports, builder state,
+and runner state.
+
+`profiles` is created by a Supabase Auth trigger:
+
+- new auth user row inserted
+- `public.handle_new_user()` creates `public.profiles`
+- email is copied for display convenience
+- display name comes from metadata or the email prefix
+
+RLS is enabled for `profiles` and user-owned app tables. Root tables use
+`owner_user_id = auth.uid()`:
+
+- `creature_templates`
+- `stat_block_imports`
+- `encounters`
+
+Encounter child tables are protected through parent encounter ownership:
+
+- `combat_groups`
+- `encounter_combatants`
+- `encounter_waves`
+- `encounter_wave_members`
+- `initiative_entries`
+- `encounter_log`
+
+Ungrouped combatants remain represented by `combat_group_id = null`. Group and
+wave rows are not public; they are accessible only when the parent encounter
+belongs to the signed-in user.
+
+The beta security stance is private-by-default. There are no public shared
+creature libraries yet. SRD imports should later become user-owned
+`creature_templates` unless a separate shared SRD catalog is deliberately added.
+
+Local demo mode remains separate from signed-in persistence and should not be
+treated as production user data.
+
+## Future User Accounts And Support/Subscription Model
+
+The app should eventually support persisted saved data after RLS is tested.
 
 Future user accounts should unlock:
 
@@ -464,11 +509,12 @@ Future user accounts should unlock:
 - user settings
 - support/subscription status
 
-Most user-owned tables already include nullable `owner_user_id` fields. These fields prepare the schema for future auth without requiring Supabase Auth or RLS in the current local-state app. When auth is added later, `owner_user_id` can point to the authenticated user who owns each encounter, creature template, import, combat group, wave, or runtime record.
+Most user-owned tables include nullable `owner_user_id` fields. When persistence
+is wired later, client writes should set `owner_user_id` to the authenticated
+user id for root records. Child rows should rely on parent encounter ownership.
 
 Future account-related tables could include:
 
-- `profiles`: public or app-facing user profile data linked to the auth user id. Possible fields include `id`, `display_name`, `avatar_url`, `created_at`, and `updated_at`.
 - `user_settings`: per-user app preferences. Possible fields include `user_id`, `default_runner_view`, `manual_pc_initiative_default`, `compact_mode`, `theme_preference`, `dice_roll_preference`, and `updated_at`.
 - `user_support_status` or `billing_status`: future support, donation, or subscription state. Possible fields include `user_id`, `support_tier`, `support_status`, `provider_customer_id`, `provider_subscription_id`, `current_period_end`, and `updated_at`.
 
@@ -478,12 +524,12 @@ If donations or voluntary support are used instead, the same table can track non
 
 Later:
 
-- RLS should ensure users only access their own creatures, imports, settings, support status, and encounters.
+- RLS should be tested to ensure users only access their own creatures, imports, settings, support status, and encounters.
 - Imported content should belong to the importing user unless intentionally shared.
 - Campaign sharing could use `campaigns` and `campaign_members`.
 - Public encounter or creature templates could be added separately.
 
-RLS policies are not included in this pass because auth is not set up yet.
+No payment or subscription logic is included in the auth/RLS foundation.
 
 ### Monetization And Licensing Caution
 
@@ -506,22 +552,23 @@ SRD/Creative Commons content may be usable commercially with proper attribution,
 
 Before launching subscriptions publicly, the project should get legal review or at least a dedicated licensing review focused on Wizards/D&D content, SRD/Creative Commons attribution, user-provided imports, and what paid features are actually being sold.
 
-## MVP Database Scope vs. Later Features
+## Database Foundation Scope vs. Later Features
 
-MVP foundation in this pass:
+Foundation now in place:
 
 - design document
 - migration file
 - TypeScript DB record types
 - mapper scaffolding
 - local sample seed plan and seed SQL
+- Supabase client setup
+- auth shell
+- profiles table
+- RLS policies
 
 Later features:
 
-- Supabase client setup
 - actual local/remote migration application
-- auth
-- RLS policies
 - Saved Encounters dashboard UI
 - Builder database wiring
 - Runner database wiring
@@ -536,10 +583,6 @@ Later features:
 This pass does not:
 
 - wire the UI to a database
-- add Supabase client setup
-- add environment variables
-- add auth
-- add RLS policies
 - start or apply a remote database
 - replace local React state
 - remove local sample data
@@ -570,8 +613,11 @@ Intentionally deferred:
 - No normalized action tables yet; stat block sections remain JSONB.
 - No normalized condition duration/source table yet.
 - No group template/default party model yet.
-- No RLS/auth policies yet.
-- No Supabase client setup.
 - No UI database wiring yet.
+- No public/shared library policy yet.
 
-Before connecting Supabase, the next pass should apply this migration to a local development database, generate or verify database types against the actual schema, and decide the first read/write boundary, likely Creature Library or Saved Encounters Dashboard before the live Runner.
+Before connecting app data to Supabase, the next pass should apply these
+migrations to a local development database, run RLS tests with at least two
+users, generate or verify database types against the actual schema, and decide
+the first read/write boundary, likely Creature Library or Saved Encounters
+Dashboard before the live Runner.

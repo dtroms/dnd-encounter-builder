@@ -22,6 +22,18 @@ export type LastOpenedMode = "builder" | "runner";
 
 export type InitiativeEntryType = "combatant" | "lair_action" | "custom";
 
+export type ProfileRole = "user" | "admin";
+
+export type ProfileRecord = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  role: ProfileRole;
+  created_at: string;
+  updated_at: string;
+};
+
 export type StatBlockActionRecord = {
   id?: string;
   slug?: string;
