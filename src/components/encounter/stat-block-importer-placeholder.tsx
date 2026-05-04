@@ -27,6 +27,8 @@ import {
 
 type ImporterTab = "paste" | "srd" | "history";
 
+const srdImportEnabled = process.env.NEXT_PUBLIC_ENABLE_SRD_IMPORT === "true";
+
 const monsterTypeOptions: MonsterType[] = [
   "Aberration",
   "Beast",
@@ -427,8 +429,8 @@ export function StatBlockImporterPlaceholder({
               Stat Block Importer
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Import SRD monsters or paste your own stat blocks into your
-              Creature Library.
+              Paste your own stat blocks, review parsed creature details, and
+              save them into your Creature Library.
             </p>
           </div>
           <span className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-100">
@@ -436,19 +438,25 @@ export function StatBlockImporterPlaceholder({
           </span>
         </div>
 
-        <div className="mt-4 grid gap-2 md:grid-cols-3">
+        <div
+          className={`mt-4 grid gap-2 ${
+            srdImportEnabled ? "md:grid-cols-3" : "md:grid-cols-2"
+          }`}
+        >
           <MethodTab
             active={activeTab === "paste"}
             label="Paste Stat Block"
             text="Paste user-provided text, parse, review, then save locally."
             onClick={() => setActiveTab("paste")}
           />
-          <MethodTab
-            active={activeTab === "srd"}
-            label="Import SRD Monsters"
-            text="Plan a CC-SRD import from the Tabyltop repository."
-            onClick={() => setActiveTab("srd")}
-          />
+          {srdImportEnabled ? (
+            <MethodTab
+              active={activeTab === "srd"}
+              label="Import SRD Monsters"
+              text="In-progress CC-SRD import tools for local testing."
+              onClick={() => setActiveTab("srd")}
+            />
+          ) : null}
           <MethodTab
             active={activeTab === "history"}
             label="Import History"
@@ -477,7 +485,7 @@ export function StatBlockImporterPlaceholder({
         />
       ) : null}
 
-      {activeTab === "srd" ? (
+      {srdImportEnabled && activeTab === "srd" ? (
         <SrdImportPlanning
           activePreview={activeSrdPreview}
           existingSrdKeys={existingSrdKeys}
@@ -504,7 +512,7 @@ export function StatBlockImporterPlaceholder({
 
       {activeTab === "history" ? <ImportHistoryPlaceholder /> : null}
 
-      <SafetyNote />
+      <SafetyNote srdImportEnabled={srdImportEnabled} />
     </section>
   );
 }
@@ -1738,17 +1746,20 @@ function ImportHistoryPlaceholder() {
   );
 }
 
-function SafetyNote() {
+function SafetyNote({ srdImportEnabled }: { srdImportEnabled: boolean }) {
   return (
     <aside className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
       <p className="text-xs font-black uppercase tracking-wide text-slate-500">
         Source and License Boundaries
       </p>
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Use only content you have the right to use. SRD Creative Commons imports
-        should include attribution. Official non-SRD D&D monsters are not
-        bundled with this app. Pasted imports are treated as user-provided
-        content, and D&D Beyond link scraping is not implemented.
+        Use only content you have the right to use. Pasted imports are treated
+        as user-provided content, and D&D Beyond link scraping is not
+        implemented. Official non-SRD D&D monsters are not bundled with this
+        app.
+        {srdImportEnabled
+          ? " In-progress SRD Creative Commons imports should include attribution."
+          : ""}
       </p>
     </aside>
   );

@@ -13,9 +13,11 @@ Library templates.
 
 ## Current GitHub Fetch Workflow
 
-The Importer SRD tab fetches the direct raw Tabyltop CC-SRD JSON file only when
-the user clicks Import All SRD Monsters. It does not fetch on app load and does
-not scrape GitHub HTML pages.
+The Importer SRD tab is currently hidden from normal beta UI behind the
+`NEXT_PUBLIC_ENABLE_SRD_IMPORT=true` feature flag. When enabled for local
+development, it fetches the direct raw Tabyltop CC-SRD JSON file only when the
+user clicks Import All SRD Monsters. It does not fetch on app load and does not
+scrape GitHub HTML pages.
 
 Raw URL:
 

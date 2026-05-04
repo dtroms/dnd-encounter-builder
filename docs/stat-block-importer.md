@@ -6,14 +6,18 @@ It does not read from or write to Supabase.
 
 ## Import Methods
 
-The Importer currently has three sections:
+The visible beta Importer currently focuses on:
 
 - Paste Stat Block: paste user-provided stat block text, parse it locally, and
   review the detected creature fields before saving.
-- Import SRD Monsters: local/session Creative Commons SRD import workflow using
-  Tabyltop CC-SRD-shaped sample data as the first structured source model.
 - Import History: placeholder for future saved import attempts and parser
   status once persistence exists.
+
+The SRD import workflow is still in the codebase and planning docs, but it is
+hidden from the normal beta UI while validation work continues. Local developers
+can re-enable the in-progress SRD tab by setting:
+
+`NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`
 
 ## Planned SRD Source
 
@@ -36,9 +40,10 @@ Raw JSON URL:
 Future SRD import work should use a local adapter script or curated import file,
 then review the output before records become Library creature templates.
 
-## SRD Import Workflow
+## Hidden SRD Import Workflow
 
-The SRD tab now supports:
+The SRD tab is currently hidden from normal app UI. When the local feature flag
+is enabled, it supports:
 
 1. Import All SRD Monsters.
 2. Fetch the raw Tabyltop CC-SRD JSON from GitHub.
