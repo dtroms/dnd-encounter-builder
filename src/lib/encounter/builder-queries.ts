@@ -324,6 +324,7 @@ function mapCombatantForSave(
 
   return {
     ...record,
+    creature_template_id: getPersistedCreatureTemplateId(combatant),
     sort_order: input.sortOrder,
     wave_id: input.waveId,
     snapshot_metadata: {
@@ -336,6 +337,26 @@ function mapCombatantForSave(
       waveLabel: combatant.waveLabel ?? "",
     },
   };
+}
+
+function getPersistedCreatureTemplateId(combatant: EncounterCombatant) {
+  if (!isUuid(combatant.templateId)) {
+    return null;
+  }
+
+  // Loaded snapshot-only combatants use their own encounter_combatants id as
+  // templateId. That id is not a creature_templates row and would violate the FK.
+  if (combatant.templateId === combatant.combatantId) {
+    return null;
+  }
+
+  return combatant.templateId;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function buildInitiativeRows(
