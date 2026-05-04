@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { EncounterStatus } from "@/lib/encounter/db-types";
+import type {
+  CombatGroupRecord,
+  EncounterCombatantRecord,
+  EncounterRecord,
+  EncounterStatus,
+} from "@/lib/encounter/db-types";
 import {
   savedCampaignSamples,
   savedEncounterSamples,
@@ -20,8 +25,10 @@ import {
   archiveEncounter as archiveSavedEncounter,
   createEncounterShell,
   duplicateEncounter as duplicateSavedEncounter,
+  fetchSavedEncounterDashboardDetails,
   fetchSavedEncounters,
   updateEncounterMetadata,
+  type SavedEncounterDashboardDetails,
 } from "@/lib/encounter/encounter-queries";
 import {
   campaignRecordToSavedCampaignSummary,
@@ -283,11 +290,29 @@ export function SavedEncountersDashboard({
         const campaignSummaries = campaignResult.data.map(
           campaignRecordToSavedCampaignSummary,
         );
-        const summaries = encounterResult.data.map((record) =>
-          withCampaignDisplayName(
-            encounterRecordToSavedEncounterSummary(record),
-            campaignSummaries,
-          ),
+        const detailResult = await fetchSavedEncounterDashboardDetails(
+          encounterResult.data.map((record) => record.id),
+        );
+
+        if (!active) {
+          return;
+        }
+
+        if (detailResult.error || !detailResult.data) {
+          setDashboardError(
+            detailResult.error ?? "Could not load encounter roster previews.",
+          );
+          setCampaigns(campaignSummaries);
+          setEncounters([]);
+          setSelectedEncounterId("");
+          setIsLoading(false);
+          return;
+        }
+
+        const summaries = buildDashboardSummaries(
+          encounterResult.data,
+          campaignSummaries,
+          detailResult.data,
         );
         setCampaigns(campaignSummaries);
         setEncounters(summaries);
@@ -338,11 +363,22 @@ export function SavedEncountersDashboard({
     const campaignSummaries = campaignResult.data.map(
       campaignRecordToSavedCampaignSummary,
     );
-    const summaries = encounterResult.data.map((record) =>
-      withCampaignDisplayName(
-        encounterRecordToSavedEncounterSummary(record),
-        campaignSummaries,
-      ),
+    const detailResult = await fetchSavedEncounterDashboardDetails(
+      encounterResult.data.map((record) => record.id),
+    );
+
+    if (detailResult.error || !detailResult.data) {
+      setDashboardError(
+        detailResult.error ?? "Could not load encounter roster previews.",
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    const summaries = buildDashboardSummaries(
+      encounterResult.data,
+      campaignSummaries,
+      detailResult.data,
     );
     setCampaigns(campaignSummaries);
     setEncounters(summaries);
@@ -1966,6 +2002,114 @@ function withCampaignDisplayName(
       encounter.campaign_name ??
       "Unassigned",
   };
+}
+
+function buildDashboardSummaries(
+  records: EncounterRecord[],
+  campaigns: SavedCampaignSummary[],
+  details: SavedEncounterDashboardDetails,
+) {
+  const combatantsByEncounter = groupByEncounterId(details.combatants);
+  const groupsByEncounter = groupByEncounterId(details.combatGroups);
+
+  return records.map((record) => {
+    const summary = withCampaignDisplayName(
+      encounterRecordToSavedEncounterSummary(record),
+      campaigns,
+    );
+    const combatants = combatantsByEncounter.get(record.id) ?? [];
+    const groups = groupsByEncounter.get(record.id) ?? [];
+    const groupsById = new Map(groups.map((group) => [group.id, group]));
+    const combatantsPreview = combatants.slice(0, 12).map((combatant) =>
+      combatantRecordToDashboardPreview(combatant, groupsById),
+    );
+
+    return {
+      ...summary,
+      boss_count_snapshot: combatants.filter(
+        (combatant) => combatant.combatant_type === "boss",
+      ).length,
+      combatant_count_snapshot: combatants.length,
+      combatants_preview: combatantsPreview,
+      group_count: groups.length,
+      has_lair_actions_snapshot:
+        summary.has_lair_actions_snapshot ||
+        combatants.some((combatant) => combatant.lair_actions.length > 0),
+    };
+  });
+}
+
+function combatantRecordToDashboardPreview(
+  combatant: EncounterCombatantRecord,
+  groupsById: Map<string, CombatGroupRecord>,
+): DashboardCombatantPreview {
+  const metadata = combatant.snapshot_metadata as Record<string, unknown>;
+  const group = combatant.combat_group_id
+    ? groupsById.get(combatant.combat_group_id)
+    : null;
+
+  return {
+    combatant_type: combatant.combatant_type,
+    group_color_key: normalizeDashboardGroupColor(
+      group?.color_key ??
+        readMetadataString(metadata, "combatGroupColor") ??
+        "None",
+    ),
+    group_name:
+      group?.name ??
+      readMetadataString(metadata, "combatGroupLabel") ??
+      "Ungrouped",
+    id: combatant.id,
+    name: combatant.display_name,
+  };
+}
+
+function groupByEncounterId<
+  T extends { encounter_id: string },
+>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+
+  items.forEach((item) => {
+    const existing = grouped.get(item.encounter_id);
+
+    if (existing) {
+      existing.push(item);
+      return;
+    }
+
+    grouped.set(item.encounter_id, [item]);
+  });
+
+  return grouped;
+}
+
+function normalizeDashboardGroupColor(
+  value: string,
+): DashboardCombatantPreview["group_color_key"] {
+  if (
+    value === "Blue" ||
+    value === "Green" ||
+    value === "Red" ||
+    value === "Gold" ||
+    value === "Purple" ||
+    value === "Gray" ||
+    value === "Cyan" ||
+    value === "Magenta" ||
+    value === "None"
+  ) {
+    return value;
+  }
+
+  return "None";
+}
+
+function readMetadataString(
+  metadata: Record<string, unknown>,
+  key: string,
+) {
+  const value = metadata[key];
+
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 function clampPositiveInteger(value: string, fallback: number) {

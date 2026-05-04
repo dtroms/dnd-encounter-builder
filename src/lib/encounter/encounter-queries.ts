@@ -1,5 +1,9 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { EncounterRecord } from "./db-types";
+import type {
+  CombatGroupRecord,
+  EncounterCombatantRecord,
+  EncounterRecord,
+} from "./db-types";
 
 export type EncounterQueryResult<T> =
   | { data: T; error: null }
@@ -27,6 +31,11 @@ export type UpdateEncounterMetadataInput = Partial<{
   partySize: number | null;
   status: EncounterRecord["status"];
 }>;
+
+export type SavedEncounterDashboardDetails = {
+  combatants: EncounterCombatantRecord[];
+  combatGroups: CombatGroupRecord[];
+};
 
 function missingSupabaseResult<T>(): EncounterQueryResult<T> {
   return {
@@ -91,6 +100,54 @@ export async function fetchSavedEncounters(): Promise<
     return {
       data: null,
       error: safeErrorMessage(error, "Could not load saved encounters."),
+    };
+  }
+}
+
+export async function fetchSavedEncounterDashboardDetails(
+  encounterIds: string[],
+): Promise<EncounterQueryResult<SavedEncounterDashboardDetails>> {
+  const supabase = getSupabaseBrowserClient();
+
+  if (!supabase) {
+    return missingSupabaseResult();
+  }
+
+  if (encounterIds.length === 0) {
+    return { data: { combatants: [], combatGroups: [] }, error: null };
+  }
+
+  try {
+    const [combatantsResult, groupsResult] = await Promise.all([
+      supabase
+        .from("encounter_combatants")
+        .select("*")
+        .in("encounter_id", encounterIds)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("combat_groups")
+        .select("*")
+        .in("encounter_id", encounterIds)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    const firstError = combatantsResult.error ?? groupsResult.error;
+
+    if (firstError) {
+      return { data: null, error: firstError.message };
+    }
+
+    return {
+      data: {
+        combatants: (combatantsResult.data ?? []) as EncounterCombatantRecord[],
+        combatGroups: (groupsResult.data ?? []) as CombatGroupRecord[],
+      },
+      error: null,
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: safeErrorMessage(error, "Could not load encounter roster previews."),
     };
   }
 }
