@@ -16,7 +16,10 @@ type AppShellProps = {
   encounterName: string;
   round: number;
   activeName: string;
+  authModeLabel?: string;
+  userEmail?: string;
   onViewChange: (view: EncounterView) => void;
+  onSignOut?: () => void;
   children: React.ReactNode;
 };
 
@@ -26,7 +29,10 @@ export function AppShell({
   encounterName,
   round,
   activeName,
+  authModeLabel,
+  userEmail,
   onViewChange,
+  onSignOut,
   children,
 }: AppShellProps) {
   return (
@@ -39,6 +45,9 @@ export function AppShell({
           combatantCount={combatantCount}
           encounterName={encounterName}
           round={round}
+          authModeLabel={authModeLabel}
+          userEmail={userEmail}
+          onSignOut={onSignOut}
         />
         <main className="mx-auto max-w-[1800px] px-3 pb-6 pt-3 sm:px-4 lg:px-5">
           <ViewTabs activeView={activeView} onViewChange={onViewChange} />

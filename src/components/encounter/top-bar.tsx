@@ -6,6 +6,9 @@ type TopBarProps = {
   round: number;
   activeName: string;
   activeView: EncounterView;
+  authModeLabel?: string;
+  userEmail?: string;
+  onSignOut?: () => void;
 };
 
 export function TopBar({
@@ -14,6 +17,9 @@ export function TopBar({
   round,
   activeName,
   activeView,
+  authModeLabel,
+  userEmail,
+  onSignOut,
 }: TopBarProps) {
   const title =
     activeView === "encounters"
@@ -39,7 +45,17 @@ export function TopBar({
             {title}
           </h1>
         </div>
-        <div className="flex flex-wrap gap-1.5 text-xs font-bold text-slate-300">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-300">
+          {authModeLabel ? (
+            <span className="rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1.5 text-cyan-100">
+              {authModeLabel}
+            </span>
+          ) : null}
+          {userEmail ? (
+            <span className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5">
+              {userEmail}
+            </span>
+          ) : null}
           {badges.map((badge) => (
             <span
               className={`rounded-lg border px-2.5 py-1.5 ${badge.className}`}
@@ -48,6 +64,15 @@ export function TopBar({
               {badge.label}
             </span>
           ))}
+          {onSignOut ? (
+            <button
+              className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 font-black text-slate-200 transition hover:border-red-300/40 hover:bg-red-400/10 hover:text-red-100"
+              type="button"
+              onClick={onSignOut}
+            >
+              Sign Out
+            </button>
+          ) : null}
         </div>
       </div>
     </header>

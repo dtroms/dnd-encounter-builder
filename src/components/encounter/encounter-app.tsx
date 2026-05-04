@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { AuthScreen } from "@/components/auth/auth-screen";
 import type {
   CombatGroup,
   CombatantCondition,
@@ -29,6 +31,12 @@ import {
   type SyntheticInitiativeOverrides,
 } from "@/lib/encounter/initiative";
 import { applyDamage, applyHealing } from "@/lib/encounter/hp";
+import {
+  getCurrentSession,
+  isSupabaseConfigured,
+  onAuthStateChange,
+  signOut,
+} from "@/lib/supabase/auth";
 import { AppShell, type EncounterView } from "./app-shell";
 import { CreatureLibrary } from "./creature-library";
 import { EncounterBuilder } from "./encounter-builder";
@@ -77,6 +85,9 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 }
 
 export function EncounterApp() {
+  const supabaseConfigured = isSupabaseConfigured();
+  const [authLoading, setAuthLoading] = useState(supabaseConfigured);
+  const [session, setSession] = useState<Session | null>(null);
   const [activeView, setActiveView] = useState<EncounterView>("encounters");
   const [encounterCampaignId, setEncounterCampaignId] =
     useState("lantern-road");
@@ -104,6 +115,41 @@ export function EncounterApp() {
     turnNumber: 0,
     activeCombatantId: null,
   });
+
+  useEffect(() => {
+    if (!supabaseConfigured) {
+      return;
+    }
+
+    let active = true;
+
+    getCurrentSession()
+      .then((currentSession) => {
+        if (active) {
+          setSession(currentSession);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSession(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAuthLoading(false);
+        }
+      });
+
+    const unsubscribe = onAuthStateChange((currentSession) => {
+      setSession(currentSession);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [supabaseConfigured]);
 
   const deployedCombatants = useMemo(
     () => getDeployedCombatants(encounter.combatants, encounter.waves),
@@ -661,6 +707,33 @@ export function EncounterApp() {
     });
   }
 
+  async function handleSignOut() {
+    const result = await signOut();
+
+    if (!result.error) {
+      setSession(null);
+    }
+  }
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#080b12] px-4 text-slate-100">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-6 text-center shadow-2xl shadow-black/30">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
+            D&D Encounter Builder
+          </p>
+          <p className="mt-3 text-sm font-semibold text-slate-400">
+            Checking beta session...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (supabaseConfigured && !session) {
+    return <AuthScreen />;
+  }
+
   return (
     <AppShell
       activeName={activeName}
@@ -668,6 +741,9 @@ export function EncounterApp() {
       combatantCount={encounter.combatants.length}
       encounterName={encounter.name}
       round={encounter.round}
+      authModeLabel={supabaseConfigured ? "Signed in beta" : "Local demo mode"}
+      userEmail={session?.user.email}
+      onSignOut={supabaseConfigured ? handleSignOut : undefined}
       onViewChange={(view) => (view === "runner" ? launchRunner() : setActiveView(view))}
     >
       {activeView === "encounters" ? (
