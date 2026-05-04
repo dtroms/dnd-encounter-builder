@@ -32,6 +32,7 @@ The app is not ready to store real beta user data until these checks pass.
 | `profiles` | `id = auth.uid()` | User can see and update only their own profile. |
 | `creature_templates` | `owner_user_id = auth.uid()` | User can create, read, update, and delete only their own creatures. |
 | `stat_block_imports` | `owner_user_id = auth.uid()` | User can create, read, update, and delete only their own import records. |
+| `campaigns` | `owner_user_id = auth.uid()` | User can create, read, update, and archive/delete only their own campaigns. |
 | `encounters` | `owner_user_id = auth.uid()` | User can create, read, update, and delete only their own encounters. |
 | `combat_groups` | Parent `encounters.owner_user_id = auth.uid()` | User can access groups only inside their own encounters. |
 | `encounter_combatants` | Parent `encounters.owner_user_id = auth.uid()` | User can access combatants only inside their own encounters. |
@@ -64,6 +65,7 @@ The script covers:
 - creature templates
 - stat block imports
 - encounters
+- campaigns
 - combat groups
 - encounter combatants
 - encounter waves
