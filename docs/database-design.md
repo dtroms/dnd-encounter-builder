@@ -28,6 +28,7 @@ The database does not implement these screens in this pass. It only gives them a
 
 - `creature_templates`: reusable creatures for the Creature Library, including PCs, monsters, NPCs, summons, bosses, custom creatures, and imported creatures.
 - `stat_block_imports`: raw stat block import attempts before they become saved creatures.
+- `campaigns`: user-owned campaign folders for organizing saved encounters.
 - `encounters`: saved encounter containers for the dashboard, builder, and runner.
 - `encounter_combatants`: live combatant snapshots inside one encounter.
 - `combat_groups`: encounter-specific groups such as Party, Red Warband, or Skullfang Pack.
@@ -42,6 +43,7 @@ Initial schema tables:
 
 - `creature_templates`
 - `stat_block_imports`
+- `campaigns`
 - `encounters`
 - `encounter_combatants`
 - `combat_groups`
@@ -57,12 +59,14 @@ display name, avatar URL, and role. Sensitive auth data stays in Supabase Auth.
 
 ## Saved Encounters Dashboard
 
-The dashboard should start from `encounters`.
+The dashboard should start from `encounters`, with optional organization through
+`campaigns`.
 
 The current UI includes a local mock Saved Encounters Dashboard shell as the app's starting view. It is not wired to Supabase yet.
 
 Dashboard-friendly fields include:
 
+- `campaign_id`
 - `name`
 - `description`
 - `location`
@@ -84,6 +88,26 @@ Dashboard-friendly fields include:
 The dashboard can search by name/location/notes later, filter by `status`, and open an encounter in either Builder or Runner. Future duplicate/archive/delete behavior can operate on `encounters` plus its child rows.
 
 Stored dashboard summary fields should be treated as convenience snapshots, not the source of truth. Counts and flags can be recomputed from `encounter_combatants` and `initiative_entries` whenever an encounter is saved, duplicated, or opened.
+
+## Campaigns
+
+Campaigns are user-owned folders for encounters. The `campaigns` table stores:
+
+- `owner_user_id`
+- `name`
+- `description`
+- `accent_color`
+- `status`
+- `sort_order`
+- timestamps
+
+`encounters.campaign_id` links an encounter to a campaign. `All Campaigns` is a
+UI filter and is not a database row. `Unassigned` means
+`encounters.campaign_id` is null.
+
+Archiving a campaign should not delete encounters. The beta-safe behavior is to
+archive the campaign and set affected encounter `campaign_id` values to null so
+those encounters remain visible under Unassigned.
 
 Statuses should include:
 
@@ -480,6 +504,7 @@ RLS is enabled for `profiles` and user-owned app tables. Root tables use
 
 - `creature_templates`
 - `stat_block_imports`
+- `campaigns`
 - `encounters`
 
 Encounter child tables are protected through parent encounter ownership:
@@ -532,7 +557,7 @@ Later:
 
 - RLS should be tested to ensure users only access their own creatures, imports, settings, support status, and encounters.
 - Imported content should belong to the importing user unless intentionally shared.
-- Campaign sharing could use `campaigns` and `campaign_members`.
+- Campaign sharing could use a future `campaign_members` table.
 - Public encounter or creature templates could be added separately.
 
 No payment or subscription logic is included in the auth/RLS foundation.

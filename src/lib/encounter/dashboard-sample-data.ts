@@ -9,8 +9,16 @@ export type DashboardCombatantPreview = {
   group_color_key: "Blue" | "Green" | "Red" | "Gold" | "Purple" | "Gray" | "Cyan" | "Magenta" | "None";
 };
 
+export type SavedCampaignSummary = {
+  id: string;
+  name: string;
+  description?: string;
+  accent_color?: SavedEncounterSummary["accent_color"];
+  status?: "active" | "archived";
+};
+
 export type SavedEncounterSummary = {
-  campaign_id: string;
+  campaign_id: string | null;
   campaign_name: string;
   id: string;
   name: string;
@@ -34,6 +42,37 @@ export type SavedEncounterSummary = {
   notes?: string;
   reminders?: string[];
 };
+
+export const savedCampaignSamples: SavedCampaignSummary[] = [
+  {
+    accent_color: "Gold",
+    description: "Road trouble, market fights, and lantern-lit schemes.",
+    id: "lantern-road",
+    name: "The Lantern Road",
+    status: "active",
+  },
+  {
+    accent_color: "Green",
+    description: "Woodland travel, moonlit shrines, and uneasy allies.",
+    id: "moonwell-vale",
+    name: "Moonwell Vale",
+    status: "active",
+  },
+  {
+    accent_color: "Red",
+    description: "Old checkpoints, barricades, and ash-choked roads.",
+    id: "ash-gate",
+    name: "Ash Gate",
+    status: "active",
+  },
+  {
+    accent_color: "Purple",
+    description: "Cellar brawls and violet-lit trouble beneath the tavern.",
+    id: "violet-keg-cellars",
+    name: "Violet Keg Cellars",
+    status: "active",
+  },
+];
 
 export const savedEncounterSamples: SavedEncounterSummary[] = [
   {

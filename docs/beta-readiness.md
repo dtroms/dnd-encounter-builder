@@ -22,7 +22,7 @@ beta deployment. It is intentionally conservative.
 
 | Area | Status |
 | --- | --- |
-| Saved Encounters dashboard | Signed-in metadata persistence started. |
+| Saved Encounters dashboard | Signed-in metadata persistence started, including campaign management and encounter metadata editing. |
 | Creature Library | Signed-in `creature_templates` persistence started. |
 | Importer paste saves | Reviewed pasted imports save to signed-in Library. |
 | Builder | Still not fully save/load wired to Supabase. |
@@ -61,6 +61,8 @@ the feature flag is turned on locally.
   out.
 - [ ] Local demo mode renders when Supabase env vars are missing.
 - [ ] Saved Encounters dashboard renders.
+- [ ] Campaigns can be created, renamed, archived, and used as dashboard filters.
+- [ ] Encounter name and metadata can be edited from the dashboard.
 - [ ] Builder renders.
 - [ ] Runner renders.
 - [ ] Creature Library renders.
@@ -87,6 +89,8 @@ the feature flag is turned on locally.
 ## Known Limitations
 
 - Builder save/load is still in progress.
+- Builder header campaign/name editing is still local/prototype-oriented; the
+  dashboard edit form is the current reliable metadata editor.
 - Runner persistence is first-pass and action-based.
 - Runner add/remove combatant persistence is not complete.
 - Spell effects persist in combatant snapshot metadata until a dedicated schema

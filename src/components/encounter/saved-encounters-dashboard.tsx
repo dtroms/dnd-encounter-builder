@@ -1,25 +1,39 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { EncounterStatus } from "@/lib/encounter/db-types";
 import {
+  savedCampaignSamples,
   savedEncounterSamples,
   type DashboardCombatantPreview,
+  type SavedCampaignSummary,
   type SavedEncounterSummary,
 } from "@/lib/encounter/dashboard-sample-data";
+import {
+  archiveOrDeleteCampaign,
+  createCampaign,
+  fetchCampaigns,
+  updateCampaign,
+} from "@/lib/encounter/campaign-queries";
 import {
   archiveEncounter as archiveSavedEncounter,
   createEncounterShell,
   duplicateEncounter as duplicateSavedEncounter,
   fetchSavedEncounters,
+  updateEncounterMetadata,
 } from "@/lib/encounter/encounter-queries";
-import { encounterRecordToSavedEncounterSummary } from "@/lib/encounter/mappers";
+import {
+  campaignRecordToSavedCampaignSummary,
+  encounterRecordToSavedEncounterSummary,
+} from "@/lib/encounter/mappers";
 import type { CombatantType } from "@/lib/encounter/types";
 
 type StatusFilter = EncounterStatus | "all";
 type SortMode = "recent" | "name" | "status";
 type DetailTab = "overview" | "roster" | "notes";
-type CampaignFilter = "all" | string;
+type CampaignFilter = "all" | "unassigned" | string;
+type CampaignModalMode = "create" | "rename" | null;
 
 const detailTabs: Array<{ key: DetailTab; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -49,13 +63,16 @@ const statusLabels: Record<EncounterStatus, string> = {
   running: "Running",
 };
 
-const campaignTabs: Array<{ id: CampaignFilter; label: string }> = [
-  { id: "all", label: "All Campaigns" },
-  { id: "lantern-road", label: "The Lantern Road" },
-  { id: "moonwell-vale", label: "Moonwell Vale" },
-  { id: "ash-gate", label: "Ash Gate" },
-  { id: "violet-keg-cellars", label: "Violet Keg Cellars" },
-];
+const dashboardAccentColors = [
+  "Blue",
+  "Green",
+  "Red",
+  "Gold",
+  "Purple",
+  "Gray",
+  "Cyan",
+  "Magenta",
+] as const;
 
 const accentStyles: Record<
   SavedEncounterSummary["accent_color"],
@@ -190,12 +207,10 @@ const typeLabels: Record<CombatantType, string> = {
 };
 
 export function SavedEncountersDashboard({
-  onCreateNew,
   onOpenBuilder,
   onOpenRunner,
   useSupabaseData = false,
 }: {
-  onCreateNew: () => void;
   onOpenBuilder: (encounterId?: string) => void;
   onOpenRunner: (encounterId?: string) => void;
   useSupabaseData?: boolean;
@@ -205,11 +220,21 @@ export function SavedEncountersDashboard({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
+  const [campaigns, setCampaigns] = useState<SavedCampaignSummary[]>(
+    useSupabaseData ? [] : savedCampaignSamples,
+  );
   const [encounters, setEncounters] = useState<SavedEncounterSummary[]>(
     useSupabaseData ? [] : savedEncounterSamples,
   );
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  const [campaignModalMode, setCampaignModalMode] =
+    useState<CampaignModalMode>(null);
+  const [campaignActionId, setCampaignActionId] = useState<string | null>(null);
+  const [campaignDeleteConfirmOpen, setCampaignDeleteConfirmOpen] =
+    useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [editEncounter, setEditEncounter] =
+    useState<SavedEncounterSummary | null>(null);
   const [isLoading, setIsLoading] = useState(useSupabaseData);
   const [isMutating, setIsMutating] = useState(false);
   const [selectedEncounterId, setSelectedEncounterId] = useState(
@@ -219,6 +244,7 @@ export function SavedEncountersDashboard({
   useEffect(() => {
     if (!useSupabaseData) {
       const timeoutId = window.setTimeout(() => {
+        setCampaigns(savedCampaignSamples);
         setEncounters(savedEncounterSamples);
         setSelectedEncounterId(
           (current) => current || savedEncounterSamples[0]?.id || "",
@@ -233,18 +259,37 @@ export function SavedEncountersDashboard({
       setIsLoading(true);
       setDashboardError(null);
 
-      const result = await fetchSavedEncounters();
+      const [campaignResult, encounterResult] = await Promise.all([
+        fetchCampaigns(),
+        fetchSavedEncounters(),
+      ]);
 
       if (!active) {
         return;
       }
 
-      if (result.error || !result.data) {
-        setDashboardError(result.error ?? "Could not load saved encounters.");
+      if (campaignResult.error || !campaignResult.data) {
+        setDashboardError(campaignResult.error ?? "Could not load campaigns.");
+        setCampaigns([]);
+        setEncounters([]);
+        setSelectedEncounterId("");
+      } else if (encounterResult.error || !encounterResult.data) {
+        setDashboardError(
+          encounterResult.error ?? "Could not load saved encounters.",
+        );
         setEncounters([]);
         setSelectedEncounterId("");
       } else {
-        const summaries = result.data.map(encounterRecordToSavedEncounterSummary);
+        const campaignSummaries = campaignResult.data.map(
+          campaignRecordToSavedCampaignSummary,
+        );
+        const summaries = encounterResult.data.map((record) =>
+          withCampaignDisplayName(
+            encounterRecordToSavedEncounterSummary(record),
+            campaignSummaries,
+          ),
+        );
+        setCampaigns(campaignSummaries);
         setEncounters(summaries);
         setSelectedEncounterId((current) =>
           summaries.some((encounter) => encounter.id === current)
@@ -271,15 +316,35 @@ export function SavedEncountersDashboard({
     setIsLoading(true);
     setDashboardError(null);
 
-    const result = await fetchSavedEncounters();
+    const [campaignResult, encounterResult] = await Promise.all([
+      fetchCampaigns(),
+      fetchSavedEncounters(),
+    ]);
 
-    if (result.error || !result.data) {
-      setDashboardError(result.error ?? "Could not load saved encounters.");
+    if (campaignResult.error || !campaignResult.data) {
+      setDashboardError(campaignResult.error ?? "Could not load campaigns.");
       setIsLoading(false);
       return;
     }
 
-    const summaries = result.data.map(encounterRecordToSavedEncounterSummary);
+    if (encounterResult.error || !encounterResult.data) {
+      setDashboardError(
+        encounterResult.error ?? "Could not load saved encounters.",
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    const campaignSummaries = campaignResult.data.map(
+      campaignRecordToSavedCampaignSummary,
+    );
+    const summaries = encounterResult.data.map((record) =>
+      withCampaignDisplayName(
+        encounterRecordToSavedEncounterSummary(record),
+        campaignSummaries,
+      ),
+    );
+    setCampaigns(campaignSummaries);
     setEncounters(summaries);
     setSelectedEncounterId((current) =>
       summaries.some((encounter) => encounter.id === current)
@@ -295,7 +360,9 @@ export function SavedEncountersDashboard({
     return encounters
       .filter((encounter) => {
         const matchesCampaign =
-          campaignFilter === "all" || encounter.campaign_id === campaignFilter;
+          campaignFilter === "all" ||
+          (campaignFilter === "unassigned" && !encounter.campaign_id) ||
+          encounter.campaign_id === campaignFilter;
         const matchesStatus =
           statusFilter === "all" || encounter.status === statusFilter;
         const searchable = [
@@ -333,22 +400,66 @@ export function SavedEncountersDashboard({
     visibleEncounters.find((encounter) => encounter.id === selectedEncounterId) ??
     visibleEncounters[0] ??
     null;
+  const selectedCampaign =
+    campaignFilter !== "all" && campaignFilter !== "unassigned"
+      ? campaigns.find((campaign) => campaign.id === campaignFilter) ?? null
+      : null;
+  const createCampaignId =
+    campaignFilter !== "all" && campaignFilter !== "unassigned"
+      ? campaignFilter
+      : null;
+  const createCampaignName =
+    createCampaignId
+      ? campaigns.find((campaign) => campaign.id === createCampaignId)?.name ??
+        "Unassigned"
+      : "Unassigned";
 
   async function handleCreateNew() {
     if (!useSupabaseData) {
-      onCreateNew();
+      const now = new Date().toISOString();
+      const localEncounter: SavedEncounterSummary = {
+        accent_color: selectedCampaign?.accent_color ?? "Cyan",
+        boss_count_snapshot: 0,
+        campaign_id: createCampaignId,
+        campaign_name: createCampaignName,
+        combatant_count_snapshot: 0,
+        combatants_preview: [],
+        current_round: 1,
+        current_turn_index: 0,
+        description: "No description saved yet.",
+        difficulty_label: "Unrated",
+        estimated_difficulty: "Unrated",
+        group_count: 0,
+        has_lair_actions_snapshot: false,
+        id: `local-encounter-${Date.now()}`,
+        last_played_at: null,
+        location: "No location set",
+        name: "Untitled Encounter",
+        party_level: 1,
+        party_size: 4,
+        status: "draft",
+        updated_at: now,
+      };
+
+      setEncounters((current) => [localEncounter, ...current]);
+      setSelectedEncounterId(localEncounter.id);
+      setStatusFilter((current) => (current === "archived" ? "all" : current));
+      setActiveDetailTab("overview");
       return;
     }
 
     setIsMutating(true);
     setDashboardError(null);
 
-    const result = await createEncounterShell();
+    const result = await createEncounterShell({ campaignId: createCampaignId });
 
     if (result.error || !result.data) {
       setDashboardError(result.error ?? "Could not create encounter.");
     } else {
-      const summary = encounterRecordToSavedEncounterSummary(result.data);
+      const summary = withCampaignDisplayName(
+        encounterRecordToSavedEncounterSummary(result.data),
+        campaigns,
+      );
       setEncounters((current) => [summary, ...current]);
       setSelectedEncounterId(summary.id);
       setStatusFilter((current) => (current === "archived" ? "all" : current));
@@ -368,7 +479,10 @@ export function SavedEncountersDashboard({
       if (result.error || !result.data) {
         setDashboardError(result.error ?? "Could not duplicate encounter.");
       } else {
-        const copy = encounterRecordToSavedEncounterSummary(result.data);
+        const copy = withCampaignDisplayName(
+          encounterRecordToSavedEncounterSummary(result.data),
+          campaigns,
+        );
         setEncounters((current) => [copy, ...current]);
         setSelectedEncounterId(copy.id);
         setStatusFilter((current) => (current === "archived" ? "all" : current));
@@ -414,7 +528,10 @@ export function SavedEncountersDashboard({
       if (result.error || !result.data) {
         setDashboardError(result.error ?? "Could not archive encounter.");
       } else {
-        const archived = encounterRecordToSavedEncounterSummary(result.data);
+        const archived = withCampaignDisplayName(
+          encounterRecordToSavedEncounterSummary(result.data),
+          campaigns,
+        );
         setEncounters((current) =>
           current.map((item) => (item.id === archived.id ? archived : item)),
         );
@@ -439,6 +556,212 @@ export function SavedEncountersDashboard({
       ),
     );
     setArchiveConfirmId(null);
+  }
+
+  async function saveCampaign(input: {
+    accentColor?: SavedCampaignSummary["accent_color"];
+    description?: string;
+    name: string;
+  }) {
+    if (!input.name.trim()) {
+      setDashboardError("Campaign name is required.");
+      return;
+    }
+
+    setIsMutating(true);
+    setDashboardError(null);
+
+    if (useSupabaseData) {
+      const result =
+        campaignModalMode === "rename" && campaignActionId
+          ? await updateCampaign(campaignActionId, {
+              accentColor: input.accentColor,
+              description: input.description,
+              name: input.name,
+            })
+          : await createCampaign({
+              accentColor: input.accentColor,
+              description: input.description,
+              name: input.name,
+            });
+
+      if (result.error || !result.data) {
+        setDashboardError(result.error ?? "Could not save campaign.");
+      } else {
+        const savedCampaign = campaignRecordToSavedCampaignSummary(result.data);
+        setCampaigns((current) =>
+          campaignModalMode === "rename"
+            ? current.map((campaign) =>
+                campaign.id === savedCampaign.id ? savedCampaign : campaign,
+              )
+            : [...current, savedCampaign],
+        );
+        setEncounters((current) =>
+          current.map((encounter) =>
+            encounter.campaign_id === savedCampaign.id
+              ? { ...encounter, campaign_name: savedCampaign.name }
+              : encounter,
+          ),
+        );
+        setCampaignFilter(savedCampaign.id);
+        setCampaignModalMode(null);
+        setCampaignActionId(null);
+        setCampaignDeleteConfirmOpen(false);
+      }
+
+      setIsMutating(false);
+      return;
+    }
+
+    const savedCampaign: SavedCampaignSummary = {
+      accent_color: input.accentColor ?? "Cyan",
+      description: input.description?.trim() || undefined,
+      id:
+        campaignModalMode === "rename" && campaignActionId
+          ? campaignActionId
+          : `local-campaign-${Date.now()}`,
+      name: input.name.trim(),
+      status: "active",
+    };
+
+    setCampaigns((current) =>
+      campaignModalMode === "rename"
+        ? current.map((campaign) =>
+            campaign.id === savedCampaign.id ? savedCampaign : campaign,
+          )
+        : [...current, savedCampaign],
+    );
+    setEncounters((current) =>
+      current.map((encounter) =>
+        encounter.campaign_id === savedCampaign.id
+          ? { ...encounter, campaign_name: savedCampaign.name }
+          : encounter,
+      ),
+    );
+    setCampaignFilter(savedCampaign.id);
+    setCampaignModalMode(null);
+    setCampaignActionId(null);
+    setCampaignDeleteConfirmOpen(false);
+    setIsMutating(false);
+  }
+
+  async function archiveSelectedCampaign() {
+    if (!selectedCampaign) {
+      return;
+    }
+
+    setIsMutating(true);
+    setDashboardError(null);
+
+    if (useSupabaseData) {
+      const result = await archiveOrDeleteCampaign(selectedCampaign.id);
+
+      if (result.error) {
+        setDashboardError(result.error);
+        setIsMutating(false);
+        return;
+      }
+    }
+
+    setCampaigns((current) =>
+      current.filter((campaign) => campaign.id !== selectedCampaign.id),
+    );
+    setEncounters((current) =>
+      current.map((encounter) =>
+        encounter.campaign_id === selectedCampaign.id
+          ? {
+              ...encounter,
+              campaign_id: null,
+              campaign_name: "Unassigned",
+              updated_at: new Date().toISOString(),
+            }
+          : encounter,
+      ),
+    );
+    setCampaignFilter("all");
+    setCampaignActionId(null);
+    setCampaignDeleteConfirmOpen(false);
+    setIsMutating(false);
+  }
+
+  async function saveEncounterMetadata(
+    encounterId: string,
+    input: {
+      campaignId: string | null;
+      description: string;
+      difficultyLabel: string;
+      location: string;
+      name: string;
+      notes: string;
+      partyLevel: number;
+      partySize: number;
+      status: EncounterStatus;
+    },
+  ) {
+    const name = input.name.trim();
+
+    if (!name) {
+      setDashboardError("Encounter name is required.");
+      return;
+    }
+
+    setIsMutating(true);
+    setDashboardError(null);
+
+    if (useSupabaseData) {
+      const result = await updateEncounterMetadata(encounterId, input);
+
+      if (result.error || !result.data) {
+        setDashboardError(result.error ?? "Could not update encounter.");
+        setIsMutating(false);
+        return;
+      }
+
+      const updated = withCampaignDisplayName(
+        encounterRecordToSavedEncounterSummary(result.data),
+        campaigns,
+      );
+      setEncounters((current) =>
+        current.map((encounter) =>
+          encounter.id === updated.id ? updated : encounter,
+        ),
+      );
+      setSelectedEncounterId(updated.id);
+      setEditEncounter(null);
+      setIsMutating(false);
+      return;
+    }
+
+    const campaign = input.campaignId
+      ? campaigns.find((item) => item.id === input.campaignId)
+      : null;
+    const now = new Date().toISOString();
+
+    setEncounters((current) =>
+      current.map((encounter) =>
+        encounter.id === encounterId
+          ? {
+              ...encounter,
+              campaign_id: input.campaignId,
+              campaign_name: campaign?.name ?? "Unassigned",
+              description:
+                input.description.trim() || "No description saved yet.",
+              difficulty_label: input.difficultyLabel.trim() || "Unrated",
+              estimated_difficulty: input.difficultyLabel.trim() || "Unrated",
+              location: input.location.trim() || "No location set",
+              name,
+              notes: input.notes.trim() || undefined,
+              party_level: input.partyLevel,
+              party_size: input.partySize,
+              status: input.status,
+              updated_at: now,
+            }
+          : encounter,
+      ),
+    );
+    setSelectedEncounterId(encounterId);
+    setEditEncounter(null);
+    setIsMutating(false);
   }
 
   return (
@@ -466,11 +789,37 @@ export function SavedEncountersDashboard({
 
       <CampaignTabs
         activeCampaign={campaignFilter}
+        campaigns={campaigns}
+        isBusy={isMutating}
+        selectedCampaign={selectedCampaign}
         onCampaignChange={(campaign) => {
           setCampaignFilter(campaign);
           setActiveDetailTab("overview");
         }}
+        onCreateCampaign={() => {
+          setCampaignModalMode("create");
+          setCampaignActionId(null);
+          setCampaignDeleteConfirmOpen(false);
+        }}
+        onDeleteCampaign={() => setCampaignDeleteConfirmOpen(true)}
+        onRenameCampaign={() => {
+          if (!selectedCampaign) {
+            return;
+          }
+          setCampaignActionId(selectedCampaign.id);
+          setCampaignModalMode("rename");
+          setCampaignDeleteConfirmOpen(false);
+        }}
       />
+
+      {campaignDeleteConfirmOpen && selectedCampaign ? (
+        <CampaignDeleteConfirm
+          campaign={selectedCampaign}
+          isBusy={isMutating}
+          onCancel={() => setCampaignDeleteConfirmOpen(false)}
+          onConfirm={archiveSelectedCampaign}
+        />
+      ) : null}
 
       <DashboardFilters
         query={query}
@@ -502,7 +851,9 @@ export function SavedEncountersDashboard({
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-500">
-            <span className="truncate">{getCampaignLabel(campaignFilter)}</span>
+            <span className="truncate">
+              {getCampaignLabel(campaignFilter, campaigns)}
+            </span>
             <span>
               {statusFilter === "all" ? "All statuses" : statusLabels[statusFilter]}
             </span>
@@ -574,6 +925,7 @@ export function SavedEncountersDashboard({
             onArchiveConfirm={() => archiveEncounter(selectedEncounter)}
             onDuplicate={() => duplicateEncounter(selectedEncounter)}
             isBusy={isMutating}
+            onEdit={() => setEditEncounter(selectedEncounter)}
             onOpenBuilder={() => onOpenBuilder(selectedEncounter.id)}
             onOpenRunner={() => onOpenRunner(selectedEncounter.id)}
           />
@@ -581,6 +933,33 @@ export function SavedEncountersDashboard({
           <EmptyDetailPanel />
         )}
       </div>
+
+      {campaignModalMode ? (
+        <CampaignFormModal
+          campaign={
+            campaignModalMode === "rename" && campaignActionId
+              ? campaigns.find((campaign) => campaign.id === campaignActionId)
+              : null
+          }
+          isBusy={isMutating}
+          mode={campaignModalMode}
+          onCancel={() => {
+            setCampaignModalMode(null);
+            setCampaignActionId(null);
+          }}
+          onSave={saveCampaign}
+        />
+      ) : null}
+
+      {editEncounter ? (
+        <EncounterEditModal
+          campaigns={campaigns}
+          encounter={editEncounter}
+          isBusy={isMutating}
+          onCancel={() => setEditEncounter(null)}
+          onSave={saveEncounterMetadata}
+        />
+      ) : null}
     </section>
   );
 }
@@ -661,28 +1040,82 @@ function DashboardFilters({
 
 function CampaignTabs({
   activeCampaign,
+  campaigns,
+  isBusy,
+  selectedCampaign,
   onCampaignChange,
+  onCreateCampaign,
+  onDeleteCampaign,
+  onRenameCampaign,
 }: {
   activeCampaign: CampaignFilter;
+  campaigns: SavedCampaignSummary[];
+  isBusy: boolean;
+  selectedCampaign: SavedCampaignSummary | null;
   onCampaignChange: (campaign: CampaignFilter) => void;
+  onCreateCampaign: () => void;
+  onDeleteCampaign: () => void;
+  onRenameCampaign: () => void;
 }) {
+  const tabItems: Array<{ id: CampaignFilter; label: string }> = [
+    { id: "all", label: "All Campaigns" },
+    { id: "unassigned", label: "Unassigned" },
+    ...campaigns.map((campaign) => ({
+      id: campaign.id,
+      label: campaign.name,
+    })),
+  ];
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2">
-      <div className="flex gap-1 overflow-x-auto">
-        {campaignTabs.map((campaign) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 overflow-x-auto">
+          {tabItems.map((campaign) => (
+            <button
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition ${
+                activeCampaign === campaign.id
+                  ? "bg-cyan-300 text-slate-950"
+                  : "border border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:text-white"
+              }`}
+              key={campaign.id}
+              type="button"
+              onClick={() => onCampaignChange(campaign.id)}
+            >
+              {campaign.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex shrink-0 gap-1.5">
+          {selectedCampaign ? (
+            <>
+              <button
+                className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+                disabled={isBusy}
+                type="button"
+                onClick={onRenameCampaign}
+              >
+                Rename
+              </button>
+              <button
+                className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-2.5 py-2 text-xs font-black text-rose-100 transition hover:border-rose-300 hover:bg-rose-500/20"
+                disabled={isBusy}
+                type="button"
+                onClick={onDeleteCampaign}
+              >
+                Archive
+              </button>
+            </>
+          ) : null}
           <button
-            className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition ${
-              activeCampaign === campaign.id
-                ? "bg-cyan-300 text-slate-950"
-                : "border border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:text-white"
-            }`}
-            key={campaign.id}
+            className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-300"
+            disabled={isBusy}
             type="button"
-            onClick={() => onCampaignChange(campaign.id)}
+            onClick={onCreateCampaign}
           >
-            {campaign.label}
+            + Campaign
           </button>
-        ))}
+        </div>
       </div>
     </div>
   );
@@ -768,6 +1201,7 @@ function EncounterDetailPanel({
   onArchiveCancel,
   onArchiveConfirm,
   onDuplicate,
+  onEdit,
   onOpenBuilder,
   onOpenRunner,
 }: {
@@ -780,6 +1214,7 @@ function EncounterDetailPanel({
   onArchiveCancel: () => void;
   onArchiveConfirm: () => void;
   onDuplicate: () => void;
+  onEdit: () => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
@@ -828,6 +1263,7 @@ function EncounterDetailPanel({
               isRunning={isRunning}
               onArchive={onArchive}
               onDuplicate={onDuplicate}
+              onEdit={onEdit}
               onOpenBuilder={onOpenBuilder}
               onOpenRunner={onOpenRunner}
             />
@@ -925,12 +1361,344 @@ function DashboardErrorState({
   );
 }
 
+function CampaignDeleteConfirm({
+  campaign,
+  isBusy,
+  onCancel,
+  onConfirm,
+}: {
+  campaign: SavedCampaignSummary;
+  isBusy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-rose-100">
+            Archive {campaign.name}?
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-rose-100/75">
+            Encounters in this campaign will stay saved and move to Unassigned.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-rose-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-rose-300"
+            disabled={isBusy}
+            type="button"
+            onClick={onConfirm}
+          >
+            {isBusy ? "Archiving..." : "Archive Campaign"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CampaignFormModal({
+  campaign,
+  isBusy,
+  mode,
+  onCancel,
+  onSave,
+}: {
+  campaign: SavedCampaignSummary | null | undefined;
+  isBusy: boolean;
+  mode: Exclude<CampaignModalMode, null>;
+  onCancel: () => void;
+  onSave: (input: {
+    accentColor?: SavedCampaignSummary["accent_color"];
+    description?: string;
+    name: string;
+  }) => void;
+}) {
+  const [name, setName] = useState(campaign?.name ?? "");
+  const [description, setDescription] = useState(campaign?.description ?? "");
+  const [accentColor, setAccentColor] = useState<
+    SavedCampaignSummary["accent_color"]
+  >(campaign?.accent_color ?? "Cyan");
+
+  return (
+    <ModalFrame
+      title={mode === "create" ? "Create Campaign" : "Rename Campaign"}
+      onCancel={onCancel}
+    >
+      <div className="grid gap-3">
+        <TextInput
+          autoFocus
+          label="Campaign Name"
+          value={name}
+          onChange={setName}
+        />
+        <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Description
+          <textarea
+            className="min-h-20 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </label>
+        <SelectInput
+          label="Accent"
+          value={accentColor ?? "Cyan"}
+          onChange={(value) =>
+            setAccentColor(value as SavedCampaignSummary["accent_color"])
+          }
+        >
+          {dashboardAccentColors.map((color) => (
+            <option key={color} value={color}>
+              {color}
+            </option>
+          ))}
+        </SelectInput>
+        <div className="flex justify-end gap-2">
+          <button
+            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-slate-500 hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            disabled={isBusy || !name.trim()}
+            type="button"
+            onClick={() => onSave({ accentColor, description, name })}
+          >
+            {isBusy ? "Saving..." : "Save Campaign"}
+          </button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
+function EncounterEditModal({
+  campaigns,
+  encounter,
+  isBusy,
+  onCancel,
+  onSave,
+}: {
+  campaigns: SavedCampaignSummary[];
+  encounter: SavedEncounterSummary;
+  isBusy: boolean;
+  onCancel: () => void;
+  onSave: (
+    encounterId: string,
+    input: {
+      campaignId: string | null;
+      description: string;
+      difficultyLabel: string;
+      location: string;
+      name: string;
+      notes: string;
+      partyLevel: number;
+      partySize: number;
+      status: EncounterStatus;
+    },
+  ) => void;
+}) {
+  const [name, setName] = useState(encounter.name);
+  const [description, setDescription] = useState(encounter.description);
+  const [location, setLocation] = useState(encounter.location);
+  const [status, setStatus] = useState<EncounterStatus>(encounter.status);
+  const [campaignId, setCampaignId] = useState(encounter.campaign_id ?? "");
+  const [difficultyLabel, setDifficultyLabel] = useState(
+    encounter.difficulty_label,
+  );
+  const [partyLevel, setPartyLevel] = useState(String(encounter.party_level));
+  const [partySize, setPartySize] = useState(String(encounter.party_size));
+  const [notes, setNotes] = useState(encounter.notes ?? "");
+
+  function save() {
+    onSave(encounter.id, {
+      campaignId: campaignId || null,
+      description,
+      difficultyLabel,
+      location,
+      name,
+      notes,
+      partyLevel: clampPositiveInteger(partyLevel, encounter.party_level),
+      partySize: clampPositiveInteger(partySize, encounter.party_size),
+      status,
+    });
+  }
+
+  return (
+    <ModalFrame title="Edit Encounter" onCancel={onCancel}>
+      <div className="grid gap-3">
+        <TextInput autoFocus label="Encounter Name" value={name} onChange={setName} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextInput label="Location" value={location} onChange={setLocation} />
+          <SelectInput
+            label="Status"
+            value={status}
+            onChange={(value) => setStatus(value as EncounterStatus)}
+          >
+            {statusFilters
+              .filter((filter) => filter.key !== "all")
+              .map((filter) => (
+                <option key={filter.key} value={filter.key}>
+                  {filter.label}
+                </option>
+              ))}
+          </SelectInput>
+        </div>
+        <SelectInput
+          label="Campaign"
+          value={campaignId}
+          onChange={setCampaignId}
+        >
+          <option value="">Unassigned / No Campaign</option>
+          {campaigns.map((campaign) => (
+            <option key={campaign.id} value={campaign.id}>
+              {campaign.name}
+            </option>
+          ))}
+        </SelectInput>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <TextInput
+            label="Difficulty"
+            value={difficultyLabel}
+            onChange={setDifficultyLabel}
+          />
+          <TextInput label="Party Level" value={partyLevel} onChange={setPartyLevel} />
+          <TextInput label="Party Size" value={partySize} onChange={setPartySize} />
+        </div>
+        <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Description
+          <textarea
+            className="min-h-20 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </label>
+        <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          Notes
+          <textarea
+            className="min-h-20 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </label>
+        <div className="flex justify-end gap-2">
+          <button
+            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-slate-500 hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-cyan-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            disabled={isBusy || !name.trim()}
+            type="button"
+            onClick={save}
+          >
+            {isBusy ? "Saving..." : "Save Encounter"}
+          </button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
+function ModalFrame({
+  children,
+  title,
+  onCancel,
+}: {
+  children: ReactNode;
+  title: string;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-4 shadow-2xl shadow-black/50">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <h3 className="text-lg font-black text-white">{title}</h3>
+          <button
+            aria-label="Close"
+            className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-black text-slate-300 transition hover:border-slate-500 hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Close
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TextInput({
+  autoFocus = false,
+  label,
+  value,
+  onChange,
+}: {
+  autoFocus?: boolean;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <input
+        autoFocus={autoFocus}
+        className="h-10 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm font-semibold normal-case tracking-normal text-white outline-none placeholder:text-slate-500 focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function SelectInput({
+  children,
+  label,
+  value,
+  onChange,
+}: {
+  children: ReactNode;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+      {label}
+      <select
+        className="h-10 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-cyan-300"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
 function ActionButtons({
   encounter,
   isBusy,
   isRunning,
   onArchive,
   onDuplicate,
+  onEdit,
   onOpenBuilder,
   onOpenRunner,
 }: {
@@ -939,6 +1707,7 @@ function ActionButtons({
   isRunning: boolean;
   onArchive: () => void;
   onDuplicate: () => void;
+  onEdit: () => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
 }) {
@@ -972,6 +1741,14 @@ function ActionButtons({
         onClick={secondaryHandler}
       >
         {secondaryAction}
+      </button>
+      <button
+        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+        disabled={isBusy}
+        type="button"
+        onClick={onEdit}
+      >
+        Edit Encounter
       </button>
       <button
         className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
@@ -1157,11 +1934,46 @@ function getSpecialSummary(encounter: SavedEncounterSummary) {
   return notes.length > 0 ? notes.join(", ") : "None";
 }
 
-function getCampaignLabel(campaignId: CampaignFilter) {
-  return (
-    campaignTabs.find((campaign) => campaign.id === campaignId)?.label ??
-    "All Campaigns"
-  );
+function getCampaignLabel(
+  campaignId: CampaignFilter,
+  campaigns: SavedCampaignSummary[],
+) {
+  if (campaignId === "all") {
+    return "All Campaigns";
+  }
+
+  if (campaignId === "unassigned") {
+    return "Unassigned";
+  }
+
+  return campaigns.find((campaign) => campaign.id === campaignId)?.name ?? "Campaign";
+}
+
+function withCampaignDisplayName(
+  encounter: SavedEncounterSummary,
+  campaigns: SavedCampaignSummary[],
+): SavedEncounterSummary {
+  if (!encounter.campaign_id) {
+    return { ...encounter, campaign_name: "Unassigned" };
+  }
+
+  return {
+    ...encounter,
+    campaign_name:
+      campaigns.find((campaign) => campaign.id === encounter.campaign_id)?.name ??
+      encounter.campaign_name ??
+      "Unassigned",
+  };
+}
+
+function clampPositiveInteger(value: string, fallback: number) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return parsed;
 }
 
 function CombatantPreviewList({

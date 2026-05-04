@@ -25,19 +25,24 @@ The top header is intentionally plain:
 - Choose an encounter to run, edit, or review.
 - Create New Encounter
 
-## Campaign Tabs
+## Campaign Tabs And Management
 
-The dashboard now has local campaign tabs above the two-column layout:
+The dashboard now has manageable campaign tabs above the two-column layout:
 
 - All Campaigns
-- The Lantern Road
-- Moonwell Vale
-- Ash Gate
-- Violet Keg Cellars
+- Unassigned
+- user-created campaigns
 
-Campaign tabs filter the saved encounters first. Search, status filters, and sort then apply inside the selected campaign result. `All Campaigns` shows every local mock encounter.
+Campaign tabs filter saved encounters first. Search, status filters, and sort
+then apply inside the selected campaign result. `All Campaigns` shows every
+encounter. `Unassigned` shows encounters with no campaign assignment.
 
-This is local mock data only. The app does not have campaign database records yet.
+Signed-in users can create campaigns, rename campaigns, and archive campaigns.
+Archiving a campaign does not delete encounters. Encounters assigned to that
+campaign are moved to Unassigned.
+
+Local demo mode uses local/session campaign state. Supabase mode uses the
+`campaigns` table and `encounters.campaign_id`.
 
 ## Left Encounter List
 
@@ -68,11 +73,16 @@ The right column starts with a selected encounter hero/header section. It shows:
 - location
 - readable description
 - Open Runner and Open Builder actions
+- Edit Encounter action
 - Duplicate and Archive actions
 
 Open Runner is primary for running encounters. Open Builder is primary for
 drafts. Duplicate is a secondary action, and Archive is a muted danger action
 with confirmation.
+
+Edit Encounter opens a compact form for changing the encounter name,
+description, location, status, campaign assignment, difficulty label, party
+level, party size, and notes.
 
 If no encounter is selected, the right panel shows a clear empty state: choose an encounter on the left to view details, open the Builder, or start the Runner.
 
@@ -125,15 +135,20 @@ It shows the encounter note text and local mock reminders such as lair timing, r
 When signed in with Supabase configured, the dashboard:
 
 - fetches the signed-in user's encounter rows through RLS
+- fetches the signed-in user's active campaign rows through RLS
 - maps `encounters` rows into the dashboard card/detail view
+- maps campaign names onto encounter cards through `campaign_id`
 - creates a new draft encounter shell
+- creates, renames, and archives campaigns
+- updates encounter metadata, including name and campaign assignment
 - duplicates encounter metadata into a new draft row
 - archives an encounter by setting `status = 'archived'`
 - keeps search, status filtering, and sorting in the client UI
 
 Database reads and writes are limited to the `encounters` table in this pass.
-The app does not fetch child combatants, combat groups, waves, initiative rows,
-or logs for the dashboard yet.
+The campaign management pass also uses the `campaigns` table. The app does not
+fetch child combatants, combat groups, waves, initiative rows, or logs for the
+dashboard yet.
 
 The dashboard shows loading, empty, and safe error states around Supabase calls.
 
@@ -143,6 +158,8 @@ When Supabase env vars are missing, or `NEXT_PUBLIC_USE_DEMO_DATA=true`, the
 dashboard keeps using local mock data.
 Search, status filtering, sorting, selected encounter state, tabs, notes,
 reminders, duplicate, and archive continue to work in local/session state.
+Local campaign create, rename, archive, and encounter metadata editing also work
+in local/session state.
 
 This fallback keeps development and tabletop demos usable without a database.
 
@@ -164,7 +181,9 @@ When database wiring is added later, the dashboard should read from `encounters`
 
 Group count can be derived from `combat_groups` for each encounter or stored as a future summary field if needed.
 
-Future campaign support may need either campaign fields on `encounters` or a separate `campaigns` table with encounter records linked by `campaign_id`. That database decision is only noted here; no schema changes are made in this dashboard UI pass.
+Campaign support now uses a separate `campaigns` table with encounter records
+linked by `campaign_id`. `All Campaigns` is a UI filter, not a database row.
+`Unassigned` means `campaign_id` is null.
 
 ## Actions
 
@@ -172,11 +191,15 @@ Duplicate and Archive work in local/session state for demo mode and against
 Supabase encounter rows for signed-in users.
 
 - Create New Encounter creates a draft encounter shell in Supabase when signed
-  in. It does not create combatants or groups yet.
+  in. If a real campaign tab is selected, the new encounter starts in that
+  campaign. It does not create combatants or groups yet.
 - Duplicate creates a metadata-only copy, marks it Draft, clears last played,
   and selects the copy. Deep-copying combatants/groups/waves comes later.
 - Archive asks for confirmation, changes status to Archived, and keeps the
   encounter in the list.
+- Edit Encounter updates the selected encounter metadata locally or in Supabase.
+- Archive Campaign archives/removes the campaign from the visible tabs and moves
+  its encounters to Unassigned.
 
 Archive is not a permanent delete. Archived encounters remain visible in All or
 Archived filters.

@@ -5,6 +5,7 @@ import type {
   StatBlockTrait,
 } from "./types";
 import type {
+  SavedCampaignSummary,
   SavedEncounterSummary,
 } from "./dashboard-sample-data";
 import type {
@@ -12,6 +13,7 @@ import type {
   LibrarySourceType,
 } from "./library-sample-data";
 import type {
+  CampaignRecord,
   CreatureTemplateRecord,
   CreatureTemplateRecordInput,
   EncounterRecord,
@@ -75,13 +77,25 @@ function defaultDashboardText(value: string | null, fallback: string) {
   return value?.trim() || fallback;
 }
 
+export function campaignRecordToSavedCampaignSummary(
+  record: CampaignRecord,
+): SavedCampaignSummary {
+  return {
+    accent_color: normalizeDashboardAccentColor(record.accent_color),
+    description: record.description ?? undefined,
+    id: record.id,
+    name: record.name,
+    status: record.status,
+  };
+}
+
 export function encounterRecordToSavedEncounterSummary(
   record: EncounterRecord,
 ): SavedEncounterSummary {
   return {
     accent_color: normalizeDashboardAccentColor(record.accent_color),
     boss_count_snapshot: record.boss_count_snapshot ?? 0,
-    campaign_id: "unassigned",
+    campaign_id: record.campaign_id,
     campaign_name: "Unassigned",
     combatant_count_snapshot: record.combatant_count_snapshot ?? 0,
     combatants_preview: [],

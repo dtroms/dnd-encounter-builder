@@ -1305,7 +1305,6 @@ export function EncounterApp() {
       {activeView === "encounters" ? (
         <SavedEncountersDashboard
           useSupabaseData={Boolean(authRequired && session)}
-          onCreateNew={openBuilder}
           onOpenBuilder={openBuilder}
           onOpenRunner={launchRunner}
         />

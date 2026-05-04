@@ -7,6 +7,7 @@ export type EncounterQueryResult<T> =
 
 export type CreateEncounterShellInput = {
   accentColor?: string;
+  campaignId?: string | null;
   description?: string;
   difficultyLabel?: string;
   location?: string;
@@ -14,6 +15,18 @@ export type CreateEncounterShellInput = {
   partyLevel?: number;
   partySize?: number;
 };
+
+export type UpdateEncounterMetadataInput = Partial<{
+  campaignId: string | null;
+  description: string | null;
+  difficultyLabel: string | null;
+  location: string | null;
+  name: string;
+  notes: string | null;
+  partyLevel: number | null;
+  partySize: number | null;
+  status: EncounterRecord["status"];
+}>;
 
 function missingSupabaseResult<T>(): EncounterQueryResult<T> {
   return {
@@ -96,6 +109,7 @@ export async function createEncounterShell(
       .from("encounters")
       .insert({
         accent_color: input.accentColor ?? "Cyan",
+        campaign_id: input.campaignId ?? null,
         current_round: 1,
         current_turn_index: 0,
         description: input.description ?? null,
@@ -153,6 +167,7 @@ export async function duplicateEncounter(
       .insert({
         accent_color: sourceEncounter.accent_color,
         boss_count_snapshot: sourceEncounter.boss_count_snapshot,
+        campaign_id: sourceEncounter.campaign_id,
         combatant_count_snapshot: sourceEncounter.combatant_count_snapshot,
         current_round: 1,
         current_turn_index: 0,
@@ -182,6 +197,80 @@ export async function duplicateEncounter(
     return {
       data: null,
       error: safeErrorMessage(caughtError, "Could not duplicate encounter."),
+    };
+  }
+}
+
+export async function updateEncounterMetadata(
+  encounterId: string,
+  input: UpdateEncounterMetadataInput,
+): Promise<EncounterQueryResult<EncounterRecord>> {
+  const supabase = getSupabaseBrowserClient();
+
+  if (!supabase) {
+    return missingSupabaseResult();
+  }
+
+  const updates: Record<string, string | number | boolean | null> = {};
+
+  if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (!name) {
+      return { data: null, error: "Encounter name is required." };
+    }
+    updates.name = name;
+  }
+
+  if (input.description !== undefined) {
+    updates.description = input.description?.trim() || null;
+  }
+
+  if (input.location !== undefined) {
+    updates.location = input.location?.trim() || null;
+  }
+
+  if (input.status !== undefined) {
+    updates.status = input.status;
+  }
+
+  if (input.campaignId !== undefined) {
+    updates.campaign_id = input.campaignId;
+  }
+
+  if (input.difficultyLabel !== undefined) {
+    updates.difficulty_label = input.difficultyLabel?.trim() || null;
+    updates.estimated_difficulty = input.difficultyLabel?.trim() || null;
+  }
+
+  if (input.partyLevel !== undefined) {
+    updates.party_level = input.partyLevel;
+  }
+
+  if (input.partySize !== undefined) {
+    updates.party_size = input.partySize;
+  }
+
+  if (input.notes !== undefined) {
+    updates.notes = input.notes?.trim() || null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("encounters")
+      .update(updates)
+      .eq("id", encounterId)
+      .select("*")
+      .single();
+
+    if (error) {
+      return { data: null, error: error.message };
+    }
+
+    return { data: data as EncounterRecord, error: null };
+  } catch (caughtError) {
+    return {
+      data: null,
+      error: safeErrorMessage(caughtError, "Could not update encounter."),
     };
   }
 }

@@ -26,12 +26,26 @@ export type InitiativeEntryType = "combatant" | "lair_action" | "custom";
 
 export type ProfileRole = "user" | "admin";
 
+export type CampaignStatus = "active" | "archived";
+
 export type ProfileRecord = {
   id: string;
   display_name: string | null;
   email: string | null;
   avatar_url: string | null;
   role: ProfileRole;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignRecord = {
+  id: string;
+  owner_user_id: string | null;
+  name: string;
+  description: string | null;
+  accent_color: string | null;
+  status: CampaignStatus;
+  sort_order: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -118,6 +132,7 @@ export type StatBlockImportRecord = {
 export type EncounterRecord = {
   id: string;
   owner_user_id: string | null;
+  campaign_id: string | null;
   name: string;
   description: string | null;
   location: string | null;
