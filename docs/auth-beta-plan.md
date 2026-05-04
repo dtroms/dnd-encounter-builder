@@ -16,13 +16,14 @@ The app now has a client-side Supabase Auth foundation:
 - Auth state updates while the app is open.
 - Local demo mode when Supabase env vars are missing.
 
-This pass does not persist encounters, creatures, imports, campaigns, or runner
-state to Supabase. Those areas still use local/session state.
+Persistence is being connected in stages. Saved encounter metadata, creature
+library records, pasted importer saves, and first-pass Runner live state have
+started using Supabase for signed-in users. Builder save/load and some deeper
+Runner workflows are still being completed.
 
 The database/security foundation now includes a `profiles` table and conservative
 Row Level Security policies for the planned user-owned data tables. This prepares
-the backend for beta data isolation, but the UI is still not wired to read or
-write persisted encounter/library/import records yet.
+the backend for beta data isolation while each UI area is wired deliberately.
 
 ## Provider
 
@@ -98,17 +99,26 @@ Client auth uses only public browser-safe Supabase values:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_USE_DEMO_DATA`
+- `NEXT_PUBLIC_ENABLE_SRD_IMPORT`
 
 Do not expose service role keys. If these vars are absent, the app runs in Local
 Demo Mode and does not require sign-in.
 
+For Vercel beta deployments:
+
+- set `NEXT_PUBLIC_USE_DEMO_DATA=false`
+- set `NEXT_PUBLIC_ENABLE_SRD_IMPORT=false`
+- never add the Supabase service role key to Vercel client/browser env vars
+- keep `.env.local` local and uncommitted
+
 ## Next Steps
 
 1. Run an RLS test checklist with two beta users.
-2. Wire `owner_user_id` writes for new records.
-3. Persist saved encounters.
-4. Persist Creature Library templates.
-5. Persist imports after the library save path is stable.
+2. Finish Builder save/load persistence.
+3. Complete deeper Runner persistence, including add/remove combatants.
+4. Run production-like two-user RLS validation before inviting beta users.
+5. Add password reset after the sign-in foundation is stable.
 
 ## Beta Deployment Steps
 
@@ -117,6 +127,8 @@ Demo Mode and does not require sign-in.
 - Add Supabase URL and anon key to Vercel environment variables.
 - Never expose service role keys in the browser or Vercel client env.
 - Configure Supabase auth redirect URLs for local and Vercel domains.
+- Add `http://localhost:3000` for local development.
+- Add the Vercel preview/production URL after Vercel creates it.
 - Run an RLS test checklist before inviting beta users.
 
 ## Boundaries

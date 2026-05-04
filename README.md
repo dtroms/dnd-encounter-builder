@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# D&D Encounter Builder
 
-## Getting Started
+A table-friendly web app for building encounters, managing a creature library,
+and running initiative with HP, AC, conditions, combat groups, waves, and live
+combat state.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Useful checks:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npm run build
+```
 
-## Learn More
+## Environment Setup
 
-To learn more about Next.js, take a look at the following resources:
+Copy `.env.example` to `.env.local` for local development.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_USE_DEMO_DATA=false
+NEXT_PUBLIC_ENABLE_SRD_IMPORT=false
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Only public browser-safe Supabase values belong in this app:
 
-## Deploy on Vercel
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Never put a Supabase service role key, database password, JWT secret, or private
+API key in `.env.local`, Vercel client env vars, or source control.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Demo Mode
+
+If Supabase env vars are missing, the app runs in Local Demo Mode so development
+can continue with local sample data.
+
+For production or beta deployments with Supabase configured, keep:
+
+```bash
+NEXT_PUBLIC_USE_DEMO_DATA=false
+```
+
+Set it to `true` only when intentionally showing local demo/sample data.
+
+## Supabase Beta Setup
+
+The app uses Supabase Auth and user-owned tables protected by RLS. The current
+persistence work covers saved encounter metadata, creature library records,
+imported pasted creatures, and first-pass Runner live state.
+
+Before inviting beta users:
+
+- apply migrations to the fresh D&D Encounter Builder Supabase project
+- verify RLS with the local validation checklist
+- configure Supabase Auth redirect URLs for local and Vercel
+- add only public anon env vars to Vercel
+
+See:
+
+- `docs/auth-beta-plan.md`
+- `docs/rls-validation.md`
+- `docs/vercel-supabase-beta-deploy.md`
+- `docs/beta-readiness.md`
+
+## Content Boundary
+
+This repo must not bundle official copyrighted non-SRD D&D monster data.
+
+User imports are user-provided content. The SRD importer code and docs remain in
+the repo, but the SRD import UI is hidden by default behind:
+
+```bash
+NEXT_PUBLIC_ENABLE_SRD_IMPORT=false
+```
+
+Set it to `true` only for local development/testing of the experimental
+Tabyltop CC-SRD workflow.

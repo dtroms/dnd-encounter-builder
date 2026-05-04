@@ -206,19 +206,25 @@ export function SavedEncountersDashboard({
   const [sortMode, setSortMode] = useState<SortMode>("recent");
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
   const [encounters, setEncounters] = useState<SavedEncounterSummary[]>(
-    savedEncounterSamples,
+    useSupabaseData ? [] : savedEncounterSamples,
   );
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(useSupabaseData);
   const [isMutating, setIsMutating] = useState(false);
   const [selectedEncounterId, setSelectedEncounterId] = useState(
-    savedEncounterSamples[0]?.id ?? "",
+    useSupabaseData ? "" : savedEncounterSamples[0]?.id ?? "",
   );
 
   useEffect(() => {
     if (!useSupabaseData) {
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setEncounters(savedEncounterSamples);
+        setSelectedEncounterId(
+          (current) => current || savedEncounterSamples[0]?.id || "",
+        );
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let active = true;

@@ -111,6 +111,7 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 export function EncounterApp() {
   const supabaseConfigured = isSupabaseConfigured();
   const localDemoModeEnabled = isLocalDemoModeEnabled();
+  const useLocalSampleData = !supabaseConfigured || localDemoModeEnabled;
   const authRequired = supabaseConfigured && !localDemoModeEnabled;
   const [authLoading, setAuthLoading] = useState(authRequired);
   const [session, setSession] = useState<Session | null>(null);
@@ -118,7 +119,7 @@ export function EncounterApp() {
   const [encounterCampaignId, setEncounterCampaignId] =
     useState("lantern-road");
   const [creatureTemplates, setCreatureTemplates] =
-    useState<LibraryCreature[]>(libraryCreatures);
+    useState<LibraryCreature[]>(useLocalSampleData ? libraryCreatures : []);
   const [creatureLibraryError, setCreatureLibraryError] = useState<string | null>(
     null,
   );
@@ -127,10 +128,10 @@ export function EncounterApp() {
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
   const [addPanelOpen, setAddPanelOpen] = useState(false);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(
-    starterCombatants[0]?.combatantId ?? null,
+    useLocalSampleData ? starterCombatants[0]?.combatantId ?? null : null,
   );
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
-    starterCombatants[0]?.combatantId ?? null,
+    useLocalSampleData ? starterCombatants[0]?.combatantId ?? null : null,
   );
   const [syntheticEntryOverrides, setSyntheticEntryOverrides] =
     useState<SyntheticInitiativeOverrides>({});
@@ -142,13 +143,15 @@ export function EncounterApp() {
   const [runnerError, setRunnerError] = useState<string | null>(null);
   const [runnerSaveMessage, setRunnerSaveMessage] = useState("");
   const [combatGroups, setCombatGroups] = useState<CombatGroup[]>(
-    buildInitialCombatGroups(starterCombatants),
+    useLocalSampleData ? buildInitialCombatGroups(starterCombatants) : [],
   );
   const [encounter, setEncounter] = useState<Encounter>({
-    id: "local-encounter",
-    name: "Lantern Alley Ambush",
-    combatants: starterCombatants,
-    waves: [{ id: "wave-1", name: "Wave 1", deployed: true }],
+    id: useLocalSampleData ? "local-encounter" : "signed-in-empty-encounter",
+    name: useLocalSampleData ? "Lantern Alley Ambush" : "No encounter selected",
+    combatants: useLocalSampleData ? starterCombatants : [],
+    waves: useLocalSampleData
+      ? [{ id: "wave-1", name: "Wave 1", deployed: true }]
+      : [],
     round: 1,
     turnNumber: 0,
     activeCombatantId: null,

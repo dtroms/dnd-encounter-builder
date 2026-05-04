@@ -1,138 +1,104 @@
 # Beta Readiness
 
-## Current Beta Scope
+This checklist is for preparing the D&D Encounter Builder for GitHub and Vercel
+beta deployment. It is intentionally conservative.
 
-The visible beta app should focus on stable local workflows:
+## Security Checklist
 
-- Saved Encounters dashboard navigation.
-- Encounter Builder.
-- Encounter Runner.
-- Creature Library.
-- Paste Stat Block importer.
+- [x] Supabase Auth foundation exists for sign-up, sign-in, and sign-out.
+- [x] Client code uses only `NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- [x] No service role key is used in browser/client code.
+- [x] `.env.local` and other env files are ignored by Git.
+- [x] `.env.example` contains placeholders only, not secrets.
+- [x] Profiles table migration exists.
+- [x] RLS policies exist for user-owned root tables and encounter child tables.
+- [x] RLS validation is documented in `docs/rls-validation.md`.
+- [ ] Run the RLS smoke test against local Supabase before inviting beta users.
+- [ ] Configure Supabase Auth redirect URLs for `http://localhost:3000` and the
+  final Vercel URLs.
 
-The app now has a Supabase Auth shell for beta sign-in/sign-up/sign-out when
-Supabase public env vars are configured. When those env vars are missing, it
-continues to run in Local Demo Mode so local development is not blocked.
+## Data Persistence Status
 
-The database foundation now includes a `profiles` table and RLS policies for the
-planned user-owned tables. This is a security preparation step only; the app
-screens still use local/session state until persistence is wired deliberately.
+| Area | Status |
+| --- | --- |
+| Saved Encounters dashboard | Signed-in metadata persistence started. |
+| Creature Library | Signed-in `creature_templates` persistence started. |
+| Importer paste saves | Reviewed pasted imports save to signed-in Library. |
+| Builder | Still not fully save/load wired to Supabase. |
+| Runner | First-pass live-state persistence started. |
+| SRD import | Hidden by default; still experimental behind feature flag. |
+| Local demo fallback | Preserved when Supabase env vars are missing or demo flag is true. |
 
-The SRD monster import workflow remains in the codebase for behind-the-scenes
-development, but it is hidden from normal beta UI until validation is reliable.
-Local developers can set `NEXT_PUBLIC_ENABLE_SRD_IMPORT=true` to show the
-in-progress SRD import tools.
+## Demo/Sample Data Gate
 
-## Importer Position
-
-Beta users can paste stat blocks they have the right to use, review parsed
-fields, and save creatures into local/session state. The SRD import plan,
-Tabyltop CC-SRD adapter, and docs remain available for future work.
-
-## Not Ready For Public Data Yet
-
-Before storing real beta user data, the app still needs:
-
-- Supabase persistence.
-- RLS smoke tests and two-user validation.
-- Owner user id writes from the app.
-- Deployment environment variables.
-- Production-safe import attribution and validation.
-
-The auth shell plus RLS migration is still not enough for public beta data safety
-by itself. Persistence wiring, owner assignment, and RLS tests still need to be
-completed before real user data is stored.
-
-No payments, subscriptions, or donations should be added before auth and data
-isolation are stable.
-
-## Current Data Isolation Plan
-
-- Profiles are private to the signed-in user.
-- Creature templates, stat block imports, and encounters are owned through
-  `owner_user_id`.
-- Encounter combatants, combat groups, waves, initiative rows, and encounter log
-  rows are protected through parent encounter ownership.
-- SRD imports should create private user-owned library records later unless a
-  separate shared SRD catalog is designed.
-- Local Demo Mode remains a local/session experience and is not production user
-  storage.
-
-## Persistence Progress
-
-Saved Encounters metadata persistence has started for signed-in users:
-
-- the dashboard can fetch the current user's `encounters`
-- the dashboard can create a draft encounter shell
-- the dashboard can duplicate encounter metadata
-- the dashboard can archive an encounter row
-- local demo/mock behavior remains available when Supabase is not configured or
-  `NEXT_PUBLIC_USE_DEMO_DATA=true`
-
-Builder, Runner, and Importer data are still local/session state. Opening a
-database-backed encounter into Builder/Runner and wiring child tables is the next
-persistence step.
-
-Creature Library persistence has also started for signed-in users:
-
-- the Library can fetch the current user's `creature_templates`
-- the Library can create custom creature templates
-- the Library can edit creature template rows
-- the Library can duplicate creature template rows
-- the Library can remove creature template rows after confirmation
-- local demo/mock behavior remains available when Supabase is not configured or
-  `NEXT_PUBLIC_USE_DEMO_DATA=true`
-
-Builder can see the currently loaded signed-in creature list because it already
-uses the shared in-session Library state. Builder encounter persistence is still
-a future step.
-
-Importer paste-save persistence has started for signed-in users:
-
-- reviewed pasted stat blocks can save to the current user's
-  `creature_templates`
-- source/import metadata is preserved on the creature row where the schema
-  supports it
-- saved imports are added to shared in-session creature state so Library and
-  Builder can see them immediately
-- local demo mode still saves pasted imports to local/session state only
-- the richer `stat_block_imports` audit/history table is not wired yet
-
-SRD import tools remain hidden from normal beta UI unless
-`NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`. If enabled locally, Ready SRD records use
-the same Library save path; invalid, needs-review, and duplicate records remain
-skipped.
-
-Runner live-state persistence has started for signed-in users:
-
-- saved encounter Runner state can load combatants, groups, waves, and
-  initiative entries from Supabase
-- HP, initiative, display name, conditions, active turn, selected row, combat
-  groups, and wave deployment save through action-based updates
-- synthetic Lair Action row name and initiative overrides save on
-  `initiative_entries`
-- spell effects currently persist in combatant `snapshot_metadata.spellEffects`
-  because there is no dedicated spell effects column yet
-- local demo mode still uses local/session Runner state only
-
-Still not wired: full Builder save/load, Runner add/remove combatant
-persistence, combat log persistence, and richer spell effect duration tracking.
-
-## RLS Validation Gate
-
-RLS validation must pass before wiring app data persistence.
-
-The repeatable local smoke test lives at:
+Production/beta should use:
 
 ```text
-supabase/tests/rls_smoke_test.sql
+NEXT_PUBLIC_USE_DEMO_DATA=false
 ```
 
-It checks that one fake beta user cannot see or modify another fake beta user's
-profiles, creatures, imports, encounters, combat groups, combatants, waves,
-initiative entries, or encounter log rows.
+When Supabase env vars are configured and demo mode is false, signed-in users
+should not automatically receive premade sample encounters or creatures. Local
+sample data remains available for development when Supabase env vars are missing
+or when demo mode is explicitly enabled.
 
-See `docs/rls-validation.md` for the plain-English checklist and local commands.
+## SRD Import Gate
 
-The browser/client app must never receive a Supabase service role key. Client
-code should use only the public anon key and let RLS enforce user isolation.
+Production/beta should use:
+
+```text
+NEXT_PUBLIC_ENABLE_SRD_IMPORT=false
+```
+
+The Tabyltop CC-SRD importer code and docs remain in the repo, but the visible
+Importer UI should show only paste stat block import and import history unless
+the feature flag is turned on locally.
+
+## UI Smoke Checklist
+
+- [ ] Auth screen renders when Supabase env vars exist and the user is signed
+  out.
+- [ ] Local demo mode renders when Supabase env vars are missing.
+- [ ] Saved Encounters dashboard renders.
+- [ ] Builder renders.
+- [ ] Runner renders.
+- [ ] Creature Library renders.
+- [ ] Importer renders.
+- [ ] Paste stat block parser/review/save works.
+- [ ] Empty states work for signed-in users with no saved data.
+
+## Deployment Checklist
+
+- [ ] GitHub repo created.
+- [ ] No `.env.local` or secret files staged.
+- [ ] Vercel project connected to GitHub.
+- [ ] Vercel env vars added:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `NEXT_PUBLIC_USE_DEMO_DATA=false`
+  - `NEXT_PUBLIC_ENABLE_SRD_IMPORT=false`
+- [ ] `npm run lint` passes.
+- [ ] `npm run build` passes.
+- [ ] Supabase Auth redirect URLs include local and Vercel URLs.
+- [ ] RLS two-user smoke test passes.
+- [ ] Beta smoke test completed with a fresh test account.
+
+## Known Limitations
+
+- Builder save/load is still in progress.
+- Runner persistence is first-pass and action-based.
+- Runner add/remove combatant persistence is not complete.
+- Spell effects persist in combatant snapshot metadata until a dedicated schema
+  field is added.
+- SRD import UI is hidden until validation is stable.
+- No payments, subscriptions, or donations are implemented.
+- No official copyrighted non-SRD D&D monster data is bundled.
+- Beta users should use their own/imported content.
+
+## References
+
+- `docs/auth-beta-plan.md`
+- `docs/rls-validation.md`
+- `docs/vercel-supabase-beta-deploy.md`
+- `docs/database-design.md`

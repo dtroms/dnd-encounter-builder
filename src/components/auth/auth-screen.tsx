@@ -67,8 +67,8 @@ export function AuthScreen() {
               storage is being connected during beta.
             </p>
             <div className="mt-6 rounded-xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm leading-6 text-amber-50/90">
-              This pass only adds identity and session handling. Encounter and
-              library data still stays local for now.
+              Beta persistence is being connected in stages. Some screens may
+              still use local session state while saved data is verified.
             </div>
           </div>
 
