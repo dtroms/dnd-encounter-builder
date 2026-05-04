@@ -121,7 +121,7 @@ function mapTraits(traits: StatBlockTrait[] | undefined) {
 export function creatureTemplateRecordToCreatureTemplate(
   record: CreatureTemplateRecord,
 ): CreatureTemplate {
-  const metadata = record.import_metadata as Record<string, unknown>;
+  const metadata = (record.import_metadata ?? {}) as Record<string, unknown>;
 
   return {
     id: record.id,
@@ -173,7 +173,7 @@ export function creatureTemplateRecordToCreatureTemplate(
 export function creatureTemplateRecordToLibraryCreature(
   record: CreatureTemplateRecord,
 ): LibraryCreature {
-  const metadata = record.import_metadata as Record<string, unknown>;
+  const metadata = (record.import_metadata ?? {}) as Record<string, unknown>;
   const template = creatureTemplateRecordToCreatureTemplate(record);
 
   return {

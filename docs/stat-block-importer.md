@@ -169,6 +169,11 @@ Save to Library creates a private `creature_templates` row owned by that user.
 The saved creature is also added to the shared in-session creature list so it is
 visible in the Creature Library and Builder without a reload.
 
+Signed-in saves include `owner_user_id` from the current Supabase Auth user so
+RLS can allow the insert. If a save fails, the Importer now shows a safe reason
+such as a missing required field, missing session, RLS rejection, or database
+schema mismatch instead of only a generic failure message.
+
 When Supabase is not configured or `NEXT_PUBLIC_USE_DEMO_DATA=true`, Save to
 Library keeps the previous local/session behavior.
 
@@ -255,6 +260,11 @@ Pasted imports preserve metadata where the schema supports it:
 The richer `stat_block_imports` history table is not wired yet. For now, pasted
 imports save directly to `creature_templates`; fuller import audit/history can
 be added later.
+
+If a hosted Supabase project is behind the latest local schema and rejects an
+optional import metadata column, the save helper can retry with only the core
+`creature_templates` fields. This preserves the creature save while making it
+clear that richer import history still depends on the full migration set.
 
 ## Boundaries
 

@@ -110,6 +110,12 @@ shared local/session creature list. Those creatures use the Imported source
 badge and become searchable in both the Library and Builder during the current
 session.
 
+Signed-in imported creatures require `owner_user_id` so RLS can keep each user's
+library private. Import save failures now surface safe details in the Importer,
+such as missing session, RLS rejection, missing required fields, or schema
+mismatches. Optional import metadata is preserved when the hosted schema
+supports it.
+
 The hidden SRD importer work can also save Ready records through the same
 Library save path when enabled for development. It remains hidden from the
 normal beta UI unless `NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`.

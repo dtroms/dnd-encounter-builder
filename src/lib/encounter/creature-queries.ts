@@ -1,5 +1,5 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { CreatureTemplateRecord } from "./db-types";
+import type { CreatureTemplateRecord, CreatureTemplateRecordInput } from "./db-types";
 import type { LibraryCreature } from "./library-sample-data";
 import { libraryCreatureToRecordInput } from "./mappers";
 
@@ -24,6 +24,36 @@ function safeErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function safeDatabaseErrorMessage(error: {
+  code?: string;
+  details?: string | null;
+  message?: string;
+} | null | undefined, fallback: string) {
+  if (!error) {
+    return fallback;
+  }
+
+  const message = error.message?.trim() || fallback;
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("row-level security") ||
+    lowerMessage.includes("violates row-level security policy")
+  ) {
+    return "Database insert was rejected by RLS. Confirm you are signed in and owner_user_id matches your user.";
+  }
+
+  if (lowerMessage.includes("column") && lowerMessage.includes("does not exist")) {
+    return `Database insert failed: ${message}`;
+  }
+
+  if (error.code) {
+    return `Database insert failed (${error.code}): ${message}`;
+  }
+
+  return `Database insert failed: ${message}`;
 }
 
 async function getSignedInUserId() {
@@ -96,6 +126,11 @@ export async function createCreatureTemplate(
       },
       userId,
     );
+    const validationError = validateCreatureTemplateInsert(input);
+
+    if (validationError) {
+      return { data: null, error: validationError };
+    }
 
     const { data, error: insertError } = await supabase
       .from("creature_templates")
@@ -104,7 +139,31 @@ export async function createCreatureTemplate(
       .single();
 
     if (insertError) {
-      return { data: null, error: insertError.message };
+      if (isMissingColumnError(insertError)) {
+        const compatibleInput = removeOptionalImportColumns(input);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("creature_templates")
+          .insert(compatibleInput)
+          .select("*")
+          .single();
+
+        if (!fallbackError && fallbackData) {
+          return { data: fallbackData as CreatureTemplateRecord, error: null };
+        }
+
+        return {
+          data: null,
+          error: safeDatabaseErrorMessage(
+            fallbackError ?? insertError,
+            "Could not create creature.",
+          ),
+        };
+      }
+
+      return {
+        data: null,
+        error: safeDatabaseErrorMessage(insertError, "Could not create creature."),
+      };
     }
 
     return { data: data as CreatureTemplateRecord, error: null };
@@ -114,6 +173,109 @@ export async function createCreatureTemplate(
       error: safeErrorMessage(caughtError, "Could not create creature."),
     };
   }
+}
+
+function isMissingColumnError(error: { code?: string; message?: string }) {
+  return (
+    error.code === "42703" ||
+    (error.message?.toLowerCase().includes("column") &&
+      error.message.toLowerCase().includes("does not exist"))
+  );
+}
+
+function removeOptionalImportColumns(input: CreatureTemplateRecordInput) {
+  const compatibleInput: Partial<CreatureTemplateRecordInput> = { ...input };
+
+  delete compatibleInput.import_method;
+  delete compatibleInput.imported_at;
+  delete compatibleInput.original_import_text;
+  delete compatibleInput.import_notes;
+  delete compatibleInput.parser_version;
+  delete compatibleInput.parser_confidence;
+  delete compatibleInput.import_metadata;
+
+  return compatibleInput;
+}
+
+function validateCreatureTemplateInsert(input: CreatureTemplateRecordInput) {
+  const missingFields = [
+    input.owner_user_id ? null : "owner_user_id",
+    input.name.trim() ? null : "name",
+    input.creature_type.trim() ? null : "creature_type",
+    Number.isFinite(input.armor_class) ? null : "armor_class",
+    Number.isFinite(input.hit_points) ? null : "hit_points",
+    Number.isFinite(input.initiative_bonus) ? null : "initiative_bonus",
+    hasCompleteAbilityScores(input.ability_scores) ? null : "ability_scores",
+  ].filter(Boolean) as string[];
+
+  if (missingFields.length) {
+    return `Missing or invalid required field${missingFields.length === 1 ? "" : "s"}: ${missingFields.join(", ")}.`;
+  }
+
+  const jsonFields: Array<[string, unknown]> = [
+    ["ability_scores", input.ability_scores],
+    ["saving_throws", input.saving_throws],
+    ["skills", input.skills],
+    ["resistances", input.resistances],
+    ["immunities", input.immunities],
+    ["vulnerabilities", input.vulnerabilities],
+    ["traits", input.traits],
+    ["actions", input.actions],
+    ["bonus_actions", input.bonus_actions],
+    ["reactions", input.reactions],
+    ["legendary_actions", input.legendary_actions],
+    ["lair_actions", input.lair_actions],
+    ["import_metadata", input.import_metadata],
+  ];
+
+  const invalidJsonField = jsonFields.find(
+    ([, value]) => !isJsonSerializableWithoutInvalidNumbers(value),
+  );
+
+  if (invalidJsonField) {
+    return `Import data could not be saved because ${invalidJsonField[0]} contains invalid JSON values.`;
+  }
+
+  return null;
+}
+
+function hasCompleteAbilityScores(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const scores = value as Record<string, unknown>;
+
+  return ["str", "dex", "con", "int", "wis", "cha"].every(
+    (key) => typeof scores[key] === "number" && Number.isFinite(scores[key]),
+  );
+}
+
+function isJsonSerializableWithoutInvalidNumbers(value: unknown): boolean {
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    value === undefined
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonSerializableWithoutInvalidNumbers);
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).every(
+      isJsonSerializableWithoutInvalidNumbers,
+    );
+  }
+
+  return false;
 }
 
 export async function updateCreatureTemplate(

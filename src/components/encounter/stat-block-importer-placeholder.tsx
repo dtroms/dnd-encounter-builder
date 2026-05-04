@@ -239,10 +239,12 @@ export function StatBlockImporterPlaceholder({
         } Creature Library.`,
       );
     } catch (error) {
-      setSaveError(
-        error instanceof Error
+      const reason =
+        error instanceof Error && error.message.trim()
           ? error.message
-          : "Could not save this creature to the library.",
+          : "Unknown save error.";
+      setSaveError(
+        `Could not save this creature to the library. ${reason}`,
       );
     } finally {
       setSaving(false);

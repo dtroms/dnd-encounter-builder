@@ -457,6 +457,30 @@ export function EncounterApp() {
     return creature;
   }
 
+  async function saveImportedCreatureTemplate(creature: LibraryCreature) {
+    if (useSupabaseCreatureLibrary) {
+      setCreatureLibraryMutating(true);
+      setCreatureLibraryError(null);
+
+      const result = await createCreatureTemplateRecord(creature);
+
+      if (result.error || !result.data) {
+        const message = result.error ?? "Could not create imported creature.";
+        setCreatureLibraryError(message);
+        setCreatureLibraryMutating(false);
+        throw new Error(message);
+      }
+
+      const savedCreature = creatureTemplateRecordToLibraryCreature(result.data);
+      setCreatureTemplates((current) => [savedCreature, ...current]);
+      setCreatureLibraryMutating(false);
+      return savedCreature;
+    }
+
+    setCreatureTemplates((current) => [creature, ...current]);
+    return creature;
+  }
+
   async function updateCreatureTemplate(updatedCreature: LibraryCreature) {
     if (useSupabaseCreatureLibrary) {
       setCreatureLibraryMutating(true);
@@ -1413,7 +1437,7 @@ export function EncounterApp() {
         <StatBlockImporterPlaceholder
           existingCreatures={creatureTemplates}
           useSupabaseData={useSupabaseCreatureLibrary}
-          onSaveCreature={createCreatureTemplate}
+          onSaveCreature={saveImportedCreatureTemplate}
         />
       ) : null}
     </AppShell>
