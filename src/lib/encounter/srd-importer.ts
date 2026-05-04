@@ -21,8 +21,15 @@ export type SrdImportPreview = {
 
 export type SrdAbilityScoreDiagnostics = {
   detected: boolean;
+  finalPath: string;
+  rawAbilityFields: string[];
+  rawKeys: string[];
+  rawName: string;
+  rawStatsExists: boolean;
+  rawStatsPreview: string;
   source: string;
   summary: string;
+  validationPassed: boolean;
 };
 
 export type SrdDatasetParseResult = {
@@ -172,8 +179,15 @@ export function normalizeTabyltopSrdMonster(
     return {
       abilityScoreDiagnostics: {
         detected: false,
+        finalPath: "creature.abilityScores.str/dex/con/int/wis/cha",
+        rawAbilityFields: [],
+        rawKeys: [],
+        rawName: "Malformed SRD Record",
+        rawStatsExists: false,
+        rawStatsPreview: "No ability-like fields found on raw record.",
         source: "not detected",
         summary: "STR Needs review, DEX Needs review, CON Needs review, INT Needs review, WIS Needs review, CHA Needs review",
+        validationPassed: false,
       },
       creature,
       missingRequiredFields: ["malformed record object"],
@@ -378,11 +392,11 @@ export function normalizeTabyltopSrdMonster(
       : "ready";
 
   return {
-    abilityScoreDiagnostics: {
-      detected: abilityResult.detected,
-      source: abilityResult.source,
-      summary: formatAbilityScores(abilityScores),
-    },
+    abilityScoreDiagnostics: buildAbilityScoreDiagnostics(
+      raw,
+      abilityResult,
+      creature,
+    ),
     creature,
     missingRequiredFields: allMissingFields,
     raw,
@@ -797,6 +811,75 @@ function parseSrdAbilityScores(raw: TabyltopSrdMonster): {
   };
 }
 
+function buildAbilityScoreDiagnostics(
+  raw: TabyltopSrdMonster,
+  abilityResult: {
+    detected: boolean;
+    scores: AbilityScores;
+    source: string;
+  },
+  creature: LibraryCreature,
+): SrdAbilityScoreDiagnostics {
+  const rawStats =
+    readValue(raw, "stats") ??
+    readValue(raw, "Stats") ??
+    readValue(raw, "ability_scores") ??
+    readValue(raw, "abilityScores") ??
+    readValue(raw, "abilities") ??
+    readValue(raw, "attributes");
+  const rawAbilityFields = getRawAbilityFieldNames(raw);
+  const rawStatsPreview = rawStats !== undefined
+    ? stringifyDiagnosticValue(rawStats)
+    : rawAbilityFields.length
+      ? rawAbilityFields
+          .map((field) => `${field}: ${stringifyDiagnosticValue(readValue(raw, field))}`)
+          .join(", ")
+      : "No ability-like fields found on raw record.";
+
+  return {
+    detected: abilityResult.detected,
+    finalPath: "creature.abilityScores.str/dex/con/int/wis/cha",
+    rawAbilityFields,
+    rawKeys: Object.keys(raw).slice(0, 30),
+    rawName: readString(raw, ["name", "Name"]) || "Unnamed SRD record",
+    rawStatsExists: rawStats !== undefined,
+    rawStatsPreview,
+    source: abilityResult.source,
+    summary: abilityResult.detected
+      ? formatAbilityScores(abilityResult.scores)
+      : "STR Needs review, DEX Needs review, CON Needs review, INT Needs review, WIS Needs review, CHA Needs review",
+    validationPassed:
+      abilityResult.detected && hasValidAbilityScores(creature.abilityScores),
+  };
+}
+
+function getRawAbilityFieldNames(raw: TabyltopSrdMonster) {
+  const abilityFieldCandidates = [
+    "stats",
+    "Stats",
+    "abilities",
+    "Abilities",
+    "ability_scores",
+    "abilityScores",
+    "attributes",
+    "Attributes",
+    "STR",
+    "str",
+    "DEX",
+    "dex",
+    "CON",
+    "con",
+    "INT",
+    "int",
+    "WIS",
+    "wis",
+    "CHA",
+    "cha",
+  ];
+
+  return abilityFieldCandidates.filter((field) => readValue(raw, field) !== undefined);
+}
+
 function stripLeadingLabel(value: string, label: string) {
   return value.replace(new RegExp(`^${escapeRegExp(label)}\\s*:?\\s*`, "i"), "");
 }
@@ -825,6 +908,17 @@ function safeNumber(value: unknown) {
 function parseAbilityScoreValue(value: unknown) {
   if (value === undefined || value === null) {
     return null;
+  }
+
+  if (isPlainObject(value)) {
+    const nested =
+      value.value ??
+      value.score ??
+      value.text ??
+      value.number ??
+      stringifySrdValue(value);
+
+    return parseAbilityScoreValue(nested);
   }
 
   const match = String(value).match(/\d+/);
@@ -988,6 +1082,21 @@ function stringifySrdValue(value: unknown): string {
   return "";
 }
 
+function stringifyDiagnosticValue(value: unknown) {
+  const text = stringifySrdValue(value);
+
+  if (text) {
+    return text.length > 220 ? `${text.slice(0, 220)}...` : text;
+  }
+
+  try {
+    const json = JSON.stringify(value);
+    return json && json.length > 220 ? `${json.slice(0, 220)}...` : json || "";
+  } catch {
+    return "";
+  }
+}
+
 function extractTabyltopDocumentMonsterRecords(
   blocks: unknown[],
 ): TabyltopSrdMonster[] {
@@ -1087,10 +1196,6 @@ function buildMonsterRecordFromDocumentBlocks(
     const type = readDocumentBlockType(block);
     const text = readDocumentBlockText(block);
 
-    if (!text) {
-      return;
-    }
-
     if (type === "table") {
       const scores = extractAbilityScoresFromDocumentTable(block);
 
@@ -1098,6 +1203,10 @@ function buildMonsterRecordFromDocumentBlocks(
         record.stats = scores;
       }
 
+      return;
+    }
+
+    if (!text) {
       return;
     }
 
@@ -1274,7 +1383,18 @@ function extractAbilityScoresFromDocumentTable(block: unknown) {
   });
 
   if (!scoreRow) {
-    return [];
+    const flattenedValues = rows
+      .flat()
+      .map(readDocumentTableCellText)
+      .filter(Boolean);
+    const scoreValues = flattenedValues.filter((value) =>
+      /^\d+\s*(?:\(|$)/.test(value),
+    );
+
+    return scoreValues
+      .map(parseAbilityScoreValue)
+      .filter((score): score is number => score !== null)
+      .slice(0, 6);
   }
 
   return scoreRow
@@ -1293,6 +1413,10 @@ function normalizeDocumentTableRows(rows: unknown[]) {
 
       if (isPlainObject(row) && Array.isArray(row.value)) {
         return row.value;
+      }
+
+      if (isPlainObject(row) && Array.isArray(row.cells)) {
+        return row.cells;
       }
 
       return [];
@@ -1399,7 +1523,23 @@ function sampleRecordKeys(records: TabyltopSrdMonster[]) {
 }
 
 function readDocumentTableCellText(cell: unknown) {
-  if (!isPlainObject(cell) || !Array.isArray(cell.subelements)) {
+  if (typeof cell === "string" || typeof cell === "number") {
+    return String(cell).trim();
+  }
+
+  if (!isPlainObject(cell)) {
+    return "";
+  }
+
+  if (typeof cell.text === "string") {
+    return cell.text.trim();
+  }
+
+  if (typeof cell.value === "string" || typeof cell.value === "number") {
+    return String(cell.value).trim();
+  }
+
+  if (!Array.isArray(cell.subelements)) {
     return "";
   }
 

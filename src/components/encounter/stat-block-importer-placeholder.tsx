@@ -1544,11 +1544,37 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
         ))}
       </div>
 
-      <details className="mt-3 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+      <details
+        className="mt-3 rounded-xl border border-slate-800 bg-slate-900/45 p-3"
+        open
+      >
         <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-slate-500">
           Ability Import Diagnostic
         </summary>
         <div className="mt-2 space-y-1 text-sm leading-5 text-slate-400">
+          <DiagnosticLine
+            label="Raw record"
+            value={preview.abilityScoreDiagnostics.rawName}
+          />
+          <DiagnosticLine
+            label="Raw keys"
+            value={preview.abilityScoreDiagnostics.rawKeys.join(", ") || "None"}
+          />
+          <DiagnosticLine
+            label="Ability-like fields"
+            value={
+              preview.abilityScoreDiagnostics.rawAbilityFields.join(", ") ||
+              "No ability-like fields found on raw record."
+            }
+          />
+          <DiagnosticLine
+            label="raw.stats exists"
+            value={preview.abilityScoreDiagnostics.rawStatsExists ? "Yes" : "No"}
+          />
+          <DiagnosticLine
+            label="raw.stats / ability value"
+            value={preview.abilityScoreDiagnostics.rawStatsPreview}
+          />
           <p>
             Source:{" "}
             <span className="font-bold text-slate-200">
@@ -1561,6 +1587,18 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
               {preview.abilityScoreDiagnostics.summary}
             </span>
           </p>
+          <DiagnosticLine
+            label="Final field path"
+            value={preview.abilityScoreDiagnostics.finalPath}
+          />
+          <DiagnosticLine
+            label="Validation check"
+            value={
+              preview.abilityScoreDiagnostics.validationPassed
+                ? "Passed"
+                : "Failed"
+            }
+          />
         </div>
       </details>
 
@@ -1600,6 +1638,14 @@ function SrdReviewPanel({ preview }: { preview?: SrdImportPreview }) {
         ) : null}
       </div>
     </aside>
+  );
+}
+
+function DiagnosticLine({ label, value }: { label: string; value: string }) {
+  return (
+    <p>
+      {label}: <span className="font-bold text-slate-200">{value}</span>
+    </p>
   );
 }
 

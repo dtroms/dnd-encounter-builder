@@ -117,6 +117,10 @@ the parsed scores as STR, DEX, CON, INT, WIS, and CHA for quick visual checking.
 When the full raw GitHub file is imported, some monsters are rebuilt from
 document table blocks instead of neat monster objects; those table rows are also
 normalized into the same ability score shape before validation.
+The selected SRD review card includes an Ability Import Diagnostic while this
+adapter is being tuned. It shows the raw record name, raw keys, whether
+`raw.stats` exists, ability-like raw fields, parsed output, final normalized
+field path, and ability validation result without dumping the full record.
 
 Validation blocks obvious broken records from import and marks incomplete
 records as Needs Review.
