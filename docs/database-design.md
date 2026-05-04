@@ -154,6 +154,18 @@ Builder responsibilities later:
 
 The Builder should not mutate running combatant state unless the user intentionally applies changes to the live encounter.
 
+The first signed-in Builder persistence pass saves a draft by replacing the
+encounter's current Builder child rows with the local Builder state:
+
+- `combat_groups`
+- `encounter_waves`
+- `encounter_combatants`
+- `initiative_entries`
+
+This is action-based through Save Draft or Launch Runner, not background sync.
+It creates enough saved state for the Runner to load the built encounter and
+resume live combat later.
+
 ## Encounter Runner
 
 The Runner uses live encounter data:

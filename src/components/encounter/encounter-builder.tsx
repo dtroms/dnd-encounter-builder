@@ -26,6 +26,8 @@ type EncounterBuilderProps = {
   encounterName?: string;
   templates: CreatureTemplate[];
   waves: EncounterWave[];
+  isSaving?: boolean;
+  saveMessage?: string;
   onCreateGroup: (group: { name: string; color: string }) => void;
   onRenameGroup: (group: { groupId: string; newLabel: string }) => void;
   onUpdateGroupColor: (groupId: string, color: string) => void;
@@ -48,6 +50,7 @@ type EncounterBuilderProps = {
     updates: Partial<Pick<EncounterWave, "description" | "name">>,
   ) => void;
   onLaunchRunner: () => void;
+  onSaveDraft: () => Promise<boolean> | boolean;
 };
 
 type TypeFilter = "all" | CombatantType | "npc";
@@ -99,6 +102,8 @@ export function EncounterBuilder({
   encounterName = "Lantern Alley Ambush",
   templates,
   waves,
+  isSaving = false,
+  saveMessage = "",
   onCampaignChange,
   onCreateGroup,
   onRenameGroup,
@@ -113,6 +118,7 @@ export function EncounterBuilder({
   onUpdate,
   onUpdateWave,
   onLaunchRunner,
+  onSaveDraft,
 }: EncounterBuilderProps) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -232,9 +238,14 @@ export function EncounterBuilder({
           setDraftNotice("");
         }}
         onLaunchRunner={onLaunchRunner}
-        onSaveDraft={() =>
-          setDraftNotice(`Draft staged for ${getCampaignName(campaignId)}.`)
-        }
+        onSaveDraft={async () => {
+          const saved = await onSaveDraft();
+          if (saved) {
+            setDraftNotice(`Draft saved for ${getCampaignName(campaignId)}.`);
+          }
+        }}
+        saveMessage={saveMessage}
+        isSaving={isSaving}
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem]">
@@ -451,9 +462,11 @@ function CurrentEncounterHeader({
   encounterName,
   groupCount,
   hasLairActions,
+  isSaving,
   onCampaignChange,
   onLaunchRunner,
   onSaveDraft,
+  saveMessage,
 }: {
   bossCount: number;
   campaignId: string;
@@ -463,9 +476,11 @@ function CurrentEncounterHeader({
   encounterName: string;
   groupCount: number;
   hasLairActions: boolean;
+  isSaving: boolean;
   onCampaignChange: (campaignId: string) => void;
   onLaunchRunner: () => void;
   onSaveDraft: () => void;
+  saveMessage: string;
 }) {
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950/75 p-4 shadow-2xl shadow-black/20">
@@ -506,10 +521,11 @@ function CurrentEncounterHeader({
           </label>
           <button
             className="self-end rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
+            disabled={isSaving}
             type="button"
             onClick={onSaveDraft}
           >
-            Save Draft later
+            {isSaving ? "Saving..." : "Save Draft"}
           </button>
           <button
             className="self-end rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200"
@@ -521,9 +537,9 @@ function CurrentEncounterHeader({
         </div>
       </div>
 
-      {draftNotice ? (
+      {draftNotice || saveMessage ? (
         <p className="mt-3 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-100">
-          {draftNotice} Supabase save comes later.
+          {saveMessage || draftNotice}
         </p>
       ) : null}
     </section>

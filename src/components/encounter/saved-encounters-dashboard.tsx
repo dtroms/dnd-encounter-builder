@@ -445,6 +445,7 @@ export function SavedEncountersDashboard({
       setSelectedEncounterId(localEncounter.id);
       setStatusFilter((current) => (current === "archived" ? "all" : current));
       setActiveDetailTab("overview");
+      onOpenBuilder(localEncounter.id);
       return;
     }
 
@@ -464,6 +465,7 @@ export function SavedEncountersDashboard({
       setSelectedEncounterId(summary.id);
       setStatusFilter((current) => (current === "archived" ? "all" : current));
       setActiveDetailTab("overview");
+      onOpenBuilder(summary.id);
     }
 
     setIsMutating(false);

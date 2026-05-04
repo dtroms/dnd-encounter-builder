@@ -2,7 +2,10 @@
 
 The Encounter Builder now uses a creature browser plus encounter roster model.
 
-This pass uses local sample data only. It does not wire the Builder to Supabase, add auth, add RLS, connect to a remote database, implement the SRD importer, or scrape any website.
+The Builder now has a beta-critical signed-in save path. Local Demo Mode still
+uses local/session state, but signed-in Supabase mode can load a selected saved
+encounter, save the Builder draft, and launch the Runner against that saved
+encounter.
 
 ## Creature Browser
 
@@ -24,7 +27,10 @@ The interaction model is browse, inspect, then add. It borrows general list/brow
 The Builder no longer has its own diverging hardcoded creature list. It receives
 the same local creature templates used by the Creature Library. New, edited, and
 duplicated Library creatures become available in Builder during the same session.
-No Supabase persistence is involved yet.
+Signed-in Library creatures are loaded from the user's `creature_templates`.
+When a creature is added to a signed-in Builder encounter, Save Draft snapshots
+the creature into `encounter_combatants` so later template edits do not rewrite
+the saved encounter.
 
 ## Current Encounter Header
 
@@ -38,7 +44,7 @@ The header includes:
 - campaign name
 - compact summary pills for combatants, groups, bosses, and lair readiness
 - campaign selector
-- Save Draft later placeholder
+- Save Draft action
 - Launch Runner action
 
 Below the header, the Builder work area contains the Creature Browser on the
@@ -131,9 +137,14 @@ Local mock campaign options are:
 - Violet Keg Cellars
 - Unassigned / No Campaign
 
-Selecting a campaign updates local app state and appears in the Builder summary. The Save Draft later button currently stages a local UI notice only; it does not write to Supabase or create a saved encounter record yet.
+Selecting a campaign updates local app state and appears in the Builder summary.
+In signed-in mode, Save Draft stores a valid Supabase campaign id when the
+encounter came from the dashboard campaign flow. Local-only sample campaign ids
+are treated as Unassigned in Supabase mode to avoid invalid database ids.
 
-Future database work will need campaign persistence, likely either campaign fields on saved encounters or a dedicated `campaigns` table. That future wiring should allow the Saved Encounters dashboard campaign filters to use real saved encounter campaign assignments.
+Campaign persistence uses the `campaigns` table and
+`encounters.campaign_id`. The dashboard remains the clearest place to edit
+campaign assignment for now.
 
 ## Waves / Reinforcements
 
@@ -152,7 +163,34 @@ The basic workflow is:
 Wave 1 is deployed by default and represents the starting encounter. Later waves
 are held out of the live Runner initiative list until they are deployed.
 
-Wave data is local React state only. It does not write to Supabase yet.
+In signed-in mode, Save Draft writes current wave tabs to `encounter_waves`,
+including deployed state and descriptions. Combatant wave assignment is saved on
+`encounter_combatants.wave_id`.
 
-Future work can deepen saved draft behavior and database persistence without
-changing the basic browser-plus-roster workflow.
+## Signed-In Save Draft Flow
+
+Save Draft is now real in signed-in mode:
+
+1. The selected encounter row is updated.
+2. Current combat groups are saved to `combat_groups`.
+3. Current waves are saved to `encounter_waves`.
+4. Current roster combatants are saved as `encounter_combatants` snapshots.
+5. Initiative rows are created in `initiative_entries` for saved combatants.
+6. A Lair Actions initiative row is created when the roster has lair actions.
+
+The first implementation replaces the encounter's draft child rows with the
+current Builder state, then reloads the saved database rows into local app
+state. This gives the Runner database ids for HP, initiative, condition, group,
+and wave persistence.
+
+Launch Runner saves the Builder draft first in signed-in mode. If Save Draft
+fails, the app does not silently move to Runner.
+
+## Known Builder Persistence Limitations
+
+- Builder inline encounter name editing is still not built; use the dashboard
+  Edit Encounter form for name, description, status, and campaign assignment.
+- Builder add/remove actions are saved when Save Draft or Launch Runner runs,
+  not as a complex background sync.
+- The Builder campaign selector still includes legacy demo campaign labels; in
+  Supabase mode only real UUID campaign ids are persisted.

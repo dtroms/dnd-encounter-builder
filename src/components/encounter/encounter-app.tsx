@@ -32,6 +32,11 @@ import {
   encounterCombatantRecordToEncounterCombatant,
 } from "@/lib/encounter/mappers";
 import {
+  fetchBuilderEncounterState,
+  saveBuilderEncounterState,
+  type BuilderEncounterState,
+} from "@/lib/encounter/builder-queries";
+import {
   advanceTurn,
   previousTurn,
   rollInitiative,
@@ -139,6 +144,10 @@ export function EncounterApp() {
     Record<string, string>
   >({});
   const [runnerEncounterId, setRunnerEncounterId] = useState<string | null>(null);
+  const [builderEncounterId, setBuilderEncounterId] = useState<string | null>(null);
+  const [builderLoading, setBuilderLoading] = useState(false);
+  const [builderError, setBuilderError] = useState<string | null>(null);
+  const [builderSaveMessage, setBuilderSaveMessage] = useState("");
   const [runnerLoading, setRunnerLoading] = useState(false);
   const [runnerError, setRunnerError] = useState<string | null>(null);
   const [runnerSaveMessage, setRunnerSaveMessage] = useState("");
@@ -194,6 +203,7 @@ export function EncounterApp() {
 
   const useSupabaseCreatureLibrary = Boolean(authRequired && session);
   const useSupabaseRunnerState = Boolean(authRequired && session);
+  const useSupabaseBuilderState = Boolean(authRequired && session);
 
   const deployedCombatants = useMemo(
     () => getDeployedCombatants(encounter.combatants, encounter.waves),
@@ -221,6 +231,75 @@ export function EncounterApp() {
     );
   }, [deployedCombatants, encounter.activeCombatantId, syntheticEntryOverrides]);
 
+  const applyLoadedEncounterState = useCallback((state: BuilderEncounterState) => {
+    const groupById = new Map(
+      state.combatGroups.map((group) => [group.id, group]),
+    );
+    const combatants = state.combatants.map((record) => {
+      const combatant = encounterCombatantRecordToEncounterCombatant(record);
+      const group = record.combat_group_id
+        ? groupById.get(record.combat_group_id)
+        : null;
+
+      return group
+        ? {
+            ...combatant,
+            combatGroupColor: group.color_key,
+            combatGroupId: group.id,
+            combatGroupLabel: group.name,
+          }
+        : combatant;
+    });
+    const waves = state.waves.map((wave) => ({
+      id: wave.id,
+      name: wave.name,
+      description: wave.description ?? undefined,
+      deployed: wave.deployed,
+    }));
+    const entryMapping = buildInitiativeEntryMapping(state.initiativeEntries);
+    const syntheticOverrides = buildSyntheticOverrides(state.initiativeEntries);
+    const activeCombatantId = getLocalEntryId(
+      state.encounter.active_entry_id,
+      state.initiativeEntries,
+    );
+    const selectedLocalEntryId = getLocalEntryId(
+      state.encounter.selected_entry_id,
+      state.initiativeEntries,
+    );
+
+    setRunnerInitiativeEntryIds(entryMapping);
+    setSyntheticEntryOverrides(syntheticOverrides);
+    setCombatGroups(
+      state.combatGroups.map((group) => ({
+        color: group.color_key,
+        id: group.id,
+        name: group.name,
+      })),
+    );
+    setEncounter({
+      id: state.encounter.id,
+      name: state.encounter.name,
+      activeCombatantId:
+        activeCombatantId ??
+        sortCombatantsByInitiative(getDeployedCombatants(combatants, waves))[0]
+          ?.combatantId ??
+        null,
+      combatants,
+      round: state.encounter.current_round,
+      turnNumber: state.encounter.current_turn_index,
+      waves: waves.length
+        ? waves
+        : [{ id: "wave-local-fallback", name: "Wave 1", deployed: true }],
+    });
+    setEncounterCampaignId(state.encounter.campaign_id ?? "unassigned");
+    setSelectedEntryId(selectedLocalEntryId ?? combatants[0]?.combatantId ?? null);
+    setSelectedCombatantId(
+      selectedLocalEntryId && selectedLocalEntryId !== "lair-actions"
+        ? selectedLocalEntryId
+        : combatants[0]?.combatantId ?? null,
+    );
+  }, []);
+
   const loadRunnerEncounter = useCallback(
     async (encounterId: string) => {
       if (!useSupabaseRunnerState) {
@@ -239,76 +318,10 @@ export function EncounterApp() {
         return;
       }
 
-      const groupById = new Map(
-        result.data.combatGroups.map((group) => [group.id, group]),
-      );
-      const combatants = result.data.combatants.map((record) => {
-        const combatant = encounterCombatantRecordToEncounterCombatant(record);
-        const group = record.combat_group_id
-          ? groupById.get(record.combat_group_id)
-          : null;
-
-        return group
-          ? {
-              ...combatant,
-              combatGroupColor: group.color_key,
-              combatGroupId: group.id,
-              combatGroupLabel: group.name,
-            }
-          : combatant;
-      });
-      const waves = result.data.waves.map((wave) => ({
-        id: wave.id,
-        name: wave.name,
-        description: wave.description ?? undefined,
-        deployed: wave.deployed,
-      }));
-      const entryMapping = buildInitiativeEntryMapping(result.data.initiativeEntries);
-      const syntheticOverrides = buildSyntheticOverrides(
-        result.data.initiativeEntries,
-      );
-      const activeCombatantId = getLocalEntryId(
-        result.data.encounter.active_entry_id,
-        result.data.initiativeEntries,
-      );
-      const selectedLocalEntryId = getLocalEntryId(
-        result.data.encounter.selected_entry_id,
-        result.data.initiativeEntries,
-      );
-
-      setRunnerInitiativeEntryIds(entryMapping);
-      setSyntheticEntryOverrides(syntheticOverrides);
-      setCombatGroups(
-        result.data.combatGroups.map((group) => ({
-          color: group.color_key,
-          id: group.id,
-          name: group.name,
-        })),
-      );
-      setEncounter({
-        id: result.data.encounter.id,
-        name: result.data.encounter.name,
-        activeCombatantId:
-          activeCombatantId ??
-          sortCombatantsByInitiative(getDeployedCombatants(combatants, waves))[0]
-            ?.combatantId ??
-          null,
-        combatants,
-        round: result.data.encounter.current_round,
-        turnNumber: result.data.encounter.current_turn_index,
-        waves: waves.length
-          ? waves
-          : [{ id: "wave-local-fallback", name: "Wave 1", deployed: true }],
-      });
-      setSelectedEntryId(selectedLocalEntryId ?? combatants[0]?.combatantId ?? null);
-      setSelectedCombatantId(
-        selectedLocalEntryId && selectedLocalEntryId !== "lair-actions"
-          ? selectedLocalEntryId
-          : combatants[0]?.combatantId ?? null,
-      );
+      applyLoadedEncounterState(result.data);
       setRunnerLoading(false);
     },
-    [useSupabaseRunnerState],
+    [applyLoadedEncounterState, useSupabaseRunnerState],
   );
 
   useEffect(() => {
@@ -326,6 +339,46 @@ export function EncounterApp() {
 
     return () => window.clearTimeout(timeoutId);
   }, [activeView, loadRunnerEncounter, runnerEncounterId, useSupabaseRunnerState]);
+
+  const loadBuilderEncounter = useCallback(
+    async (encounterId: string) => {
+      if (!useSupabaseBuilderState) {
+        return;
+      }
+
+      setBuilderLoading(true);
+      setBuilderError(null);
+      setBuilderSaveMessage("");
+
+      const result = await fetchBuilderEncounterState(encounterId);
+
+      if (result.error || !result.data) {
+        setBuilderError(result.error ?? "Could not load Builder encounter.");
+        setBuilderLoading(false);
+        return;
+      }
+
+      applyLoadedEncounterState(result.data);
+      setBuilderLoading(false);
+    },
+    [applyLoadedEncounterState, useSupabaseBuilderState],
+  );
+
+  useEffect(() => {
+    if (
+      !useSupabaseBuilderState ||
+      activeView !== "builder" ||
+      !builderEncounterId
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadBuilderEncounter(builderEncounterId);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeView, builderEncounterId, loadBuilderEncounter, useSupabaseBuilderState]);
 
   function noteRunnerSaveError(error: string | null | undefined) {
     if (error) {
@@ -372,6 +425,43 @@ export function EncounterApp() {
           current.activeCombatantId ?? additions[0]?.combatantId ?? null,
       };
     });
+  }
+
+  async function saveBuilderDraft() {
+    if (!useSupabaseBuilderState) {
+      setBuilderSaveMessage(`Draft staged for ${getLocalCampaignName(encounterCampaignId)}.`);
+      return true;
+    }
+
+    setBuilderLoading(true);
+    setBuilderError(null);
+    setBuilderSaveMessage("Saving draft...");
+
+    const result = await saveBuilderEncounterState({
+      campaignId:
+        encounterCampaignId &&
+        encounterCampaignId !== "unassigned" &&
+        isUuid(encounterCampaignId)
+          ? encounterCampaignId
+          : null,
+      combatGroups,
+      encounter,
+    });
+
+    if (result.error || !result.data) {
+      const message = result.error ?? "Could not save Builder draft.";
+      setBuilderError(message);
+      setBuilderSaveMessage(`Save failed: ${message}`);
+      setBuilderLoading(false);
+      return false;
+    }
+
+    applyLoadedEncounterState(result.data);
+    setBuilderEncounterId(result.data.encounter.id);
+    setRunnerEncounterId(result.data.encounter.id);
+    setBuilderSaveMessage("Saved draft.");
+    setBuilderLoading(false);
+    return true;
   }
 
   const reloadCreatureLibrary = useCallback(async () => {
@@ -723,7 +813,7 @@ export function EncounterApp() {
       };
     });
 
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void updateWaveDeployment(waveId, true).then((result) =>
         noteRunnerSaveError(result.error),
       );
@@ -758,7 +848,7 @@ export function EncounterApp() {
       ),
     }));
 
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void updateRunnerCombatGroup(groupId, { name: newLabel }).then((result) =>
         noteRunnerSaveError(result.error),
       );
@@ -780,7 +870,7 @@ export function EncounterApp() {
       ),
     }));
 
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void updateRunnerCombatGroup(groupId, { colorKey: color }).then((result) =>
         noteRunnerSaveError(result.error),
       );
@@ -790,7 +880,7 @@ export function EncounterApp() {
   function clearCombatGroup(groupId: string) {
     unassignCombatGroupMembers(groupId);
 
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void clearRunnerCombatGroup(groupId).then((result) =>
         noteRunnerSaveError(result.error),
       );
@@ -801,7 +891,7 @@ export function EncounterApp() {
     setCombatGroups((current) => current.filter((group) => group.id !== groupId));
     unassignCombatGroupMembers(groupId);
 
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void removeRunnerCombatGroup(groupId).then((result) =>
         noteRunnerSaveError(result.error),
       );
@@ -831,7 +921,7 @@ export function EncounterApp() {
     name: string;
     color: string;
   }) {
-    if (useSupabaseRunnerState) {
+    if (useSupabaseRunnerState && activeView === "runner") {
       void createRunnerCombatGroup(encounter.id, {
         colorKey: color,
         name,
@@ -915,9 +1005,18 @@ export function EncounterApp() {
     }
   }
 
-  function launchRunner(encounterId?: string) {
+  async function launchRunner(encounterId?: string) {
     if (encounterId) {
       setRunnerEncounterId(encounterId);
+      setBuilderEncounterId(encounterId);
+    }
+
+    if (useSupabaseBuilderState && activeView === "builder") {
+      const saved = await saveBuilderDraft();
+
+      if (!saved) {
+        return;
+      }
     }
 
     setEncounter((current) => ({
@@ -932,7 +1031,12 @@ export function EncounterApp() {
     setActiveView("runner");
   }
 
-  function openBuilder() {
+  function openBuilder(encounterId?: string) {
+    if (encounterId) {
+      setBuilderEncounterId(encounterId);
+      setRunnerEncounterId(encounterId);
+    }
+
     setActiveView("builder");
   }
 
@@ -1300,7 +1404,14 @@ export function EncounterApp() {
       authModeLabel={authRequired ? "Signed in beta" : "Local demo mode"}
       userEmail={session?.user.email}
       onSignOut={authRequired ? handleSignOut : undefined}
-      onViewChange={(view) => (view === "runner" ? launchRunner() : setActiveView(view))}
+      onViewChange={(view) => {
+        if (view === "runner") {
+          void launchRunner();
+          return;
+        }
+
+        setActiveView(view);
+      }}
     >
       {activeView === "encounters" ? (
         <SavedEncountersDashboard
@@ -1310,12 +1421,44 @@ export function EncounterApp() {
         />
       ) : null}
 
-      {activeView === "builder" ? (
+      {activeView === "builder" && useSupabaseBuilderState && !builderEncounterId ? (
+        <RunnerStateNotice
+          detail="Create or open an encounter from the Encounters dashboard before saving a signed-in Builder draft."
+          title="No encounter selected"
+        />
+      ) : null}
+
+      {activeView === "builder" && builderLoading && builderEncounterId ? (
+        <RunnerStateNotice
+          detail="Loading encounter metadata, roster snapshots, combat groups, and waves."
+          title="Loading Builder draft..."
+        />
+      ) : null}
+
+      {activeView === "builder" && builderError && builderEncounterId ? (
+        <RunnerStateNotice
+          actionLabel="Try again"
+          detail={builderError}
+          title="Could not load Builder draft"
+          onAction={() => {
+            if (builderEncounterId) {
+              void loadBuilderEncounter(builderEncounterId);
+            }
+          }}
+        />
+      ) : null}
+
+      {activeView === "builder" &&
+      (!useSupabaseBuilderState || builderEncounterId) &&
+      !builderLoading &&
+      !builderError ? (
         <EncounterBuilder
           campaignId={encounterCampaignId}
           combatGroups={combatGroups}
           combatants={encounter.combatants}
           encounterName={encounter.name}
+          isSaving={builderLoading}
+          saveMessage={builderSaveMessage || builderError || ""}
           templates={creatureTemplates}
           waves={encounter.waves}
           onCampaignChange={setEncounterCampaignId}
@@ -1328,7 +1471,8 @@ export function EncounterApp() {
           onDeleteWave={deleteWave}
           onAdd={addCombatants}
           onDuplicate={duplicateCombatant}
-          onLaunchRunner={launchRunner}
+          onLaunchRunner={() => void launchRunner()}
+          onSaveDraft={saveBuilderDraft}
           onRemove={removeCombatant}
           onUpdate={patchCombatant}
           onUpdateWave={updateWave}
@@ -1461,6 +1605,24 @@ function createLocalCombatGroupId(name: string, color?: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function getLocalCampaignName(campaignId: string) {
+  const names: Record<string, string> = {
+    "ash-gate": "Ash Gate",
+    "lantern-road": "The Lantern Road",
+    "moonwell-vale": "Moonwell Vale",
+    "violet-keg-cellars": "Violet Keg Cellars",
+    unassigned: "Unassigned / No Campaign",
+  };
+
+  return names[campaignId] ?? "selected campaign";
 }
 
 function RunnerStateNotice({

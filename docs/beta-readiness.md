@@ -25,7 +25,7 @@ beta deployment. It is intentionally conservative.
 | Saved Encounters dashboard | Signed-in metadata persistence started, including campaign management and encounter metadata editing. |
 | Creature Library | Signed-in `creature_templates` persistence started. |
 | Importer paste saves | Reviewed pasted imports save to signed-in Library. |
-| Builder | Still not fully save/load wired to Supabase. |
+| Builder | Save/load draft flow started for selected encounters. |
 | Runner | First-pass live-state persistence started. |
 | SRD import | Hidden by default; still experimental behind feature flag. |
 | Local demo fallback | Preserved when Supabase env vars are missing or demo flag is true. |
@@ -64,6 +64,8 @@ the feature flag is turned on locally.
 - [ ] Campaigns can be created, renamed, archived, and used as dashboard filters.
 - [ ] Encounter name and metadata can be edited from the dashboard.
 - [ ] Builder renders.
+- [ ] Builder Save Draft saves roster, groups, waves, and initiative rows.
+- [ ] Launch Runner from Builder shows the saved built encounter.
 - [ ] Runner renders.
 - [ ] Creature Library renders.
 - [ ] Importer renders.
@@ -88,7 +90,7 @@ the feature flag is turned on locally.
 
 ## Known Limitations
 
-- Builder save/load is still in progress.
+- Builder save/load is first-pass and action-based through Save Draft / Launch Runner.
 - Builder header campaign/name editing is still local/prototype-oriented; the
   dashboard edit form is the current reliable metadata editor.
 - Runner persistence is first-pass and action-based.
@@ -99,6 +101,39 @@ the feature flag is turned on locally.
 - No payments, subscriptions, or donations are implemented.
 - No official copyrighted non-SRD D&D monster data is bundled.
 - Beta users should use their own/imported content.
+
+## Save and Run Encounter Flow Audit
+
+Current status after the beta-critical wiring pass:
+
+- Signed-in users can create a saved encounter row from the dashboard.
+- Create New Encounter opens the Builder for that saved encounter id.
+- Open Builder from the dashboard loads the selected encounter metadata,
+  combatants, combat groups, waves, and initiative entries.
+- Builder uses the signed-in user's Creature Library templates.
+- Builder Save Draft writes the current roster as `encounter_combatants`
+  snapshots.
+- Builder Save Draft writes combat groups to `combat_groups`.
+- Builder Save Draft writes wave tabs to `encounter_waves` and combatant wave
+  assignment to `encounter_combatants.wave_id`.
+- Builder Save Draft creates normal `initiative_entries` rows for saved
+  combatants.
+- Builder Save Draft creates one synthetic Lair Actions row if a saved
+  combatant has lair actions.
+- Launch Runner saves the Builder draft before navigating.
+- Runner loads the selected saved encounter id instead of unrelated sample data.
+- Runner persists HP, initiative, conditions, spell effects in snapshot
+  metadata, group changes, round/turn, selected row, wave deployment, and Lair
+  Action row overrides through the existing Runner query helpers.
+
+Remaining limitations:
+
+- Builder save is action-based; it is not a background collaborative sync.
+- Builder inline encounter name editing is still deferred. Use dashboard Edit
+  Encounter for metadata changes.
+- Runner add/remove combatant persistence is still deferred.
+- Local Supabase migration validation could not run on this machine because
+  Docker Desktop/local Supabase is unavailable.
 
 ## References
 

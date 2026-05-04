@@ -8,6 +8,11 @@ persistence. Opening a saved encounter in the Runner loads encounter metadata,
 combatants, combat groups, initiative entries, and waves from Supabase. Local
 Demo Mode keeps the existing local/session behavior and makes no database calls.
 
+The beta-critical Builder-to-Runner path is now wired: Launch Runner from the
+Builder saves the current draft first, then opens the Runner for that selected
+encounter id. The Runner should no longer show unrelated sample combatants in
+signed-in mode when a saved encounter was selected from the dashboard or Builder.
+
 ## Supabase Runner Persistence
 
 The Runner uses action-based saves rather than background sync. The UI updates
@@ -35,6 +40,10 @@ Normal combatant rows are mirrored through `initiative_entries` when present.
 On Runner load, the app creates missing combatant initiative rows and one missing
 synthetic Lair Action row when safe. This prevents duplicate Lair Action rows
 while allowing a saved combat to resume.
+
+Builder Save Draft also creates initiative rows for saved combatants, so the
+Runner usually receives ready tracker rows. Runner load remains defensive and
+can create missing rows if needed.
 
 Synthetic Lair Action rows remain separate from their source monster:
 
@@ -126,3 +135,7 @@ This pass intentionally does not include:
 - custom initiative rows beyond Lair Actions
 - combat log persistence
 - External scraping or fetching.
+
+Builder save/load persistence is now started and covers the beta-critical
+draft-to-run flow. Runner add/remove combatant persistence remains a later
+follow-up; add combatants in Builder and save/launch again for now.
