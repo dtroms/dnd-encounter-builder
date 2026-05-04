@@ -84,8 +84,8 @@ Creature Library persistence has also started for signed-in users:
   `NEXT_PUBLIC_USE_DEMO_DATA=true`
 
 Builder can see the currently loaded signed-in creature list because it already
-uses the shared in-session Library state. Builder encounter persistence and
-Runner runtime persistence are still future steps.
+uses the shared in-session Library state. Builder encounter persistence is still
+a future step.
 
 Importer paste-save persistence has started for signed-in users:
 
@@ -102,6 +102,21 @@ SRD import tools remain hidden from normal beta UI unless
 `NEXT_PUBLIC_ENABLE_SRD_IMPORT=true`. If enabled locally, Ready SRD records use
 the same Library save path; invalid, needs-review, and duplicate records remain
 skipped.
+
+Runner live-state persistence has started for signed-in users:
+
+- saved encounter Runner state can load combatants, groups, waves, and
+  initiative entries from Supabase
+- HP, initiative, display name, conditions, active turn, selected row, combat
+  groups, and wave deployment save through action-based updates
+- synthetic Lair Action row name and initiative overrides save on
+  `initiative_entries`
+- spell effects currently persist in combatant `snapshot_metadata.spellEffects`
+  because there is no dedicated spell effects column yet
+- local demo mode still uses local/session Runner state only
+
+Still not wired: full Builder save/load, Runner add/remove combatant
+persistence, combat log persistence, and richer spell effect duration tracking.
 
 ## RLS Validation Gate
 

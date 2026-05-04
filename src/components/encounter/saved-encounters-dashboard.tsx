@@ -196,8 +196,8 @@ export function SavedEncountersDashboard({
   useSupabaseData = false,
 }: {
   onCreateNew: () => void;
-  onOpenBuilder: () => void;
-  onOpenRunner: () => void;
+  onOpenBuilder: (encounterId?: string) => void;
+  onOpenRunner: (encounterId?: string) => void;
   useSupabaseData?: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -568,8 +568,8 @@ export function SavedEncountersDashboard({
             onArchiveConfirm={() => archiveEncounter(selectedEncounter)}
             onDuplicate={() => duplicateEncounter(selectedEncounter)}
             isBusy={isMutating}
-            onOpenBuilder={onOpenBuilder}
-            onOpenRunner={onOpenRunner}
+            onOpenBuilder={() => onOpenBuilder(selectedEncounter.id)}
+            onOpenRunner={() => onOpenRunner(selectedEncounter.id)}
           />
         ) : (
           <EmptyDetailPanel />

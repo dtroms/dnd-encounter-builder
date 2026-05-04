@@ -318,6 +318,8 @@ function normalizeImportMethod(
 export function encounterCombatantRecordToEncounterCombatant(
   record: EncounterCombatantRecord,
 ): EncounterCombatant {
+  const metadata = record.snapshot_metadata as Record<string, unknown>;
+
   return {
     id: record.creature_template_id ?? record.id,
     combatantId: record.id,
@@ -347,12 +349,12 @@ export function encounterCombatantRecordToEncounterCombatant(
     notes: record.notes ?? undefined,
     tags: record.tags,
     accentColor: "Gray",
-    combatGroupId: undefined,
-    combatGroupLabel: undefined,
-    combatGroupColor: undefined,
+    combatGroupId: record.combat_group_id ?? undefined,
+    combatGroupLabel: readMetadataString(metadata, "combatGroupLabel"),
+    combatGroupColor: readMetadataString(metadata, "combatGroupColor"),
     autoRollEligible: record.combatant_type !== "pc",
     conditions: record.conditions,
-    spellEffects: [],
+    spellEffects: readStringArray(metadata.spellEffects),
     waveId: record.wave_id ?? undefined,
   };
 }
@@ -398,6 +400,7 @@ export function encounterCombatantToRecordInput(
     snapshot_metadata: {
       combatGroupLabel: combatant.combatGroupLabel ?? "",
       combatGroupColor: combatant.combatGroupColor ?? "None",
+      spellEffects: combatant.spellEffects ?? [],
     },
   };
 }

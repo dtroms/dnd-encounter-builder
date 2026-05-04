@@ -32,6 +32,7 @@ type EncounterRunnerProps = {
   round: number;
   turnNumber: number;
   runnerFilter: RunnerFilter;
+  saveMessage?: string;
   addPanelOpen: boolean;
   onAdd: (template: CreatureTemplate, count: number) => void;
   onDeployWave: (waveId: string) => void;
@@ -94,6 +95,7 @@ export function EncounterRunner({
   round,
   turnNumber,
   runnerFilter,
+  saveMessage,
   addPanelOpen,
   onAdd,
   onDeployWave,
@@ -150,6 +152,12 @@ export function EncounterRunner({
 
       {addPanelOpen ? (
         <AddCombatantPanel compact templates={templates} onAdd={onAdd} />
+      ) : null}
+
+      {saveMessage ? (
+        <p className="rounded-lg border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-sm font-bold text-amber-50">
+          {saveMessage}
+        </p>
       ) : null}
 
       <div className="grid gap-2.5 xl:grid-cols-[20rem_minmax(0,0.95fr)_34rem]">

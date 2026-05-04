@@ -306,10 +306,16 @@ Important runtime fields:
 - `notes`
 - `is_active`
 - `combat_group_id`
+- `snapshot_metadata.spellEffects` for the current beta pass
 
 This lets the Runner save and resume combat.
 
 `initiative_entries` may also store row-level initiative state. For normal combatants, the app can mirror or derive the tracker row from `encounter_combatants`. For synthetic/custom rows, `initiative_entries` is the source of the row display name and initiative.
+
+The first Runner persistence pass stores spell effects in `snapshot_metadata`
+instead of mixing them into standard conditions. A future migration can add a
+dedicated `spell_effects` JSONB column or child table if custom durations,
+concentration links, or reminders become important.
 
 ## How Conditions Work
 
