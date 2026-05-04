@@ -5,8 +5,12 @@ import type {
   StatBlockTrait,
 } from "./types";
 import type {
+  SavedEncounterSummary,
+} from "./dashboard-sample-data";
+import type {
   CreatureTemplateRecord,
   CreatureTemplateRecordInput,
+  EncounterRecord,
   EncounterCombatantRecord,
   EncounterCombatantRecordInput,
   InitiativeEntryRecord,
@@ -21,6 +25,64 @@ const defaultAbilityScores = {
   wis: 10,
   cha: 10,
 };
+
+const dashboardAccentColors = [
+  "Blue",
+  "Green",
+  "Red",
+  "Gold",
+  "Purple",
+  "Gray",
+  "Cyan",
+  "Magenta",
+] as const;
+
+type DashboardAccentColor = (typeof dashboardAccentColors)[number];
+
+function normalizeDashboardAccentColor(
+  value: string | null,
+): DashboardAccentColor {
+  return dashboardAccentColors.find((color) => color === value) ?? "Cyan";
+}
+
+function defaultDashboardText(value: string | null, fallback: string) {
+  return value?.trim() || fallback;
+}
+
+export function encounterRecordToSavedEncounterSummary(
+  record: EncounterRecord,
+): SavedEncounterSummary {
+  return {
+    accent_color: normalizeDashboardAccentColor(record.accent_color),
+    boss_count_snapshot: record.boss_count_snapshot ?? 0,
+    campaign_id: "unassigned",
+    campaign_name: "Unassigned",
+    combatant_count_snapshot: record.combatant_count_snapshot ?? 0,
+    combatants_preview: [],
+    current_round: record.current_round,
+    current_turn_index: record.current_turn_index,
+    description: defaultDashboardText(
+      record.description,
+      "No description saved yet.",
+    ),
+    difficulty_label: defaultDashboardText(record.difficulty_label, "Unrated"),
+    estimated_difficulty: defaultDashboardText(
+      record.estimated_difficulty,
+      record.difficulty_label ?? "Unrated",
+    ),
+    group_count: 0,
+    has_lair_actions_snapshot: record.has_lair_actions_snapshot,
+    id: record.id,
+    last_played_at: record.last_played_at,
+    location: defaultDashboardText(record.location, "No location set"),
+    name: record.name,
+    notes: record.notes ?? undefined,
+    party_level: record.party_level ?? 1,
+    party_size: record.party_size ?? 4,
+    status: record.status,
+    updated_at: record.updated_at,
+  };
+}
 
 function mapActions(actions: StatBlockAction[] | undefined) {
   return actions ?? [];

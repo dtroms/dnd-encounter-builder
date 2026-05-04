@@ -33,6 +33,7 @@ import {
 import { applyDamage, applyHealing } from "@/lib/encounter/hp";
 import {
   getCurrentSession,
+  isLocalDemoModeEnabled,
   isSupabaseConfigured,
   onAuthStateChange,
   signOut,
@@ -86,7 +87,9 @@ function buildInitialCombatGroups(combatants: EncounterCombatant[]): CombatGroup
 
 export function EncounterApp() {
   const supabaseConfigured = isSupabaseConfigured();
-  const [authLoading, setAuthLoading] = useState(supabaseConfigured);
+  const localDemoModeEnabled = isLocalDemoModeEnabled();
+  const authRequired = supabaseConfigured && !localDemoModeEnabled;
+  const [authLoading, setAuthLoading] = useState(authRequired);
   const [session, setSession] = useState<Session | null>(null);
   const [activeView, setActiveView] = useState<EncounterView>("encounters");
   const [encounterCampaignId, setEncounterCampaignId] =
@@ -117,7 +120,7 @@ export function EncounterApp() {
   });
 
   useEffect(() => {
-    if (!supabaseConfigured) {
+    if (!authRequired) {
       return;
     }
 
@@ -149,7 +152,7 @@ export function EncounterApp() {
       active = false;
       unsubscribe();
     };
-  }, [supabaseConfigured]);
+  }, [authRequired]);
 
   const deployedCombatants = useMemo(
     () => getDeployedCombatants(encounter.combatants, encounter.waves),
@@ -730,7 +733,7 @@ export function EncounterApp() {
     );
   }
 
-  if (supabaseConfigured && !session) {
+  if (authRequired && !session) {
     return <AuthScreen />;
   }
 
@@ -741,13 +744,14 @@ export function EncounterApp() {
       combatantCount={encounter.combatants.length}
       encounterName={encounter.name}
       round={encounter.round}
-      authModeLabel={supabaseConfigured ? "Signed in beta" : "Local demo mode"}
+      authModeLabel={authRequired ? "Signed in beta" : "Local demo mode"}
       userEmail={session?.user.email}
-      onSignOut={supabaseConfigured ? handleSignOut : undefined}
+      onSignOut={authRequired ? handleSignOut : undefined}
       onViewChange={(view) => (view === "runner" ? launchRunner() : setActiveView(view))}
     >
       {activeView === "encounters" ? (
         <SavedEncountersDashboard
+          useSupabaseData={Boolean(authRequired && session)}
           onCreateNew={openBuilder}
           onOpenBuilder={openBuilder}
           onOpenRunner={launchRunner}

@@ -58,6 +58,21 @@ isolation are stable.
 - Local Demo Mode remains a local/session experience and is not production user
   storage.
 
+## Persistence Progress
+
+Saved Encounters metadata persistence has started for signed-in users:
+
+- the dashboard can fetch the current user's `encounters`
+- the dashboard can create a draft encounter shell
+- the dashboard can duplicate encounter metadata
+- the dashboard can archive an encounter row
+- local demo/mock behavior remains available when Supabase is not configured or
+  `NEXT_PUBLIC_USE_DEMO_DATA=true`
+
+Builder, Runner, Creature Library, and Importer data are still local/session
+state. Opening a database-backed encounter into Builder/Runner and wiring child
+tables is the next persistence step.
+
 ## RLS Validation Gate
 
 RLS validation must pass before wiring app data persistence.

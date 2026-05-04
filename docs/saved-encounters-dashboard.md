@@ -2,7 +2,13 @@
 
 The Saved Encounters Dashboard is now planned as a main app section and the app's starting view.
 
-This pass adds a UI shell only. It uses local mock data shaped like the `encounters` table and the validated seed data. It does not read from Supabase, create database rows, add auth, add RLS, or replace the current local Encounter Builder and Runner state.
+The dashboard now has first-pass Supabase metadata persistence for signed-in
+beta users. When Supabase is configured and the user is signed in, it reads and
+manages rows from the `encounters` table. When Supabase is not configured, the
+dashboard keeps using local mock/demo data.
+
+This pass only wires Saved Encounter metadata. It does not load full combatants,
+groups, waves, or initiative state into Builder or Runner yet.
 
 ## Current Master-Detail Dashboard
 
@@ -114,11 +120,31 @@ Notes answers: `What should I remember about this encounter?`
 
 It shows the encounter note text and local mock reminders such as lair timing, reinforcements, or boss behavior. These notes are original/custom sample content only.
 
-## Local Data Only
+## Supabase Metadata Mode
 
-Search, status filtering, sorting, selected encounter state, tabs, notes, reminders, and combatant previews are local React/mock-data behavior only.
+When signed in with Supabase configured, the dashboard:
 
-The dashboard still uses local mock data only. It does not read from Supabase, write to Supabase, add auth, add RLS, or connect saved encounters to persistent storage yet.
+- fetches the signed-in user's encounter rows through RLS
+- maps `encounters` rows into the dashboard card/detail view
+- creates a new draft encounter shell
+- duplicates encounter metadata into a new draft row
+- archives an encounter by setting `status = 'archived'`
+- keeps search, status filtering, and sorting in the client UI
+
+Database reads and writes are limited to the `encounters` table in this pass.
+The app does not fetch child combatants, combat groups, waves, initiative rows,
+or logs for the dashboard yet.
+
+The dashboard shows loading, empty, and safe error states around Supabase calls.
+
+## Local Demo Fallback
+
+When Supabase env vars are missing, or `NEXT_PUBLIC_USE_DEMO_DATA=true`, the
+dashboard keeps using local mock data.
+Search, status filtering, sorting, selected encounter state, tabs, notes,
+reminders, duplicate, and archive continue to work in local/session state.
+
+This fallback keeps development and tabletop demos usable without a database.
 
 ## Future Database Wiring
 
@@ -140,20 +166,21 @@ Group count can be derived from `combat_groups` for each encounter or stored as 
 
 Future campaign support may need either campaign fields on `encounters` or a separate `campaigns` table with encounter records linked by `campaign_id`. That database decision is only noted here; no schema changes are made in this dashboard UI pass.
 
-## Local Actions
+## Actions
 
-Duplicate and Archive now work in local/session state only.
+Duplicate and Archive work in local/session state for demo mode and against
+Supabase encounter rows for signed-in users.
 
-- Duplicate creates a local copy, marks it Draft, updates the timestamp, clears
-  last played, copies combatant previews/notes/reminders, and selects the copy.
-- Archive asks for confirmation, changes status to Archived, updates the
-  timestamp, and keeps the encounter in the local list.
+- Create New Encounter creates a draft encounter shell in Supabase when signed
+  in. It does not create combatants or groups yet.
+- Duplicate creates a metadata-only copy, marks it Draft, clears last played,
+  and selects the copy. Deep-copying combatants/groups/waves comes later.
+- Archive asks for confirmation, changes status to Archived, and keeps the
+  encounter in the list.
 
 Archive is not a permanent delete. Archived encounters remain visible in All or
 Archived filters.
 
-These actions are not persisted to Supabase yet. Refreshing the app restores the
-original mock data.
-
-Future persistent wiring should duplicate or archive real `encounters` and child
-rows through the database after auth/RLS rules exist.
+Open Builder and Open Runner still navigate to the current local prototype
+state. Loading a selected database encounter into Builder/Runner is the next
+data-wiring step.

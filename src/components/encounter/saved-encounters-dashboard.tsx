@@ -1,12 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { EncounterStatus } from "@/lib/encounter/db-types";
 import {
   savedEncounterSamples,
   type DashboardCombatantPreview,
   type SavedEncounterSummary,
 } from "@/lib/encounter/dashboard-sample-data";
+import {
+  archiveEncounter as archiveSavedEncounter,
+  createEncounterShell,
+  duplicateEncounter as duplicateSavedEncounter,
+  fetchSavedEncounters,
+} from "@/lib/encounter/encounter-queries";
+import { encounterRecordToSavedEncounterSummary } from "@/lib/encounter/mappers";
 import type { CombatantType } from "@/lib/encounter/types";
 
 type StatusFilter = EncounterStatus | "all";
@@ -186,10 +193,12 @@ export function SavedEncountersDashboard({
   onCreateNew,
   onOpenBuilder,
   onOpenRunner,
+  useSupabaseData = false,
 }: {
   onCreateNew: () => void;
   onOpenBuilder: () => void;
   onOpenRunner: () => void;
+  useSupabaseData?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [campaignFilter, setCampaignFilter] = useState<CampaignFilter>("all");
@@ -200,9 +209,79 @@ export function SavedEncountersDashboard({
     savedEncounterSamples,
   );
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(useSupabaseData);
+  const [isMutating, setIsMutating] = useState(false);
   const [selectedEncounterId, setSelectedEncounterId] = useState(
     savedEncounterSamples[0]?.id ?? "",
   );
+
+  useEffect(() => {
+    if (!useSupabaseData) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadEncounters() {
+      setIsLoading(true);
+      setDashboardError(null);
+
+      const result = await fetchSavedEncounters();
+
+      if (!active) {
+        return;
+      }
+
+      if (result.error || !result.data) {
+        setDashboardError(result.error ?? "Could not load saved encounters.");
+        setEncounters([]);
+        setSelectedEncounterId("");
+      } else {
+        const summaries = result.data.map(encounterRecordToSavedEncounterSummary);
+        setEncounters(summaries);
+        setSelectedEncounterId((current) =>
+          summaries.some((encounter) => encounter.id === current)
+            ? current
+            : summaries[0]?.id ?? "",
+        );
+      }
+
+      setIsLoading(false);
+    }
+
+    void loadEncounters();
+
+    return () => {
+      active = false;
+    };
+  }, [useSupabaseData]);
+
+  async function reloadSupabaseEncounters() {
+    if (!useSupabaseData) {
+      return;
+    }
+
+    setIsLoading(true);
+    setDashboardError(null);
+
+    const result = await fetchSavedEncounters();
+
+    if (result.error || !result.data) {
+      setDashboardError(result.error ?? "Could not load saved encounters.");
+      setIsLoading(false);
+      return;
+    }
+
+    const summaries = result.data.map(encounterRecordToSavedEncounterSummary);
+    setEncounters(summaries);
+    setSelectedEncounterId((current) =>
+      summaries.some((encounter) => encounter.id === current)
+        ? current
+        : summaries[0]?.id ?? "",
+    );
+    setIsLoading(false);
+  }
 
   const visibleEncounters = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -249,7 +328,52 @@ export function SavedEncountersDashboard({
     visibleEncounters[0] ??
     null;
 
-  function duplicateEncounter(encounter: SavedEncounterSummary) {
+  async function handleCreateNew() {
+    if (!useSupabaseData) {
+      onCreateNew();
+      return;
+    }
+
+    setIsMutating(true);
+    setDashboardError(null);
+
+    const result = await createEncounterShell();
+
+    if (result.error || !result.data) {
+      setDashboardError(result.error ?? "Could not create encounter.");
+    } else {
+      const summary = encounterRecordToSavedEncounterSummary(result.data);
+      setEncounters((current) => [summary, ...current]);
+      setSelectedEncounterId(summary.id);
+      setStatusFilter((current) => (current === "archived" ? "all" : current));
+      setActiveDetailTab("overview");
+    }
+
+    setIsMutating(false);
+  }
+
+  async function duplicateEncounter(encounter: SavedEncounterSummary) {
+    if (useSupabaseData) {
+      setIsMutating(true);
+      setDashboardError(null);
+
+      const result = await duplicateSavedEncounter(encounter.id);
+
+      if (result.error || !result.data) {
+        setDashboardError(result.error ?? "Could not duplicate encounter.");
+      } else {
+        const copy = encounterRecordToSavedEncounterSummary(result.data);
+        setEncounters((current) => [copy, ...current]);
+        setSelectedEncounterId(copy.id);
+        setStatusFilter((current) => (current === "archived" ? "all" : current));
+        setActiveDetailTab("overview");
+        setArchiveConfirmId(null);
+      }
+
+      setIsMutating(false);
+      return;
+    }
+
     const now = new Date().toISOString();
     const copy: SavedEncounterSummary = {
       ...encounter,
@@ -274,7 +398,27 @@ export function SavedEncountersDashboard({
     setArchiveConfirmId(null);
   }
 
-  function archiveEncounter(encounter: SavedEncounterSummary) {
+  async function archiveEncounter(encounter: SavedEncounterSummary) {
+    if (useSupabaseData) {
+      setIsMutating(true);
+      setDashboardError(null);
+
+      const result = await archiveSavedEncounter(encounter.id);
+
+      if (result.error || !result.data) {
+        setDashboardError(result.error ?? "Could not archive encounter.");
+      } else {
+        const archived = encounterRecordToSavedEncounterSummary(result.data);
+        setEncounters((current) =>
+          current.map((item) => (item.id === archived.id ? archived : item)),
+        );
+        setArchiveConfirmId(null);
+      }
+
+      setIsMutating(false);
+      return;
+    }
+
     const now = new Date().toISOString();
 
     setEncounters((current) =>
@@ -298,15 +442,18 @@ export function SavedEncountersDashboard({
           <div>
             <h2 className="text-2xl font-black text-white">Saved Encounters</h2>
             <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-400">
-              Choose an encounter to run, edit, or review.
+              {useSupabaseData
+                ? "Signed-in encounter metadata is saved to Supabase. Builder and Runner still use the local prototype state for now."
+                : "Choose an encounter to run, edit, or review."}
             </p>
           </div>
           <button
-            className="rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.18)] transition hover:bg-cyan-200"
+            className="rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-black text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.18)] transition hover:bg-cyan-200 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-300"
+            disabled={isMutating}
             type="button"
-            onClick={onCreateNew}
+            onClick={handleCreateNew}
           >
-            Create New Encounter
+            {isMutating ? "Working..." : "Create New Encounter"}
           </button>
         </div>
       </div>
@@ -332,6 +479,13 @@ export function SavedEncountersDashboard({
         onStatusFilterChange={setStatusFilter}
       />
 
+      {dashboardError ? (
+        <DashboardErrorState
+          error={dashboardError}
+          onRetry={useSupabaseData ? reloadSupabaseEncounters : undefined}
+        />
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.37fr)_minmax(0,0.63fr)]">
         <aside className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
           <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -348,6 +502,17 @@ export function SavedEncountersDashboard({
             </span>
           </div>
 
+          {isLoading ? (
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/55 p-6 text-center">
+              <p className="text-sm font-black text-slate-200">
+                Loading saved encounters...
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                Pulling your encounter metadata from Supabase.
+              </p>
+            </div>
+          ) : null}
+
           <div className="mt-2 grid gap-2">
             {visibleEncounters.map((encounter) => (
               <EncounterListItem
@@ -362,23 +527,31 @@ export function SavedEncountersDashboard({
             ))}
           </div>
 
-          {visibleEncounters.length === 0 ? (
+          {!isLoading && visibleEncounters.length === 0 ? (
             <div className="mt-3 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
               <p className="text-sm font-black text-slate-200">
-                No encounters found
+                {encounters.length === 0
+                  ? "No saved encounters yet"
+                  : "No encounters found"}
               </p>
               <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                Clear the search, switch back to All, or create a new encounter.
+                {encounters.length === 0
+                  ? "Create your first encounter to get started."
+                  : "Clear the search, switch back to All, or create a new encounter."}
               </p>
               <button
                 className="mt-3 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-black text-slate-300 transition hover:border-cyan-300/60 hover:text-white"
                 type="button"
-                onClick={() => {
-                  setQuery("");
-                  setStatusFilter("all");
-                }}
+                onClick={
+                  encounters.length === 0
+                    ? handleCreateNew
+                    : () => {
+                        setQuery("");
+                        setStatusFilter("all");
+                      }
+                }
               >
-                Clear Filters
+                {encounters.length === 0 ? "Create New Encounter" : "Clear Filters"}
               </button>
             </div>
           ) : null}
@@ -394,6 +567,7 @@ export function SavedEncountersDashboard({
             onArchiveCancel={() => setArchiveConfirmId(null)}
             onArchiveConfirm={() => archiveEncounter(selectedEncounter)}
             onDuplicate={() => duplicateEncounter(selectedEncounter)}
+            isBusy={isMutating}
             onOpenBuilder={onOpenBuilder}
             onOpenRunner={onOpenRunner}
           />
@@ -582,6 +756,7 @@ function EncounterDetailPanel({
   activeTab,
   archiveConfirmOpen,
   encounter,
+  isBusy,
   onActiveTabChange,
   onArchive,
   onArchiveCancel,
@@ -593,6 +768,7 @@ function EncounterDetailPanel({
   activeTab: DetailTab;
   archiveConfirmOpen: boolean;
   encounter: SavedEncounterSummary;
+  isBusy: boolean;
   onActiveTabChange: (tab: DetailTab) => void;
   onArchive: () => void;
   onArchiveCancel: () => void;
@@ -642,6 +818,7 @@ function EncounterDetailPanel({
 
             <ActionButtons
               encounter={encounter}
+              isBusy={isBusy}
               isRunning={isRunning}
               onArchive={onArchive}
               onDuplicate={onDuplicate}
@@ -673,10 +850,11 @@ function EncounterDetailPanel({
                 </button>
                 <button
                   className="rounded-lg bg-rose-400 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-rose-300"
+                  disabled={isBusy}
                   type="button"
                   onClick={onArchiveConfirm}
                 >
-                  Confirm Archive
+                  {isBusy ? "Archiving..." : "Confirm Archive"}
                 </button>
               </div>
             </div>
@@ -709,8 +887,41 @@ function EmptyDetailPanel() {
   );
 }
 
+function DashboardErrorState({
+  error,
+  onRetry,
+}: {
+  error: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-rose-100">
+            Could not load saved encounters.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-rose-100/75">
+            {error}
+          </p>
+        </div>
+        {onRetry ? (
+          <button
+            className="rounded-lg border border-rose-200/45 bg-slate-950 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-100 hover:text-white"
+            type="button"
+            onClick={onRetry}
+          >
+            Retry
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ActionButtons({
   encounter,
+  isBusy,
   isRunning,
   onArchive,
   onDuplicate,
@@ -718,6 +929,7 @@ function ActionButtons({
   onOpenRunner,
 }: {
   encounter: SavedEncounterSummary;
+  isBusy: boolean;
   isRunning: boolean;
   onArchive: () => void;
   onDuplicate: () => void;
@@ -741,6 +953,7 @@ function ActionButtons({
             ? "bg-cyan-300 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.16)] hover:bg-cyan-200"
             : "border border-cyan-300/45 bg-cyan-300/10 text-cyan-100 hover:border-cyan-200 hover:text-white"
         }`}
+        disabled={isBusy}
         type="button"
         onClick={primaryHandler}
       >
@@ -748,6 +961,7 @@ function ActionButtons({
       </button>
       <button
         className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+        disabled={isBusy}
         type="button"
         onClick={secondaryHandler}
       >
@@ -755,14 +969,15 @@ function ActionButtons({
       </button>
       <button
         className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
+        disabled={isBusy}
         type="button"
         onClick={onDuplicate}
       >
-        Duplicate
+        {isBusy ? "Working..." : "Duplicate"}
       </button>
       <button
         className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-100 transition hover:border-rose-300 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950/60 disabled:text-slate-500"
-        disabled={encounter.status === "archived"}
+        disabled={isBusy || encounter.status === "archived"}
         type="button"
         onClick={onArchive}
       >

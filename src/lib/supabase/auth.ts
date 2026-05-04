@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import {
   getSupabaseBrowserClient,
+  isLocalDemoModeEnabled,
   isSupabaseConfigured,
 } from "./client";
 
@@ -14,7 +15,7 @@ function requireSupabaseClient() {
   return supabase;
 }
 
-export { isSupabaseConfigured };
+export { isLocalDemoModeEnabled, isSupabaseConfigured };
 
 export async function getCurrentSession(): Promise<Session | null> {
   const supabase = getSupabaseBrowserClient();
